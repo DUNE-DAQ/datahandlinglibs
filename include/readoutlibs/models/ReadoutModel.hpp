@@ -40,6 +40,7 @@
 //#include "readoutlibs/readoutconfig/Nljs.hpp"
 #include "readoutlibs/readoutinfo/InfoNljs.hpp"
 
+#include "readoutlibs/DataMoveCallbackRegistry.hpp"
 #include "readoutlibs/FrameErrorRegistry.hpp"
 
 #include "readoutlibs/concepts/LatencyBufferConcept.hpp"
@@ -83,6 +84,7 @@ public:
   // Explicit constructor with run marker pass-through
   explicit ReadoutModel(std::atomic<bool>& run_marker)
     : m_run_marker(run_marker)
+    , m_callback_mode(false)
     , m_fake_trigger(false)
     , m_current_fake_trigger_id(0)
     , m_send_partial_fragment_if_available(false)
@@ -126,6 +128,12 @@ public:
   // Opmon get_info call implementation
   void get_info(opmonlib::InfoCollector& ci, int level);
 
+  // Raw data consume callback
+  void consume_payload(RDT&& payload);
+
+  // Consume callback
+  std::function<void(RDT&&)> m_consume_callback;
+
 protected:
  
   // Raw data consumer's work function
@@ -142,6 +150,7 @@ protected:
 
   // CONFIGURATION
   //appfwk::app::ModInit m_queue_config;
+  bool m_callback_mode;
   bool m_fake_trigger;
   bool m_generate_timesync = false;
   int m_current_fake_trigger_id;
@@ -166,6 +175,7 @@ protected:
   std::chrono::microseconds m_raw_receiver_sleep_us;
   using raw_receiver_ct = iomanager::ReceiverConcept<ReadoutType>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
+  std::string m_raw_data_receiver_connection_name;
 
   // REQUEST RECEIVERS
   using request_receiver_ct = iomanager::ReceiverConcept<dfmessages::DataRequest>;
