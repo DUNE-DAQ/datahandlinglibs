@@ -1,3 +1,4 @@
+#include "readoutlibs/DataMoveCallbackRegistry.hpp"
 #include "readoutlibs/concepts/LatencyBufferConcept.hpp"
 #include "readoutlibs/concepts/RawDataProcessorConcept.hpp"
 #include "readoutlibs/concepts/ReadoutConcept.hpp"
