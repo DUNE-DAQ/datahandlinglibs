@@ -11,15 +11,36 @@ ReadoutModel<RDT, RHT, LBT, RPT>::init(const appdal::ReadoutModule* mcfg)
 {
   // Setup request queues
   //setup_request_queues(mcfg);
-
   try {
     for (auto input : mcfg->get_inputs()) {
       if (input->get_data_type() == "DataRequest") {
         m_data_request_receiver = get_iom_receiver<dfmessages::DataRequest>(input->UID()) ;
       }
       else {
-        m_raw_data_receiver = get_iom_receiver<RDT>(input->UID()); 
-        m_raw_receiver_timeout_ms = std::chrono::milliseconds(input->get_recv_timeout_ms());
+	m_raw_data_receiver_connection_name = input->UID();
+        // Parse for prefix
+        std::string conn_name = input->UID(); 
+        const char delim = '_';
+        std::vector<std::string> words;
+        std::size_t start;
+        std::size_t end = 0;
+        while ((start = conn_name.find_first_not_of(delim, end)) != std::string::npos) {
+          end = conn_name.find(delim, start);
+          words.push_back(conn_name.substr(start, end - start));
+        }
+
+	TLOG_DEBUG(TLVL_WORK_STEPS) << "Initialize connection based on uid: " 
+          << m_raw_data_receiver_connection_name << " front word: " << words.front();
+
+	std::string cb_prefix("cb");
+        if (words.front() == cb_prefix) {
+          m_callback_mode = true;
+        }
+
+        if (!m_callback_mode) {
+	  m_raw_data_receiver = get_iom_receiver<RDT>(m_raw_data_receiver_connection_name);
+          m_raw_receiver_timeout_ms = std::chrono::milliseconds(input->get_recv_timeout_ms());
+        }
       }
     }
     for (auto output : mcfg->get_outputs()) {
@@ -32,6 +53,11 @@ ReadoutModel<RDT, RHT, LBT, RPT>::init(const appdal::ReadoutModule* mcfg)
     }
   } catch (const ers::Issue& excpt) {
     throw ResourceQueueError(ERS_HERE, "raw_input or frag_output", "ReadoutModel", excpt);
+  }
+
+  // Raw input connection sensibility check
+  if (!m_callback_mode && m_raw_data_receiver == nullptr) {
+    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Non callback mode, and receiver is unset!"));
   }
 
   // Instantiate functionalities
@@ -61,14 +87,22 @@ ReadoutModel<RDT, RHT, LBT, RPT>::init(const appdal::ReadoutModule* mcfg)
   }
 
   m_request_handler_impl->conf(mcfg);
-
-
 }
 
 template<class RDT, class RHT, class LBT, class RPT>
 void 
 ReadoutModel<RDT, RHT, LBT, RPT>::conf(const nlohmann::json& /*args*/)
 {
+  // Register callbacks if operating in that mode.
+  if (m_callback_mode) {
+    // Configure and register consume callback
+    m_consume_callback = std::bind(&ReadoutModel<RDT, RHT, LBT, RPT>::consume_payload, this, std::placeholders::_1);
+ 
+    // Register callback
+    auto dmcbr = DataMoveCallbackRegistry::get();
+    dmcbr->register_callback<RDT>(m_raw_data_receiver_connection_name, m_consume_callback);
+  }
+
   // Configure threads:
   m_consumer_thread.set_name("consumer", m_sourceid.id);
   if (m_generate_timesync)
@@ -96,7 +130,9 @@ ReadoutModel<RDT, RHT, LBT, RPT>::start(const nlohmann::json& args)
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Starting threads...";
   m_raw_processor_impl->start(args);
   m_request_handler_impl->start(args);
-  m_consumer_thread.set_work(&ReadoutModel<RDT, RHT, LBT, RPT>::run_consume, this);
+  if (!m_callback_mode) {
+    m_consumer_thread.set_work(&ReadoutModel<RDT, RHT, LBT, RPT>::run_consume, this);
+  }
   if (m_generate_timesync) m_timesync_thread.set_work(&ReadoutModel<RDT, RHT, LBT, RPT>::run_timesync, this);
   // Register callback to receive and dispatch data requests
   m_data_request_receiver->add_callback(
@@ -118,8 +154,10 @@ ReadoutModel<RDT, RHT, LBT, RPT>::stop(const nlohmann::json& args)
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
-  while (!m_consumer_thread.get_readiness()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  if (!m_callback_mode) {
+    while (!m_consumer_thread.get_readiness()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
   }
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Flushing latency buffer with occupancy: " << m_latency_buffer_impl->occupancy();
   m_latency_buffer_impl->flush();
@@ -259,6 +297,35 @@ ReadoutModel<RDT, RHT, LBT, RPT>::run_consume()
     }
   }
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread joins... ";
+}
+
+template<class RDT, class RHT, class LBT, class RPT>
+void
+ReadoutModel<RDT, RHT, LBT, RPT>::consume_payload(RDT&& payload)
+{
+ //m_rawq_timeout_count = 0;
+ //m_num_payloads = 0;
+ //m_sum_payloads = 0;
+ //m_stats_packet_count = 0;
+  m_raw_processor_impl->preprocess_item(&payload);
+  if (m_request_handler_supports_cutoff_timestamp) {
+    int64_t diff1 = payload.get_first_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
+    if (diff1 <= 0) {
+      m_request_handler_impl->increment_tardy_tp_count();
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_first_timestamp(),
+                                            m_request_handler_impl->get_cutoff_timestamp(), diff1,
+                                            (static_cast<double>(diff1)/62500.0)));
+    }
+  }
+  if (!m_latency_buffer_impl->write(std::move(payload))) {
+    TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
+    m_num_payloads_overwritten++;
+  }
+#warning RS FIXME: Post-processing delay feature is not implemented in callback consume!
+  m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
+  ++m_num_payloads;
+  ++m_sum_payloads;
+  ++m_stats_packet_count;
 }
 
 template<class RDT, class RHT, class LBT, class RPT>
