@@ -5,7 +5,7 @@ namespace readoutlibs {
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::conf(const appdal::ReadoutModule* conf)
+DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::ReadoutModule* conf)
 {
   //auto conf = args["requesthandlerconf"].get<readoutconfig::RequestHandlerConf>();
 

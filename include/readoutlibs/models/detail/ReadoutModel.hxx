@@ -7,7 +7,7 @@ namespace readoutlibs {
 
 template<class RDT, class RHT, class LBT, class RPT>
 void 
-ReadoutModel<RDT, RHT, LBT, RPT>::init(const appdal::ReadoutModule* mcfg)
+ReadoutModel<RDT, RHT, LBT, RPT>::init(const appmodel::ReadoutModule* mcfg)
 {
   // Setup request queues
   //setup_request_queues(mcfg);

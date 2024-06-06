@@ -10,10 +10,10 @@
 #define READOUTLIBS_INCLUDE_READOUTLIBS_MODELS_READOUTMODEL_HPP_
 
 //#include "appfwk/app/Nljs.hpp"
-#include "coredal/DaqModule.hpp"
-#include "coredal/Connection.hpp"
-#include "appdal/ReadoutModule.hpp"
-#include "appdal/ReadoutModuleConf.hpp"
+#include "confmodel/DaqModule.hpp"
+#include "confmodel/Connection.hpp"
+#include "appmodel/ReadoutModule.hpp"
+#include "appmodel/ReadoutModuleConf.hpp"
 
 //#include "appfwk/cmd/Nljs.hpp"
 //#include "appfwk/cmd/Structs.hpp"
@@ -36,7 +36,7 @@
 
 #include "readoutlibs/ReadoutLogging.hpp"
 #include "readoutlibs/concepts/ReadoutConcept.hpp"
-#include "appdal/ReadoutModule.hpp"
+#include "appmodel/ReadoutModule.hpp"
 //#include "readoutlibs/readoutconfig/Nljs.hpp"
 #include "readoutlibs/readoutinfo/InfoNljs.hpp"
 
@@ -100,7 +100,7 @@ public:
   }
 
   // Initializes the readoutmodel and its internals
-  void init(const appdal::ReadoutModule* modconf);
+  void init(const appmodel::ReadoutModule* modconf);
 
   // Configures the readoutmodel and its internals
   void conf(const nlohmann::json& args);

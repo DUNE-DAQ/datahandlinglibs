@@ -17,11 +17,11 @@
 #include "readoutlibs/concepts/RawDataProcessorConcept.hpp"
 //#include "readoutlibs/readoutconfig/Nljs.hpp"
 
-#include "coredal/DaqModule.hpp"
-#include "coredal/Connection.hpp"
-#include "appdal/ReadoutModule.hpp"
-#include "appdal/ReadoutModuleConf.hpp"
-#include "appdal/DataProcessor.hpp"
+#include "confmodel/DaqModule.hpp"
+#include "confmodel/Connection.hpp"
+#include "appmodel/ReadoutModule.hpp"
+#include "appmodel/ReadoutModuleConf.hpp"
+#include "appmodel/DataProcessor.hpp"
 
 #include "readoutlibs/utils/ReusableThread.hpp"
 
@@ -54,7 +54,7 @@ public:
   ~TaskRawDataProcessorModel() {}
 
   // Configures the element pointer queue for the post-processors, and the SourceID
-  void conf(const appdal::ReadoutModule* conf) override;
+  void conf(const appmodel::ReadoutModule* conf) override;
 
   // Clears elements to process, pre-proc pipeline, and post-proc functions
   void scrap(const nlohmann::json& /*cfg*/) override;

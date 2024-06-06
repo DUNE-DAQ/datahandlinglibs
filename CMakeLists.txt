@@ -7,8 +7,8 @@ daq_setup_environment()
 
 find_package(ers REQUIRED)
 find_package(appfwk REQUIRED)
-find_package(coredal REQUIRED)
-find_package(appdal REQUIRED)
+find_package(confmodel REQUIRED)
+find_package(appmodel REQUIRED)
 find_package(logging REQUIRED)
 find_package(iomanager REQUIRED)
 find_package(opmonlib REQUIRED)
@@ -31,8 +31,8 @@ set(READOUT_DEPENDENCIES
   logging::logging
 #dunedaq
   appfwk::appfwk
-  coredal::coredal
-  appdal::appdal
+  confmodel::confmodel
+  appmodel::appmodel
   opmonlib::opmonlib
   daqdataformats::daqdataformats
   dfmessages::dfmessages

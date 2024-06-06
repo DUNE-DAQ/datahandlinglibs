@@ -12,7 +12,7 @@
 #include "daqdataformats/Fragment.hpp"
 #include "dfmessages/DataRequest.hpp"
 #include "opmonlib/InfoCollector.hpp"
-#include "appdal/ReadoutModule.hpp"
+#include "appmodel/ReadoutModule.hpp"
 
 #include <map>
 #include <memory>
@@ -38,7 +38,7 @@ public:
   RequestHandlerConcept& operator=(RequestHandlerConcept&&) = delete; ///< RequestHandlerConcept is not move-assignable
 
   //virtual void init(const nlohmann::json& args) = 0;
-  virtual void conf(const appdal::ReadoutModule* conf) = 0;
+  virtual void conf(const appmodel::ReadoutModule* conf) = 0;
   virtual void scrap(const nlohmann::json& args) = 0;
   virtual void start(const nlohmann::json& args) = 0;
   virtual void stop(const nlohmann::json& args) = 0;

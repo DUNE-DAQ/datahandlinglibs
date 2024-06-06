@@ -17,9 +17,9 @@
 
 //#include "readoutlibs/sourceemulatorconfig/Nljs.hpp"
 #include "readoutlibs/sourceemulatorinfo/InfoNljs.hpp"
-#include "coredal/DROStreamConf.hpp"
-#include "coredal/StreamParameters.hpp"
-#include "coredal/GeoId.hpp"
+#include "confmodel/DROStreamConf.hpp"
+#include "confmodel/StreamParameters.hpp"
+#include "confmodel/GeoId.hpp"
 
 #include "readoutlibs/ReadoutIssues.hpp"
 #include "readoutlibs/concepts/SourceEmulatorConcept.hpp"
@@ -93,7 +93,7 @@ public:
   //void init(const nlohmann::json& /*args*/) {}
   void set_sender(const std::string& conn_name);
 
-  void conf(const coredal::DROStreamConf* stream_conf, const appdal::StreamEmulationParameters* emu_conf);
+  void conf(const confmodel::DROStreamConf* stream_conf, const appmodel::StreamEmulationParameters* emu_conf);
   void scrap(const nlohmann::json& /*args*/)
   {
     m_file_source.reset();

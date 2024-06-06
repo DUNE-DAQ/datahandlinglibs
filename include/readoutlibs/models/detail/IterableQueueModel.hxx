@@ -296,7 +296,7 @@ IterableQueueModel<T>::back()
 // Configures the model
 template<class T>
 void 
-IterableQueueModel<T>::conf(const appdal::LatencyBuffer* cfg)
+IterableQueueModel<T>::conf(const appmodel::LatencyBuffer* cfg)
 {
   assert(cfg->get_size() >= 2);
   free_memory();

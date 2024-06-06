@@ -20,10 +20,10 @@
 #include "readoutlibs/utils/BufferedFileWriter.hpp"
 #include "readoutlibs/utils/ReusableThread.hpp"
 
-#include "coredal/DaqModule.hpp"
-#include "coredal/Connection.hpp"
-#include "appdal/DataRecorder.hpp"
-#include "appdal/DataRecorderConf.hpp"
+#include "confmodel/DaqModule.hpp"
+#include "confmodel/Connection.hpp"
+#include "appmodel/DataRecorder.hpp"
+#include "appmodel/DataRecorderConf.hpp"
 #include <atomic>
 #include <fstream>
 #include <iostream>
@@ -42,7 +42,7 @@ public:
     , m_name(name)
   {}
 
-  void init(const appdal::DataRecorder* conf) override;
+  void init(const appmodel::DataRecorder* conf) override;
   void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
   void do_conf(const nlohmann::json& /*args*/) override;
   void do_scrap(const nlohmann::json& /*args*/) override { m_buffered_writer.close(); }

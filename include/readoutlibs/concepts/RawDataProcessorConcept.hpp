@@ -10,7 +10,7 @@
 
 #include "opmonlib/InfoCollector.hpp"
 #include "daqdataformats/SourceID.hpp"
-#include "appdal/ReadoutModule.hpp"
+#include "appmodel/ReadoutModule.hpp"
 
 #include <string>
 #include <nlohmann/json.hpp>
@@ -38,7 +38,7 @@ public:
   //! Stop operation
   virtual void stop(const nlohmann::json& args) = 0;
   //! Set the emulator mode, if active, timestamps of processed packets are overwritten with new ones
-  virtual void conf(const appdal::ReadoutModule* conf) = 0;
+  virtual void conf(const appmodel::ReadoutModule* conf) = 0;
   //! Unconfigure
   virtual void scrap(const nlohmann::json& args) = 0;
   //! Get info from the raw processor

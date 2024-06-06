@@ -227,7 +227,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   T* end_of_buffer() { return &records_[size_]; }
 
   // Configures the model
-  void conf(const appdal::LatencyBuffer* cfg) override;
+  void conf(const appmodel::LatencyBuffer* cfg) override;
 
   // Unconfigures the model
   void scrap(const nlohmann::json& /*cfg*/) override;
