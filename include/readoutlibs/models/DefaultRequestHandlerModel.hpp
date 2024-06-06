@@ -16,13 +16,13 @@
 
 //#include "readoutlibs/readoutconfig/Nljs.hpp"
 #include "readoutlibs/readoutinfo/InfoNljs.hpp"
-#include "coredal/DaqModule.hpp"
-#include "coredal/Connection.hpp"
-#include "appdal/ReadoutModule.hpp"
-#include "appdal/ReadoutModuleConf.hpp"
-#include "appdal/RequestHandler.hpp"
-#include "appdal/LatencyBuffer.hpp"
-#include "appdal/DataRecorderConf.hpp"
+#include "confmodel/DaqModule.hpp"
+#include "confmodel/Connection.hpp"
+#include "appmodel/ReadoutModule.hpp"
+#include "appmodel/ReadoutModuleConf.hpp"
+#include "appmodel/RequestHandler.hpp"
+#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/DataRecorderConf.hpp"
 
 #include "appfwk/Issues.hpp"
 #include "dfmessages/Fragment_serialization.hpp"
@@ -133,7 +133,7 @@ public:
   //void init(const nlohmann::json& /*args*/) override { }
 
   // Default configuration mechanism
-  void conf(const dunedaq::appdal::ReadoutModule*);
+  void conf(const dunedaq::appmodel::ReadoutModule*);
 
   // Default un-configure mechanism
   void scrap(const nlohmann::json& /*args*/) override;

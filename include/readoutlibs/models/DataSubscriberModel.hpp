@@ -17,7 +17,7 @@
 #include "logging/Logging.hpp"
 //#include "readoutlibs/utils/ReusableThread.hpp"
 
-#include "coredal/Connection.hpp"
+#include "confmodel/Connection.hpp"
 
 //#include <folly/ProducerConsumerQueue.h>
 //#include <nlohmann/json.hpp>
@@ -42,7 +42,7 @@ public:
   DataSubscriberModel(): SourceConcept() {}
   ~DataSubscriberModel() {}
 
-  void init(const coredal::DaqModule* cfg) override {
+  void init(const confmodel::DaqModule* cfg) override {
     if (cfg->get_outputs().size() != 1) {
       throw readoutlibs::InitializationError(ERS_HERE, "Only 1 output supported for subscribers");
     }

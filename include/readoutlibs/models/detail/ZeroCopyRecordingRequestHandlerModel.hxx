@@ -6,7 +6,7 @@ namespace readoutlibs {
 // Special configuration that checks LB alignment and O_DIRECT flag on output file
 template<class ReadoutType, class LatencyBufferType>
 void 
-ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const appdal::ReadoutModule* conf)
+ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const appmodel::ReadoutModule* conf)
 {
 
   auto data_rec_conf = conf->get_module_configuration()->get_request_handler()->get_data_recorder();

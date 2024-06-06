@@ -13,7 +13,7 @@
 
 
 #include "appfwk/DAQModule.hpp"
-#include "coredal/DaqModule.hpp"
+#include "confmodel/DaqModule.hpp"
 
 #include <memory>
 #include <sstream>
@@ -33,7 +33,7 @@ public:
   SourceConcept(SourceConcept&&) = delete;                 ///< SourceConcept is not move-constructible
   SourceConcept& operator=(SourceConcept&&) = delete;      ///< SourceConcept is not move-assignable
 
-  virtual void init(const coredal::DaqModule* mcfg) = 0;
+  virtual void init(const confmodel::DaqModule* mcfg) = 0;
   virtual void start() = 0;
   virtual void stop() = 0;
   virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;

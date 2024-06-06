@@ -75,7 +75,7 @@ public:
   };
 
   // Configure
-  void conf(const appdal::LatencyBuffer* /*conf*/) override
+  void conf(const appmodel::LatencyBuffer* /*conf*/) override
   {
     // Reset datastructure
     m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height);
