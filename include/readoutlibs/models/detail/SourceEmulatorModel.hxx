@@ -32,7 +32,7 @@ SourceEmulatorModel<ReadoutType>::set_sender(const std::string& conn_name)
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::conf(const confmodel::DROStreamConf* link_conf, const appmodel::StreamEmulationParameters* emu_params)
+SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_conf, const appmodel::StreamEmulationParameters* emu_params)
 {
   if (m_is_configured) {
     TLOG_DEBUG(TLVL_WORK_STEPS) << "This emulator is already configured!";

@@ -12,7 +12,7 @@
 #include "opmonlib/InfoCollector.hpp"
 
 #include "readoutlibs/utils/RateLimiter.hpp"
-#include "confmodel/DROStreamConf.hpp"
+#include "confmodel/DetectorStream.hpp"
 #include "appmodel/StreamEmulationParameters.hpp"
 
 #include <map>
@@ -36,7 +36,7 @@ public:
 
   //virtual void init(const nlohmann::json& /*args*/) = 0;
   virtual void set_sender(const std::string& /*sink_name*/) = 0;
-  virtual void conf(const confmodel::DROStreamConf* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
+  virtual void conf(const confmodel::DetectorStream* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
   virtual void start(const nlohmann::json& /*args*/) = 0;
   virtual void stop(const nlohmann::json& /*args*/) = 0;
   virtual void scrap(const nlohmann::json& /*args*/) = 0;
