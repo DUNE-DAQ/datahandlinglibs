@@ -19,8 +19,8 @@
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
-#include "appmodel/ReadoutModule.hpp"
-#include "appmodel/ReadoutModuleConf.hpp"
+#include "appmodel/DataHandlerModule.hpp"
+#include "appmodel/DataHandlerConf.hpp"
 #include "appmodel/DataProcessor.hpp"
 
 #include "readoutlibs/utils/ReusableThread.hpp"
@@ -54,7 +54,7 @@ public:
   ~TaskRawDataProcessorModel() {}
 
   // Configures the element pointer queue for the post-processors, and the SourceID
-  void conf(const appmodel::ReadoutModule* conf) override;
+  void conf(const appmodel::DataHandlerModule* conf) override;
 
   // Clears elements to process, pre-proc pipeline, and post-proc functions
   void scrap(const nlohmann::json& /*cfg*/) override;

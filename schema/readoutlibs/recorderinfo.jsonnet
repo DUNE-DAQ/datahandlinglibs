@@ -1,4 +1,4 @@
-// This is the application info schema used by the DataRecorder module.
+// This is the application info schema used by the DataRecorderModule module.
 // It describes the information object structure passed by the application
 // for operational monitoring
 

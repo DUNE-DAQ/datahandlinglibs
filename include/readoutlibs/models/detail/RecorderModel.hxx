@@ -5,7 +5,7 @@ namespace readoutlibs {
 
 template<class ReadoutType>
 void 
-RecorderModel<ReadoutType>::init(const appmodel::DataRecorder* conf)
+RecorderModel<ReadoutType>::init(const appmodel::DataRecorderModule* conf)
 {
   for (auto input : conf->get_inputs()) {
     try {

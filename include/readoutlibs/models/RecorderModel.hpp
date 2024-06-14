@@ -22,7 +22,7 @@
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
-#include "appmodel/DataRecorder.hpp"
+#include "appmodel/DataRecorderModule.hpp"
 #include "appmodel/DataRecorderConf.hpp"
 #include <atomic>
 #include <fstream>
@@ -42,7 +42,7 @@ public:
     , m_name(name)
   {}
 
-  void init(const appmodel::DataRecorder* conf) override;
+  void init(const appmodel::DataRecorderModule* conf) override;
   void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
   void do_conf(const nlohmann::json& /*args*/) override;
   void do_scrap(const nlohmann::json& /*args*/) override { m_buffered_writer.close(); }
