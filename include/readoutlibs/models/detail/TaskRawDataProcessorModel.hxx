@@ -5,7 +5,7 @@ namespace readoutlibs {
 
 template<class ReadoutType>
 void 
-TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::ReadoutModule* conf)
+TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::DataHandlerModule* conf)
 {
   //auto config = cfg["rawdataprocessorconf"].get<readoutconfig::RawDataProcessorConf>();
   //m_emulator_mode = config.emulator_mode;

@@ -10,7 +10,7 @@
 #define READOUTLIBS_INCLUDE_READOUTLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 
 #include "opmonlib/InfoCollector.hpp"
-#include "appmodel/ReadoutModule.hpp"
+#include "appmodel/DataHandlerModule.hpp"
 
 namespace dunedaq {
 namespace readoutlibs {
@@ -26,7 +26,7 @@ public:
   ReadoutConcept& operator=(ReadoutConcept&&) = delete;      ///< ReadoutConcept is not move-assignable
 
   //! Forward calls from the appfwk
-  virtual void init(const appmodel::ReadoutModule* mcfg) = 0;
+  virtual void init(const appmodel::DataHandlerModule* mcfg) = 0;
   virtual void conf(const nlohmann::json& args) = 0;
   virtual void scrap(const nlohmann::json& args) = 0;
   virtual void start(const nlohmann::json& args) = 0;

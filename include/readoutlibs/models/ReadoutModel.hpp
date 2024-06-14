@@ -12,8 +12,8 @@
 //#include "appfwk/app/Nljs.hpp"
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
-#include "appmodel/ReadoutModule.hpp"
-#include "appmodel/ReadoutModuleConf.hpp"
+#include "appmodel/DataHandlerModule.hpp"
+#include "appmodel/DataHandlerConf.hpp"
 
 //#include "appfwk/cmd/Nljs.hpp"
 //#include "appfwk/cmd/Structs.hpp"
@@ -36,7 +36,7 @@
 
 #include "readoutlibs/ReadoutLogging.hpp"
 #include "readoutlibs/concepts/ReadoutConcept.hpp"
-#include "appmodel/ReadoutModule.hpp"
+#include "appmodel/DataHandlerModule.hpp"
 //#include "readoutlibs/readoutconfig/Nljs.hpp"
 #include "readoutlibs/readoutinfo/InfoNljs.hpp"
 
@@ -100,7 +100,7 @@ public:
   }
 
   // Initializes the readoutmodel and its internals
-  void init(const appmodel::ReadoutModule* modconf);
+  void init(const appmodel::DataHandlerModule* modconf);
 
   // Configures the readoutmodel and its internals
   void conf(const nlohmann::json& args);
