@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import math
+import sys
+import glob
+import rich.traceback
+from rich.console import Console
+from os.path import exists, join
+from daqconf.core.system import System
+from daqconf.core.conf_utils import make_app_command_data
+from daqconf.core.metadata import write_metadata_file
+from daqconf.core.config_file import generate_cli_from_schema
+from daqconf.core.sourceid import SourceIDBroker, get_tpg_mode
+from detchannelmaps._daq_detchannelmaps_py import HardwareMapService
+
+console = Console()
+
+# Set moo schema search path
+from dunedaq.env import get_moo_model_path
+import moo.io
+moo.io.default_load_path = get_moo_model_path()
+
+import click
+
+# Add -h as default help option
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+@click.command(context_settings=CONTEXT_SETTINGS)
+@generate_cli_from_schema('datahandlinglibs/confgen.jsonnet', 'readoutapp_gen')
+@click.argument("json_dir", type=click.Path())
+@click.option('--debug', default=False, is_flag=True, help="Switch to get a lot of printout and dot files")
+def cli(config, json_dir, debug):
+
+    if exists(json_dir):
+        raise RuntimeError(f"Directory {json_dir} already exists")
+        
+    config_data = config[0]
+    config_file = config[1]
+
+    # Get our config objects
+    # Loading this one another time... (first time in config_file.generate_cli_from_schema)
+    # The amount of shenanigans on has to go thru here is astounding
+    moo.otypes.load_types('datahandlinglibs/confgen.jsonnet')
+    import dunedaq.datahandlinglibs.confgen as confgen
+    moo.otypes.load_types('daqconf/confgen.jsonnet')
+    import dunedaq.daqconf.confgen as daqconfgen
+
+    ## Hack, we shouldn't need to do that, in the future it should be, boot = config_data.boot
+    boot = daqconfgen.boot(**config_data.boot)
+    ## etc...
+    readout = daqconfgen.readout(**config_data.readout)
+    readoutapp = confgen.readoutapp(**config_data.readoutapp)
+
+    console.log("Loading app_confgen config generator")
+    from datahandlinglibs import app_confgen
+    
+    sourceid_broker = SourceIDBroker()
+
+    the_system = System()
+    
+    # Load the hw map file here to extract ru hosts, cards, slr, links, forntend types, sourceIDs and geoIDs
+    # The ru apps are determined by the combinations of hostname and card_id, the SourceID determines the
+    # DLH (with physical slr+link information), the detId acts as system_type allows to infer the frontend_type
+    hw_map_service = HardwareMapService(readout.hardware_map_file)
+
+    # Get the list of RU processes
+    dro_infos = hw_map_service.get_all_dro_info()
+    this_dro = None
+    for dro_info in dro_infos:
+        if dro_info.host == readoutapp.host and dro_info.card == readoutapp.card:
+            this_dro = dro_info
+
+    if this_dro is None:
+        raise ValueError(f"No DRO configs from HardwareMap match specified host/card!")
+
+    tp_mode = get_tpg_mode(readout.enable_firmware_tpg,readout.enable_software_tpg)
+    sourceid_broker.register_readout_source_ids([this_dro], tp_mode)
+    sourceid_broker.generate_trigger_source_ids([this_dro], tp_mode)
+    
+    # add app
+    the_system.apps["readout-app"] = app_confgen.generate(
+    DRO_CONFIG=this_dro,
+    CLOCK_SPEED_HZ=readout.clock_speed_hz,
+    DATA_RATE_SLOWDOWN_FACTOR=readout.data_rate_slowdown_factor,
+    SOFTWARE_TPG_ENABLED=readout.enable_software_tpg,
+    FIRMWARE_TPG_ENABLED=readout.enable_firmware_tpg,
+    DTP_CONNECTIONS_FILE=readout.dtp_connections_file,
+    FIRMWARE_HIT_THRESHOLD=readout.firmware_hit_threshold,
+    FAKE_TIMESTAMP = readoutapp.fwtp_fake_timestamp,
+    TPG_CHANNEL_MAP=readoutapp.tpg_channel_map,
+    DATA_FILE=readout.data_file,
+    TP_DATA_FILE=readoutapp.tp_data_file,
+    HOST=readoutapp.host,
+    EMULATOR_MODE=readout.emulator_mode,
+    FLX_INPUT=readout.use_felix,
+    RAW_RECORDING_ENABLED=readout.enable_raw_recording,
+    RAW_RECORDING_OUTPUT_DIR=readout.raw_recording_output_dir,
+    LATENCY_BUFFER_SIZE=readout.latency_buffer_size,
+    DATA_REQUEST_TIMEOUT=boot.data_request_timeout_ms,
+    SOURCEID_BROKER =sourceid_broker,
+    DEBUG=debug)
+
+    ####################################################################
+    # Application command data generation
+    ####################################################################
+
+    # Arrange per-app command data into the format used by util.write_json_files()
+    app_command_datas = {
+        name: make_app_command_data(the_system, app, name)
+        for name, app in the_system.apps.items()
+    }
+
+    # Make boot.json config
+    from daqconf.core.conf_utils import make_system_command_datas, write_json_files
+
+    system_command_datas = make_system_command_datas(boot, the_system, verbose=False)
+
+    write_json_files(app_command_datas, system_command_datas, json_dir, verbose=True)
+
+    console.log(f"Readout app config generated in {json_dir}")
+
+    write_metadata_file(json_dir, "readoutapp_gen", config_file)
+
+
+if __name__ == "__main__":
+    try:
+        cli(show_default=True, standalone_mode=True)
+    except Exception as e:
+        console.print_exception()
+()

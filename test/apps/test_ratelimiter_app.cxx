@@ -6,7 +6,7 @@
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
-#include "readoutlibs/utils/RateLimiter.hpp"
+#include "datahandlinglibs/utils/RateLimiter.hpp"
 
 #include "logging/Logging.hpp"
 
@@ -15,7 +15,7 @@
 #include <random>
 #include <vector>
 
-using namespace dunedaq::readoutlibs;
+using namespace dunedaq::datahandlinglibs;
 
 int
 main(int /*argc*/, char** /*argv[]*/)

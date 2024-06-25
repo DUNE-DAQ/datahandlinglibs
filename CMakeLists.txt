@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(readoutlibs VERSION 2.1.0)
+project(datahandlinglibs VERSION 2.1.0)
 
 find_package(daq-cmake REQUIRED)
 
@@ -59,23 +59,23 @@ daq_add_library(
 
 
 if(${READOUT_USE_LIBNUMA})
-  target_include_directories(readoutlibs PUBLIC ${numa_INCLUDE_DIRS})
+  target_include_directories(datahandlinglibs PUBLIC ${numa_INCLUDE_DIRS})
 endif()
 
 ##############################################################################
 # Integration tests
-daq_add_application(readoutlibs_test_ratelimiter test_ratelimiter_app.cxx TEST LINK_LIBRARIES readoutlibs)
-daq_add_application(readoutlibs_test_lb_allocation test_lb_allocation_app.cxx TEST LINK_LIBRARIES readoutlibs CLI11::CLI11)
-daq_add_application(readoutlibs_test_bufferedfilewriter test_bufferedfilewriter_app.cxx TEST LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
-daq_add_application(readoutlibs_test_bufferedfilereader test_bufferedfilereader_app.cxx TEST LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
-daq_add_application(readoutlibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
-daq_add_application(readoutlibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_ratelimiter test_ratelimiter_app.cxx TEST LINK_LIBRARIES datahandlinglibs)
+daq_add_application(datahandlinglibs_test_lb_allocation test_lb_allocation_app.cxx TEST LINK_LIBRARIES datahandlinglibs CLI11::CLI11)
+daq_add_application(datahandlinglibs_test_bufferedfilewriter test_bufferedfilewriter_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_bufferedfilereader test_bufferedfilereader_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Unit Tests
 
-daq_add_unit_test(readoutlibs_BufferedReadWrite_test LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
-#daq_add_unit_test(readoutlibs_VariableSizeElementQueue_test LINK_LIBRARIES readoutlibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+#daq_add_unit_test(datahandlinglibs_VariableSizeElementQueue_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Installation
