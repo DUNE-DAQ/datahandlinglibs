@@ -1,9 +1,9 @@
-# readoutlibs - Generic Readout software and utilities 
+# datahandlinglibs - Generic Readout software and utilities 
 Generic implementation for DUNE Upstream DAQ Readout Software.
 
 ## Building and setting up the workarea
 
-How to clone and build DUNE DAQ packages, including `readoutlibs`, is covered in [the daq-buildtools instructions](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/). For some sample examples that demonstrate how to use `readoutlibs` check out the documentation of `readoutmodules`.
+How to clone and build DUNE DAQ packages, including `datahandlinglibs`, is covered in [the daq-buildtools instructions](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-buildtools/). For some sample examples that demonstrate how to use `datahandlinglibs` check out the documentation of `datahandlinglibs`.
  
 ## A Deeper Look Into Readout: Functional Elements
 

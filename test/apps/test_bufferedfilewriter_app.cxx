@@ -6,24 +6,24 @@
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
-#include "readoutlibs/utils/BufferedFileWriter.hpp"
-#include "readoutlibs/utils/RateLimiter.hpp"
+#include "datahandlinglibs/utils/BufferedFileWriter.hpp"
+#include "datahandlinglibs/utils/RateLimiter.hpp"
 
 #include "logging/Logging.hpp"
-#include "readoutlibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/ReadoutTypes.hpp"
 
 #include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>
 
-using namespace dunedaq::readoutlibs;
+using namespace dunedaq::datahandlinglibs;
 
 int
 main(int argc, char* argv[])
 {
   if (argc < 2 || argc > 4 || argc==3 || (argc == 4 && strcmp(argv[2], "-L") != 0)) {
-    TLOG() << "usage: readoutlibs_test_bufferedfilewriter filename <-L rate_limiter_frequency>" << std::endl;
+    TLOG() << "usage: datahandlinglibs_test_bufferedfilewriter filename <-L rate_limiter_frequency>" << std::endl;
     TLOG() << "-L frequency parameter is optional. Limiter will be disable" << std::endl;    
     exit(1);
   }

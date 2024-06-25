@@ -6,11 +6,11 @@
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
-#include "readoutlibs/utils/RateLimiter.hpp"
+#include "datahandlinglibs/utils/RateLimiter.hpp"
 
 #include "logging/Logging.hpp"
 
-#include "readoutlibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/ReadoutTypes.hpp"
 
 #include "folly/ConcurrentSkipList.h"
 
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-using namespace dunedaq::readoutlibs;
+using namespace dunedaq::datahandlinglibs;
 using namespace folly;
 
 int

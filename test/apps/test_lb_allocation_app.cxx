@@ -6,9 +6,9 @@
  * received with this code.
  */
 
-#include "readoutlibs/models/IterableQueueModel.hpp"
-#include "readoutlibs/models/SkipListLatencyBufferModel.hpp"
-#include "readoutlibs/concepts/RawDataProcessorConcept.hpp"
+#include "datahandlinglibs/models/IterableQueueModel.hpp"
+#include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
+#include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
 #include "logging/Logging.hpp"
 
 #include "CLI/App.hpp"
@@ -28,7 +28,7 @@
 
 //#define REGISTER (*(volatile unsigned char*)0x1234)
 
-using namespace dunedaq::readoutlibs;
+using namespace dunedaq::datahandlinglibs;
 
 namespace {
 
@@ -59,7 +59,7 @@ main(int argc, char** argv)
   // Counter for ops/s
   std::atomic<int> newops = 0;
 
-  CLI::App app{"readoutlibs_test_lb_allocation"};
+  CLI::App app{"datahandlinglibs_test_lb_allocation"};
   app.add_option("-c", lb_capacity, "Capacity/size of latency buffer.");
   app.add_flag("--numa_aware", numa_aware_test, "Test NUMA aware allocator.");
   app.add_option("--num_numa_nodes", num_numa_nodes, "Number of NUMA nodes to test allocation on.");
