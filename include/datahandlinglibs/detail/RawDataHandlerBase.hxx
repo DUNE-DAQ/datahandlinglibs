@@ -1,24 +1,24 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-DataLinkHandlerBase::DataLinkHandlerBase(const std::string& name)
+RawDataHandlerBase::RawDataHandlerBase(const std::string& name)
   : m_configured(false)
   , m_name(name)
   , m_readout_impl(nullptr)
   , m_run_marker{ false }
 {
 /*
-  register_command("conf", &DataLinkHandlerBase::do_conf);
-  register_command("scrap", &DataLinkHandlerBase::do_scrap);
-  register_command("start", &DataLinkHandlerBase::do_start);
-  register_command("stop_trigger_sources", &DataLinkHandlerBase::do_stop);
-  register_command("record", &DataLinkHandlerBase::do_record);
+  register_command("conf", &RawDataHandlerBase::do_conf);
+  register_command("scrap", &RawDataHandlerBase::do_scrap);
+  register_command("start", &RawDataHandlerBase::do_start);
+  register_command("stop_trigger_sources", &RawDataHandlerBase::do_stop);
+  register_command("record", &RawDataHandlerBase::do_record);
 */
 }
 
 
 void
-DataLinkHandlerBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
+RawDataHandlerBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
 {
   
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering init() method";
@@ -36,13 +36,13 @@ DataLinkHandlerBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
 }
 
 void
-DataLinkHandlerBase::get_info(opmonlib::InfoCollector& ci, int level)
+RawDataHandlerBase::get_info(opmonlib::InfoCollector& ci, int level)
 {
   m_readout_impl->get_info(ci, level);
 }
 
 void
-DataLinkHandlerBase::do_conf(const nlohmann::json& args)
+RawDataHandlerBase::do_conf(const nlohmann::json& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering do_conf() method";
   m_readout_impl->conf(args);
@@ -51,7 +51,7 @@ DataLinkHandlerBase::do_conf(const nlohmann::json& args)
 }
 
 void
-DataLinkHandlerBase::do_scrap(const nlohmann::json& args)
+RawDataHandlerBase::do_scrap(const nlohmann::json& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering do_scrap() method";
   m_readout_impl->scrap(args);
@@ -59,7 +59,7 @@ DataLinkHandlerBase::do_scrap(const nlohmann::json& args)
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Exiting do_scrap() method";
 }
 void
-DataLinkHandlerBase::do_start(const nlohmann::json& args)
+RawDataHandlerBase::do_start(const nlohmann::json& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering do_start() method";
   m_run_marker.store(true);
@@ -71,7 +71,7 @@ DataLinkHandlerBase::do_start(const nlohmann::json& args)
 }
 
 void
-DataLinkHandlerBase::do_stop(const nlohmann::json& args)
+RawDataHandlerBase::do_stop(const nlohmann::json& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering do_stop() method";
   m_run_marker.store(false);
@@ -81,7 +81,7 @@ DataLinkHandlerBase::do_stop(const nlohmann::json& args)
 }
 
 void
-DataLinkHandlerBase::do_record(const nlohmann::json& args)
+RawDataHandlerBase::do_record(const nlohmann::json& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering do_issue_recording() method";
   m_readout_impl->record(args);

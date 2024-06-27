@@ -1,5 +1,5 @@
 /**
- * @file DataLinkHandlerBase.hpp Implements standard 
+ * @file RawDataHandlerBase.hpp Implements standard 
  * module functionalities, requires the setup of a readout
  * creator function. This class is meant to be inherited
  * to specify which readout specialization to load.
@@ -31,20 +31,20 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class DataLinkHandlerBase
+class RawDataHandlerBase
 {
 public:
   /**
-   * @brief DataLinkHandlerBase Constructor
-   * @param name Instance name for this DataLinkHandlerBase instance
+   * @brief RawDataHandlerBase Constructor
+   * @param name Instance name for this RawDataHandlerBase instance
    */
-  explicit DataLinkHandlerBase(const std::string& name);
-  virtual ~DataLinkHandlerBase() {}
+  explicit RawDataHandlerBase(const std::string& name);
+  virtual ~RawDataHandlerBase() {}
 
-  DataLinkHandlerBase(const DataLinkHandlerBase&) = delete;            ///< DataLinkHandlerBase is not copy-constructible
-  DataLinkHandlerBase& operator=(const DataLinkHandlerBase&) = delete; ///< DataLinkHandlerBase is not copy-assignable
-  DataLinkHandlerBase(DataLinkHandlerBase&&) = delete;                 ///< DataLinkHandlerBase is not move-constructible
-  DataLinkHandlerBase& operator=(DataLinkHandlerBase&&) = delete;      ///< DataLinkHandlerBase is not move-assignable
+  RawDataHandlerBase(const RawDataHandlerBase&) = delete;            ///< RawDataHandlerBase is not copy-constructible
+  RawDataHandlerBase& operator=(const RawDataHandlerBase&) = delete; ///< RawDataHandlerBase is not copy-assignable
+  RawDataHandlerBase(RawDataHandlerBase&&) = delete;                 ///< RawDataHandlerBase is not move-constructible
+  RawDataHandlerBase& operator=(RawDataHandlerBase&&) = delete;      ///< RawDataHandlerBase is not move-assignable
 
   void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
   void get_info(opmonlib::InfoCollector& ci, int level);
@@ -81,6 +81,6 @@ private:
 } // namespace dunedaq
 
 // Declarations
-#include "detail/DataLinkHandlerBase.hxx"
+#include "detail/RawDataHandlerBase.hxx"
 
 #endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_DATALINKHANDLERBASE_HPP_
