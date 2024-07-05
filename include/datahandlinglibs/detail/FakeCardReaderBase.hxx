@@ -62,21 +62,13 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
   if (m_configured) {
     TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS) << "This module is already configured!";
   } else {
-    auto cfg = m_cfg->module<appmodel::DataReaderModule>(get_fcr_name());
+      auto cfg = m_cfg->module<appmodel::DataReaderModule>(get_fcr_name());
 
     std::map<uint32_t, const confmodel::DetectorStream*> streams;
     for (const auto & det_connections : cfg->get_connections()) {
       	    
-      for (const auto& det_res : det_connections->get_contains()) {
-	const confmodel::DetDataSender *data_sender = det_res->cast<confmodel::DetDataSender>();
-        if (data_sender != nullptr) {
-	  for (const auto& det_stream : data_sender->get_contains()) {	
-            auto dro_stream = det_stream->cast<confmodel::DetectorStream>();
-            if (dro_stream != nullptr) {
-              streams[dro_stream->get_source_id()] = dro_stream;
-            } 
-	  }
-	}
+      for (const auto& stream : det_connections->get_streams()) {
+        streams[stream->get_source_id()] = stream;
       }
     }
 
