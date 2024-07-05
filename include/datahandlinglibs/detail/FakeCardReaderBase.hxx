@@ -68,7 +68,6 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
     for (const auto & det_connections : cfg->get_connections()) {
       	    
       for (const auto& stream : det_connections->get_streams()) {
-          std::cout << "Adding stream " << stream->UID() << " source_id " << stream->get_source_id() << "\n";
         streams[stream->get_source_id()] = stream;
       }
     }
@@ -86,9 +85,6 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
         TLOG() << "Emulator for queue name " << q_with_id->UID() << " was already configured";
         throw datahandlinglibs::GenericConfigurationError(ERS_HERE, "Emulator configured twice: " + q_with_id->UID());
       }
-
-      std::cout << "Looking for stream " << q_with_id->get_source_id() << "\n";
-
       m_source_emus[q_with_id->UID()]->conf(streams[q_with_id->get_source_id()], cfg->get_configuration()->get_emulation_conf());
     }
     for (auto& [name, emu] : m_source_emus) {
