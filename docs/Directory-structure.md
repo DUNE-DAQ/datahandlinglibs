@@ -1,13 +1,14 @@
 # Directory structure of this repo
 This repository is structured as follows:
 * `cmake`
+* `config`
 * `docs`
 * `include/datahandlinglibs`
   * `concepts`
   * `models`
   * `utils`
 * `schema/datahandlinglibs`
-* `scripts/performance`
+* `scripts`
 * `test`
 * `unittest`
 
@@ -38,4 +39,4 @@ When a readout unit is created, the models to use are defined and can be interch
 ## Testing
 `test` contains configs generated with this script and some standalone test applications.
 In `unittest` one can very unsurprisingly find unit tests for the readout.
-Lastly, `scripts/performance` contains code and configurations to do thread pinning of the application.
+Lastly, `scripts/` and 'config/' contains code and configurations to do thread pinning of the application.
