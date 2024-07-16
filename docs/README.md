@@ -22,13 +22,7 @@ Individual domains represent a substantially different path of the raw data, inc
 ### Definitions
 1. Latency Buffer: A container that temporarily stores the raw data, and has certain attributes that ensures search-ability based on a lookup criteria. A notable example for this, is the lookup based on the timestamp, where the timestamp can be converted to an exact position in the buffer if the "timestamp continuity" attribute is ensured in the buffer.
 
-### Class diagram
-
-A zoomable visualization of [the readout code](https://github.com/DUNE-DAQ/readout/) for its `dunedaq-v2.8.0` release:
-
-![class-diagram](https://cernbox.cern.ch/index.php/s/Hvyb41Ndj2MfKlw/download)
-
 ## Looking into the directories
 
-At the top level, the readout package uses the same directory structure as other DUNE DAQ packages as described in [the daq-cmake documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/). However, due its large number of files, additional subdirectories have been added to organize them. This approach is covered [here](Directory-structure.md).
+At the top level, the datahandlinglibs package uses the same directory structure as other DUNE DAQ packages as described in [the daq-cmake documentation](https://dune-daq-sw.readthedocs.io/en/latest/packages/daq-cmake/). However, due its large number of files, additional subdirectories have been added to organize them. This approach is covered [here](Directory-structure.md).
 
