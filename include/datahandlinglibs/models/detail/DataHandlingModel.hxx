@@ -204,20 +204,21 @@ void
 DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
 {
 
+  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread started...";
   m_rawq_timeout_count = 0;
   m_num_payloads = 0;
   m_sum_payloads = 0;
   m_stats_packet_count = 0;
 
+  // Variables for book-keeping of delayed post-processing
   timestamp_t oldest_ts=0;
   timestamp_t newest_ts=0;
   timestamp_t start_win_ts=0;
   timestamp_t end_win_ts=0;
   bool first_cycle = true;
-
-  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread started...";
-
   auto last_post_proc_time = std::chrono::system_clock::now();
+  auto now = last_post_proc_time;
+  std::chrono::milliseconds milliseconds;
   RDT processed_element;
 
   while (m_run_marker.load()) {
@@ -259,12 +260,13 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
     // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
     if (m_processing_delay_ticks !=0) {
-      //std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
-      //auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(last_post_proc_time - now);
-      //last_post_proc_time = now;
-      //if (milliseconds.count() > 10) {
-        std::vector<std::pair<void*, size_t>> frag_pieces;
-        // Get the LB boundtries
+      now = std::chrono::system_clock::now();
+      milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
+
+      if (milliseconds.count() > 1) {
+        last_post_proc_time = now;
+  
+  	// Get the LB boundaries
 	auto head = m_latency_buffer_impl->front();
 	auto tail = m_latency_buffer_impl->back();
         newest_ts = tail->get_first_timestamp();
@@ -273,27 +275,25 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
         if (first_cycle) {
           start_win_ts = oldest_ts;
           first_cycle = false;
-          processed_element.set_first_timestamp(start_win_ts);
         }
-        if (newest_ts - start_win_ts > m_processing_delay_ticks) {
-          end_win_ts = newest_ts - m_processing_delay_ticks; 
-          auto start_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
+        
+        processed_element.set_first_timestamp(start_win_ts);
+	if (newest_ts - start_win_ts > m_processing_delay_ticks) {
+    	  end_win_ts = newest_ts - m_processing_delay_ticks; 
 
-          if (start_iter != m_latency_buffer_impl->end()) {
-            RDT* element = &(*start_iter);
-            while (start_iter.good() && element->get_first_timestamp() < end_win_ts) {
-              m_raw_processor_impl->postprocess_item(element);
+	  for (auto start_iter=m_latency_buffer_impl->lower_bound(processed_element, false); start_iter != m_latency_buffer_impl->end(); ++start_iter) { 
+            if ((*start_iter).get_first_timestamp() < end_win_ts) {
+              m_raw_processor_impl->postprocess_item(&(*start_iter));
               ++m_num_payloads;
               ++m_sum_payloads;
               ++m_stats_packet_count;
-              ++start_iter;
-              element = &(*start_iter);
-            }
-            processed_element = *element;
+	    } else {
+		    break;
+	    }
           }
-        }
-      //}
-     
+	  start_win_ts = end_win_ts;
+ 	 }
+      }
     }
   }
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread joins... ";
