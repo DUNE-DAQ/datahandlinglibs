@@ -59,7 +59,8 @@ public:
   FakeCardReaderBase& operator=(FakeCardReaderBase&&) = delete;      ///< FakeCardReaderBase is not move-assignable
 
   void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
-  void get_info(opmonlib::InfoCollector& ci, int level);
+  #warning MISSING OPMON
+  //  void get_info(opmonlib::InfoCollector& ci, int level);
 
   // To be implemented by final module
   virtual std::unique_ptr<datahandlinglibs::SourceEmulatorConcept>
