@@ -45,14 +45,14 @@ FakeCardReaderBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting init() method";
 }
 
-void
-FakeCardReaderBase::get_info(opmonlib::InfoCollector& ci, int level)
-{
+// void
+// FakeCardReaderBase::get_info(opmonlib::InfoCollector& ci, int level)
+// {
 
-  for (auto& [name, emu] : m_source_emus) {
-    emu->get_info(ci, level);
-  }
-}
+//   for (auto& [name, emu] : m_source_emus) {
+//     emu->get_info(ci, level);
+//   }
+// }
 
 void
 FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
