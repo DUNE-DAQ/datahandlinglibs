@@ -62,11 +62,6 @@ public:
     m_data_receiver->remove_callback();
   }
 
-  void get_info(opmonlib::InfoCollector& /*ci*/, int /*level*/) 
-  {
-  // FIXME: implement statistics publishing
-  }
-
   bool handle_payload(OriginalPayloadType&  message) // NOLINT(build/unsigned)
   {
     TargetPayloadType& target_payload = reinterpret_cast<TargetPayloadType&>(message);

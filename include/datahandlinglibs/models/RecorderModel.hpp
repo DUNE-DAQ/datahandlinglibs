@@ -16,7 +16,6 @@
 #include "datahandlinglibs/concepts/RecorderConcept.hpp"
 //#include "datahandlinglibs/recorderconfig/Nljs.hpp"
 //#include "datahandlinglibs/recorderconfig/Structs.hpp"
-#include "datahandlinglibs/recorderinfo/InfoStructs.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
 
@@ -43,7 +42,7 @@ public:
   {}
 
   void init(const appmodel::DataRecorderModule* conf) override;
-  void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
+  //  void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
   void do_conf(const nlohmann::json& /*args*/) override;
   void do_scrap(const nlohmann::json& /*args*/) override { m_buffered_writer.close(); }
   void do_start(const nlohmann::json& /* args */) override;

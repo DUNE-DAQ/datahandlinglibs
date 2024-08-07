@@ -11,7 +11,6 @@
 #include "iomanager/IOManager.hpp"
 #include "daqdataformats/Fragment.hpp"
 #include "dfmessages/DataRequest.hpp"
-#include "opmonlib/InfoCollector.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 
 #include <map>
@@ -43,7 +42,6 @@ public:
   virtual void start(const nlohmann::json& args) = 0;
   virtual void stop(const nlohmann::json& args) = 0;
   virtual void record(const nlohmann::json& args) = 0;
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
 
   //! Check if cleanup is necessary and execute it if necessary
   virtual void cleanup_check() = 0;

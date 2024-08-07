@@ -8,7 +8,6 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RAWDATAPROCESSORCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RAWDATAPROCESSORCONCEPT_HPP_
 
-#include "opmonlib/InfoCollector.hpp"
 #include "daqdataformats/SourceID.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 
@@ -41,8 +40,6 @@ public:
   virtual void conf(const appmodel::DataHandlerModule* conf) = 0;
   //! Unconfigure
   virtual void scrap(const nlohmann::json& args) = 0;
-  //! Get info from the raw processor
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
   //! Get newest timestamp of last seen packet
   virtual std::uint64_t get_last_daq_time() = 0; // NOLINT(build/unsigned)
   //! Preprocess one element

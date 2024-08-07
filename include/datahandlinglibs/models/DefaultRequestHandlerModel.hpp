@@ -14,8 +14,6 @@
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
 
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
-#include "datahandlinglibs/readoutinfo/InfoNljs.hpp"
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
@@ -158,7 +156,7 @@ public:
                      bool send_partial_fragment_if_available) override;
 
   // Opmon get_info implementation
-  void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
+  // void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
 
   virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() {return 0;}
   virtual bool supports_cutoff_timestamp() {return false;}

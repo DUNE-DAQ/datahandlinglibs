@@ -65,12 +65,6 @@ public:
   // Stops the pre-processor pipeline and the parallel post-processor threads
   void stop(const nlohmann::json& /*args*/) override;
 
-  // Generic get_info, currently empty
-  virtual void get_info(opmonlib::InfoCollector& /*ci*/, int /*level*/)
-  {
-    // No stats for now, extend later
-  }
-
   // Resets last known/processed DAQ timestamp
   void reset_last_daq_time() { m_last_processed_daq_ts.store(0); }
 

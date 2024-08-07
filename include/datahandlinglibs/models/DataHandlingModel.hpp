@@ -9,14 +9,10 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 
-//#include "appfwk/app/Nljs.hpp"
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataHandlerConf.hpp"
-
-//#include "appfwk/cmd/Nljs.hpp"
-//#include "appfwk/cmd/Structs.hpp"
 
 
 //#include "appfwk/DAQModuleHelper.hpp"
@@ -25,8 +21,6 @@
 #include "iomanager/Receiver.hpp"
 
 #include "logging/Logging.hpp"
-
-#include "opmonlib/InfoCollector.hpp"
 
 #include "daqdataformats/ComponentRequest.hpp"
 #include "daqdataformats/Fragment.hpp"
@@ -37,8 +31,6 @@
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
 #include "appmodel/DataHandlerModule.hpp"
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
-#include "datahandlinglibs/readoutinfo/InfoNljs.hpp"
 
 #include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
@@ -126,7 +118,7 @@ public:
   }
 
   // Opmon get_info call implementation
-  void get_info(opmonlib::InfoCollector& ci, int level);
+  //void get_info(opmonlib::InfoCollector& ci, int level);
 
   // Raw data consume callback
   void consume_payload(RDT&& payload);

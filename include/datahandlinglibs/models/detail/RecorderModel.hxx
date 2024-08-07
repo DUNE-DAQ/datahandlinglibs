@@ -20,22 +20,22 @@ RecorderModel<ReadoutType>::init(const appmodel::DataRecorderModule* conf)
   m_use_o_direct = conf->get_configuration()->get_use_o_direct();
 }
 
-template<class ReadoutType>
-void 
-RecorderModel<ReadoutType>::get_info(opmonlib::InfoCollector& ci, int /* level */)
-{
-  recorderinfo::Info info;
-  info.packets_processed = m_packets_processed_total;
-  double time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() -
-                                                                               m_time_point_last_info)
-                       .count();
-  info.throughput_processed_packets = m_packets_processed_since_last_info / time_diff;
+// template<class ReadoutType>
+// void 
+// RecorderModel<ReadoutType>::get_info(opmonlib::InfoCollector& ci, int /* level */)
+// {
+//   recorderinfo::Info info;
+//   info.packets_processed = m_packets_processed_total;
+//   double time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() -
+//                                                                                m_time_point_last_info)
+//                        .count();
+//   info.throughput_processed_packets = m_packets_processed_since_last_info / time_diff;
 
-  ci.add(info);
+//   ci.add(info);
 
-  m_packets_processed_since_last_info = 0;
-  m_time_point_last_info = std::chrono::steady_clock::now();
-}
+//   m_packets_processed_since_last_info = 0;
+//   m_time_point_last_info = std::chrono::steady_clock::now();
+// }
 
 template<class ReadoutType>
 void 

@@ -9,13 +9,13 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 
-#include "opmonlib/InfoCollector.hpp"
 #include "appmodel/DataHandlerModule.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class DataHandlingConcept
+class DataHandlingConcept : public opmonlib::MonitorableObject
 {
 public:
   DataHandlingConcept() {}
@@ -31,7 +31,6 @@ public:
   virtual void scrap(const nlohmann::json& args) = 0;
   virtual void start(const nlohmann::json& args) = 0;
   virtual void stop(const nlohmann::json& args) = 0;
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
   virtual void record(const nlohmann::json& args) = 0;
 
   //! Function that will be run in its own thread to read the raw packets from the connection and add them to the LB

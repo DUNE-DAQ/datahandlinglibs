@@ -165,39 +165,39 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::stop(const nlohmann::json& args)
   m_raw_processor_impl->reset_last_daq_time();
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
-void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::get_info(opmonlib::InfoCollector& ci, int level)
-{
-  readoutinfo::ReadoutInfo ri;
-  ri.sum_payloads = m_sum_payloads.load();
-  ri.num_payloads = m_num_payloads.exchange(0);
-  ri.sum_requests = m_sum_requests.load();
-  ri.num_requests = m_num_requests.exchange(0);
-  ri.num_payloads_overwritten = m_num_payloads_overwritten.exchange(0);
-  ri.num_buffer_elements = m_latency_buffer_impl->occupancy();
-  ri.last_daq_timestamp = m_raw_processor_impl->get_last_daq_time();
+// template<class RDT, class RHT, class LBT, class RPT>
+// void 
+// DataHandlingModel<RDT, RHT, LBT, RPT>::get_info(opmonlib::InfoCollector& ci, int level)
+// {
+//   readoutinfo::ReadoutInfo ri;
+//   ri.sum_payloads = m_sum_payloads.load();
+//   ri.num_payloads = m_num_payloads.exchange(0);
+//   ri.sum_requests = m_sum_requests.load();
+//   ri.num_requests = m_num_requests.exchange(0);
+//   ri.num_payloads_overwritten = m_num_payloads_overwritten.exchange(0);
+//   ri.num_buffer_elements = m_latency_buffer_impl->occupancy();
+//   ri.last_daq_timestamp = m_raw_processor_impl->get_last_daq_time();
 
-  auto now = std::chrono::high_resolution_clock::now();
-  int new_packets = m_stats_packet_count.exchange(0);
-  double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
-  TLOG_DEBUG(TLVL_TAKE_NOTE) << "Consumed Packet rate: " << std::to_string(new_packets / seconds / 1000.)
-	  << " [kHz]. Payloads overwritten: " << ri.num_payloads_overwritten;
-  auto rawq_timeouts = m_rawq_timeout_count.exchange(0);
-  if (rawq_timeouts > 0) {
-    TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Raw input queue timed out " 
-      << std::to_string(rawq_timeouts) << " times!";
-  }
-  m_t0 = now;
+//   auto now = std::chrono::high_resolution_clock::now();
+//   int new_packets = m_stats_packet_count.exchange(0);
+//   double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
+//   TLOG_DEBUG(TLVL_TAKE_NOTE) << "Consumed Packet rate: " << std::to_string(new_packets / seconds / 1000.)
+// 	  << " [kHz]. Payloads overwritten: " << ri.num_payloads_overwritten;
+//   auto rawq_timeouts = m_rawq_timeout_count.exchange(0);
+//   if (rawq_timeouts > 0) {
+//     TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Raw input queue timed out " 
+//       << std::to_string(rawq_timeouts) << " times!";
+//   }
+//   m_t0 = now;
 
-  ri.rate_payloads_consumed = new_packets / seconds / 1000.;
-  ri.num_raw_queue_timeouts = rawq_timeouts;
+//   ri.rate_payloads_consumed = new_packets / seconds / 1000.;
+//   ri.num_raw_queue_timeouts = rawq_timeouts;
 
-  ci.add(ri);
+//   ci.add(ri);
 
-  m_request_handler_impl->get_info(ci, level);
-  m_raw_processor_impl->get_info(ci, level);
-}
+//   m_request_handler_impl->get_info(ci, level);
+//   m_raw_processor_impl->get_info(ci, level);
+// }
 
 template<class RDT, class RHT, class LBT, class RPT>
 void 

@@ -9,8 +9,6 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_SOURCEEMULATORCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_SOURCEEMULATORCONCEPT_HPP_
 
-#include "opmonlib/InfoCollector.hpp"
-
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "confmodel/DetectorStream.hpp"
 #include "appmodel/StreamEmulationParameters.hpp"
@@ -40,7 +38,6 @@ public:
   virtual void start(const nlohmann::json& /*args*/) = 0;
   virtual void stop(const nlohmann::json& /*args*/) = 0;
   virtual void scrap(const nlohmann::json& /*args*/) = 0;
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
   virtual bool is_configured() = 0;
 
 private:
