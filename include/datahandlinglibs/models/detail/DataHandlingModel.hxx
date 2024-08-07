@@ -70,7 +70,6 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::init(const appmodel::DataHandlerModule* m
   m_request_handler_supports_cutoff_timestamp = m_request_handler_impl->supports_cutoff_timestamp();
   m_fake_trigger = false;
   m_raw_receiver_sleep_us = std::chrono::microseconds::zero();
-  m_send_partial_fragment_if_available = true;
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
@@ -211,9 +210,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
   m_stats_packet_count = 0;
 
   // Variables for book-keeping of delayed post-processing
-  timestamp_t oldest_ts=0;
+  //timestamp_t oldest_ts=0;
   timestamp_t newest_ts=0;
-  timestamp_t start_win_ts=0;
   timestamp_t end_win_ts=0;
   bool first_cycle = true;
   auto last_post_proc_time = std::chrono::system_clock::now();
@@ -234,14 +232,14 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
       if (m_request_handler_supports_cutoff_timestamp) {
         int64_t diff1 = payload.get_first_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
         if (diff1 <= 0) {
-          m_request_handler_impl->increment_tardy_tp_count();
+          //m_request_handler_impl->increment_tardy_tp_count();
           ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_first_timestamp(),
                                                 m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                                 (static_cast<double>(diff1)/62500.0)));
         }
       }
       if (!m_latency_buffer_impl->write(std::move(payload))) {
-        TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
+        //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
         m_num_payloads_overwritten++;
       }
       if (m_processing_delay_ticks ==0) {
@@ -259,39 +257,35 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
 
     // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    if (m_processing_delay_ticks !=0) {
+    if (m_processing_delay_ticks !=0 && m_latency_buffer_impl->occupancy() > 0) {
       now = std::chrono::system_clock::now();
       milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
 
       if (milliseconds.count() > 1) {
         last_post_proc_time = now;
-  
   	// Get the LB boundaries
-	auto head = m_latency_buffer_impl->front();
 	auto tail = m_latency_buffer_impl->back();
-        newest_ts = tail->get_first_timestamp();
-        oldest_ts = head->get_first_timestamp();
+        newest_ts = tail->get_timestamp();
         
         if (first_cycle) {
-          start_win_ts = oldest_ts;
+	  auto head = m_latency_buffer_impl->front();
+          processed_element.set_first_timestamp(head->get_timestamp()); 
           first_cycle = false;
+	  TLOG() << "***** First pass post processing *****" ;
         }
         
-        processed_element.set_first_timestamp(start_win_ts);
-	if (newest_ts - start_win_ts > m_processing_delay_ticks) {
+	if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
     	  end_win_ts = newest_ts - m_processing_delay_ticks; 
+	  auto start_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
+	  processed_element.set_first_timestamp(end_win_ts);
+	  auto end_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
 
-	  for (auto start_iter=m_latency_buffer_impl->lower_bound(processed_element, false); start_iter != m_latency_buffer_impl->end(); ++start_iter) { 
-            if ((*start_iter).get_first_timestamp() < end_win_ts) {
-              m_raw_processor_impl->postprocess_item(&(*start_iter));
+	  for (auto it = start_iter; it!= end_iter; ++it) { 
+              m_raw_processor_impl->postprocess_item(&(*it));
               ++m_num_payloads;
               ++m_sum_payloads;
               ++m_stats_packet_count;
-	    } else {
-		    break;
-	    }
-          }
-	  start_win_ts = end_win_ts;
+	  }
  	 }
       }
     }
@@ -311,7 +305,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::consume_payload(RDT&& payload)
   if (m_request_handler_supports_cutoff_timestamp) {
     int64_t diff1 = payload.get_first_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
-      m_request_handler_impl->increment_tardy_tp_count();
+      //m_request_handler_impl->increment_tardy_tp_count();
       ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_first_timestamp(),
                                             m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                             (static_cast<double>(diff1)/62500.0)));
@@ -379,7 +373,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_timesync()
             << " ts=" << dr.trigger_timestamp 
             << " window_begin=" << dr.request_information.window_begin
             << " window_end=" << dr.request_information.window_end;
-          m_request_handler_impl->issue_request(dr, false);
+          m_request_handler_impl->issue_request(dr);
 
           ++m_num_requests;
           ++m_sum_requests;
@@ -425,7 +419,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::dispatch_requests(dfmessages::DataRequest
     << ", window begin/end " << data_request.request_information.window_begin
     << "/" << data_request.request_information.window_end
     << ", dest: " << data_request.data_destination;
-  m_request_handler_impl->issue_request(data_request, m_send_partial_fragment_if_available);
+  m_request_handler_impl->issue_request(data_request);
   ++m_num_requests;
   ++m_sum_requests;
 }
