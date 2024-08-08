@@ -8,7 +8,8 @@ namespace datahandlinglibs {
 template<class ReadoutType, class LatencyBufferType>
 void 
 EmptyFragmentRequestHandlerModel<ReadoutType, LatencyBufferType>::issue_request(
-  dfmessages::DataRequest datarequest)
+  dfmessages::DataRequest datarequest,
+  bool /*send_partial_fragment_if_not_yet*/)
 {
   auto frag_header = inherited::create_fragment_header(datarequest);
   frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));

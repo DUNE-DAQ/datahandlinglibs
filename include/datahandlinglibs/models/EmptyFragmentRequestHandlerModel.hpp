@@ -44,7 +44,8 @@ public:
 
   // Override the issue_request implementation of the DefaultRequestHandlerModel
   // in order to always respond with empty fragments. 
-  void issue_request(dfmessages::DataRequest datarequest) override;
+  void issue_request(dfmessages::DataRequest datarequest,
+                     bool /*send_partial_fragment_if_not_yet*/) override;
 
 };
 
