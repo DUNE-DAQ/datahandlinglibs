@@ -68,12 +68,14 @@ namespace datahandlinglibs {
 // from DS, there isn't a get_timestamp() function, so a different
 // template specialization is used in the appropriate package (eg,
 // trigger)
+
 template<class T>
 uint64_t
 get_frame_iterator_timestamp(T iter)
 {
   return iter->get_timestamp();
 }
+
 
 template<class ReadoutType, class LatencyBufferType>
 class DefaultRequestHandlerModel : public RequestHandlerConcept<ReadoutType, LatencyBufferType>
@@ -115,20 +117,14 @@ public:
   struct RequestElement
   {
     RequestElement(const dfmessages::DataRequest& data_request,
-                   const std::chrono::time_point<std::chrono::high_resolution_clock>& tp_value,
-                   bool partial_fragment_flag = false)
+                   const std::chrono::time_point<std::chrono::high_resolution_clock>& tp_value)
       : request(data_request)
       , start_time(tp_value)
-      , send_partial_fragment_if_available(partial_fragment_flag)
     {}
 
     dfmessages::DataRequest request;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
-    bool send_partial_fragment_if_available;
   };
-
-  // Default init mechanism (no-op impl)
-  //void init(const nlohmann::json& /*args*/) override { }
 
   // Default configuration mechanism
   void conf(const dunedaq::appmodel::DataHandlerModule*);
@@ -152,15 +148,13 @@ public:
   virtual void periodic_data_transmission() override;
 
   // Implementation of default request handling. (boost::asio post to a thread pool)
-  void issue_request(dfmessages::DataRequest datarequest,
-                     bool send_partial_fragment_if_available) override;
+  void issue_request(dfmessages::DataRequest datarequest) override;
 
   // Opmon get_info implementation
   // void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
 
   virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() {return 0;}
   virtual bool supports_cutoff_timestamp() {return false;}
-  virtual void increment_tardy_tp_count() {}
 
 protected:
   // An inline helper function that creates a fragment header based on a data request
@@ -211,8 +205,6 @@ protected:
   // LB cleanup implementation
   void cleanup();
 
-
-
   // Function that checks delayed requests that are waiting for not yet present data in LB
   void check_waiting_requests();
 
@@ -222,8 +214,7 @@ protected:
                                                             RequestResult& rres);
 
   // Override data_request functionality
-  RequestResult data_request(dfmessages::DataRequest dr, 
-                             bool send_partial_fragment_if_available) override;
+  RequestResult data_request(dfmessages::DataRequest dr) override;
 
   // Data access (LB)
   std::unique_ptr<LatencyBufferType>& m_latency_buffer;
@@ -270,7 +261,6 @@ protected:
   size_t m_buffer_capacity;
   daqdataformats::SourceID m_sourceid;
   uint16_t m_detid;
-  static const constexpr uint32_t m_min_delay_us = 30000; // NOLINT(build/unsigned)
   std::string m_output_file;
   size_t m_stream_buffer_size = 0;
   bool m_recording_configured = false;

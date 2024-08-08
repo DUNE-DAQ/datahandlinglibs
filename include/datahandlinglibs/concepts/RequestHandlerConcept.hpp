@@ -50,8 +50,7 @@ public:
   virtual void periodic_data_transmission() = 0;
 
   //! Issue a data request to the request handler
-  virtual void issue_request(dfmessages::DataRequest /*dr*/,
-                             bool send_partial_fragment_if_not_yet) = 0;
+  virtual void issue_request(dfmessages::DataRequest /*dr*/) = 0;
 
 
 protected:
@@ -63,14 +62,14 @@ protected:
     kTooOld,
     kNotYet,
     kPartial,
-    kPass,
+    kPartiallyOld,
     kCleanup,
     kUnknown
   };
   std::map<ResultCode, std::string> ResultCodeStrings{
     { ResultCode::kFound, "FOUND" },    { ResultCode::kNotFound, "NOT_FOUND" },
     { ResultCode::kTooOld, "TOO_OLD" }, { ResultCode::kNotYet, "NOT_YET_PRESENT" },
-    { ResultCode::kPass, "PASSED" },    { ResultCode::kCleanup, "CLEANUP" },
+    { ResultCode::kPartiallyOld, "PARTIALLY_PASSED" },    { ResultCode::kCleanup, "CLEANUP" },
     { ResultCode::kUnknown, "UNKNOWN" }
   };
 
@@ -95,8 +94,7 @@ protected:
   };
 
   virtual void cleanup() = 0;
-  virtual RequestResult data_request(dfmessages::DataRequest /*dr*/,
-                                     bool send_partial_fragment_if_not_yet) = 0;
+  virtual RequestResult data_request(dfmessages::DataRequest /*dr*/) = 0;
 
 private:
 };
