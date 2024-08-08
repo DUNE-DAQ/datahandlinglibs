@@ -7,7 +7,6 @@ template<class T>
 void 
 DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
 {
-  inherited::m_cleanup_requested = true;
   // size_t occupancy_guess = m_latency_buffer->occupancy();
   size_t removed_ctr = 0;
   uint64_t tailts = 0; // oldest // NOLINT(build/unsigned)
@@ -46,7 +45,6 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
     }
   }
   inherited::m_num_buffer_cleanups++;
-  inherited::m_cleanup_requested = false;
 }
 
 } // namespace datahandlinglibs
