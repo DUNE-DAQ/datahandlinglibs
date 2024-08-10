@@ -20,22 +20,15 @@ RecorderModel<ReadoutType>::init(const appmodel::DataRecorderModule* conf)
   m_use_o_direct = conf->get_configuration()->get_use_o_direct();
 }
 
-// template<class ReadoutType>
-// void 
-// RecorderModel<ReadoutType>::get_info(opmonlib::InfoCollector& ci, int /* level */)
-// {
-//   recorderinfo::Info info;
-//   info.packets_processed = m_packets_processed_total;
-//   double time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() -
-//                                                                                m_time_point_last_info)
-//                        .count();
-//   info.throughput_processed_packets = m_packets_processed_since_last_info / time_diff;
-
-//   ci.add(info);
-
-//   m_packets_processed_since_last_info = 0;
-//   m_time_point_last_info = std::chrono::steady_clock::now();
-// }
+template<class ReadoutType>
+void 
+RecorderModel<ReadoutType>::generate_opmon_data()
+{
+   opmon::RecordingInfo info;
+   info.set_recording_status("Y");
+   info.set_packets_recorded(m_packets_processed.exchange(0));
+   info.set_bytes_recorded(m_bytes_processed.exchange(0));
+}
 
 template<class ReadoutType>
 void 
@@ -55,7 +48,9 @@ template<class ReadoutType>
 void 
 RecorderModel<ReadoutType>::do_start(const nlohmann::json& /* args */)
 {
-  m_packets_processed_total = 0;
+  m_packets_processed = 0;
+  m_bytes_processed = 0;
+  
   m_run_marker.store(true);
   m_work_thread.set_work(&RecorderModel<ReadoutType>::do_work, this);
 }
@@ -80,12 +75,12 @@ RecorderModel<ReadoutType>::do_work()
   while (m_run_marker) {
     try {
       element = m_data_receiver->receive(std::chrono::milliseconds(100)); // RS -> Use confed timeout?
-      m_packets_processed_total++;
-      m_packets_processed_since_last_info++;
       if (!m_buffered_writer.write(reinterpret_cast<char*>(&element), sizeof(element))) { // NOLINT
         ers::warning(CannotWriteToFile(ERS_HERE, m_output_file));
         break;
       }
+      m_packets_processed++;
+      m_bytes_processed+=sizeof(element);
     } catch (const dunedaq::iomanager::TimeoutExpired& excpt) {
       continue;
     }

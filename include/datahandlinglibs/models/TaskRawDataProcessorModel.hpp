@@ -15,7 +15,8 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
+
+#include  "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
@@ -27,6 +28,7 @@
 
 #include <folly/ProducerConsumerQueue.h>
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -45,7 +47,7 @@ class TaskRawDataProcessorModel : public RawDataProcessorConcept<ReadoutType>
 {
 public:
   // Excplicit constructor with error registry
-  explicit TaskRawDataProcessorModel(std::unique_ptr<FrameErrorRegistry>& error_registry)
+  explicit TaskRawDataProcessorModel(std::shared_ptr<FrameErrorRegistry>& error_registry)
     : RawDataProcessorConcept<ReadoutType>()
     , m_error_registry(error_registry)
   {}
@@ -92,6 +94,9 @@ public:
   void launch_all_preprocess_functions(ReadoutType* item);
 
 protected:
+  // Operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Post-processing thread runner
   void run_post_processing_thread(std::function<void(const ReadoutType*)>& function,
                                   folly::ProducerConsumerQueue<const ReadoutType*>& queue);
@@ -101,7 +106,7 @@ protected:
 
   // Pre-processing pipeline functions
   std::vector<std::function<void(ReadoutType*)>> m_preprocess_functions;
-  std::unique_ptr<FrameErrorRegistry>& m_error_registry;
+  std::shared_ptr<FrameErrorRegistry>& m_error_registry;
 
   // Post-processing functions and their corresponding threads
   std::vector<std::function<void(const ReadoutType*)>> m_post_process_functions;
@@ -113,7 +118,7 @@ protected:
   //uint32_t m_this_link_number; // NOLINT(build/unsigned)
   daqdataformats::SourceID m_sourceid;
   //bool m_emulator_mode{ false };
-  std::atomic<std::uint64_t> m_last_processed_daq_ts{ 0 }; // NOLINT(build/unsigned)
+  std::atomic<uint64_t> m_last_processed_daq_ts{ 0 }; // NOLINT(build/unsigned)
 
 };
 

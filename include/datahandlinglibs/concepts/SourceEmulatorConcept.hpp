@@ -12,6 +12,7 @@
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "confmodel/DetectorStream.hpp"
 #include "appmodel/StreamEmulationParameters.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <map>
 #include <string>
@@ -20,7 +21,7 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class SourceEmulatorConcept
+class SourceEmulatorConcept : public opmonlib::MonitorableObject
 {
 public:
   SourceEmulatorConcept() {}
@@ -32,7 +33,6 @@ public:
   SourceEmulatorConcept(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-constructible
   SourceEmulatorConcept& operator=(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-assignable
 
-  //virtual void init(const nlohmann::json& /*args*/) = 0;
   virtual void set_sender(const std::string& /*sink_name*/) = 0;
   virtual void conf(const confmodel::DetectorStream* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
   virtual void start(const nlohmann::json& /*args*/) = 0;

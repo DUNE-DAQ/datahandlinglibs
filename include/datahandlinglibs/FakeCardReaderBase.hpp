@@ -59,11 +59,9 @@ public:
   FakeCardReaderBase& operator=(FakeCardReaderBase&&) = delete;      ///< FakeCardReaderBase is not move-assignable
 
   void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
-  #warning MISSING OPMON
-  //  void get_info(opmonlib::InfoCollector& ci, int level);
 
   // To be implemented by final module
-  virtual std::unique_ptr<datahandlinglibs::SourceEmulatorConcept>
+  virtual std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>
   create_source_emulator(std::string qi, std::atomic<bool>& run_marker) = 0;
 
   // Commands
@@ -80,7 +78,7 @@ private:
   std::string m_name;
   std::shared_ptr<appfwk::ModuleConfiguration> m_cfg;
 
-  std::map<std::string, std::unique_ptr<datahandlinglibs::SourceEmulatorConcept>> m_source_emus;
+  std::map<std::string, std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>> m_source_emus;
 
   // Internals
   std::unique_ptr<datahandlinglibs::FileSourceBuffer> m_source_buffer;

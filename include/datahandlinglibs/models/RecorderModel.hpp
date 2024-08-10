@@ -8,16 +8,15 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_RECORDERMODEL_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_RECORDERMODEL_HPP_
 
-//#include "appfwk/DAQModuleHelper.hpp"
 #include "iomanager/IOManager.hpp"
 #include "iomanager/Receiver.hpp"
 #include "utilities/WorkerThread.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
 #include "datahandlinglibs/concepts/RecorderConcept.hpp"
-//#include "datahandlinglibs/recorderconfig/Nljs.hpp"
-//#include "datahandlinglibs/recorderconfig/Structs.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
+
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
@@ -48,6 +47,9 @@ public:
   void do_start(const nlohmann::json& /* args */) override;
   void do_stop(const nlohmann::json& /* args */) override;
 
+protected:
+  virtual void generate_opmon_data() override;
+
 private:
   // The work that the worker thread does
   void do_work();
@@ -70,8 +72,8 @@ private:
   std::atomic<bool> m_run_marker;
 
   // Stats
-  std::atomic<int> m_packets_processed_total{ 0 };
-  std::atomic<int> m_packets_processed_since_last_info{ 0 };
+  std::atomic<int> m_bytes_processed{ 0 };
+  std::atomic<int> m_packets_processed{ 0 };
   std::chrono::steady_clock::time_point m_time_point_last_info;
 
   std::string m_name;

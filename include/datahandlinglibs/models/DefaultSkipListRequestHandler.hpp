@@ -36,8 +36,8 @@ public:
   using SkipListSkip = typename folly::ConcurrentSkipList<T>::Skipper;
 
   // Constructor that binds LB and error registry
-  DefaultSkipListRequestHandler(std::unique_ptr<datahandlinglibs::SkipListLatencyBufferModel<T>>& latency_buffer,
-                                std::unique_ptr<datahandlinglibs::FrameErrorRegistry>& error_registry)
+  DefaultSkipListRequestHandler(std::shared_ptr<datahandlinglibs::SkipListLatencyBufferModel<T>>& latency_buffer,
+                                std::shared_ptr<datahandlinglibs::FrameErrorRegistry>& error_registry)
     : datahandlinglibs::DefaultRequestHandlerModel<T, datahandlinglibs::SkipListLatencyBufferModel<T>>(
         latency_buffer,
         error_registry)

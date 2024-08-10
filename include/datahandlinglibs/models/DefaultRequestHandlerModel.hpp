@@ -14,6 +14,8 @@
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
 
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
@@ -91,8 +93,8 @@ public:
     typename dunedaq::datahandlinglibs::RequestHandlerConcept<ReadoutType, LatencyBufferType>::ResultCode;
 
   // Explicit constructor with binding LB and error registry
-  explicit DefaultRequestHandlerModel(std::unique_ptr<LatencyBufferType>& latency_buffer,
-                                      std::unique_ptr<FrameErrorRegistry>& error_registry)
+  explicit DefaultRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
+                                      std::shared_ptr<FrameErrorRegistry>& error_registry)
     : m_latency_buffer(latency_buffer)
     , m_recording_thread(0)
     , m_cleanup_thread(0)
@@ -216,8 +218,12 @@ protected:
   // Override data_request functionality
   RequestResult data_request(dfmessages::DataRequest dr) override;
 
+
+  // operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Data access (LB)
-  std::unique_ptr<LatencyBufferType>& m_latency_buffer;
+  std::shared_ptr<LatencyBufferType>& m_latency_buffer;
 
   // Data recording
   BufferedFileWriter<> m_buffered_writer;
@@ -243,7 +249,7 @@ protected:
   size_t m_num_request_handling_threads = 0;
 
   // Error registry
-  std::unique_ptr<FrameErrorRegistry>& m_error_registry;
+  std::shared_ptr<FrameErrorRegistry>& m_error_registry;
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
 
   // The run marker
@@ -285,6 +291,7 @@ protected:
   std::atomic<int> m_response_time_min{ std::numeric_limits<int>::max() };
   std::atomic<int> m_response_time_max{ 0 };
   std::atomic<int> m_payloads_written{ 0 };
+  std::atomic<int> m_bytes_written{ 0 };
   std::atomic<uint64_t> m_num_periodic_sent{ 0 };  // NOLINT(build/unsigned)
   std::atomic<uint64_t> m_num_periodic_send_failed{ 0 }; // NOLINT(build/unsigned)
 	

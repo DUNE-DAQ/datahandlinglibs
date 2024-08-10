@@ -7,8 +7,6 @@ template<class ReadoutType>
 void 
 TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::DataHandlerModule* conf)
 {
-  //auto config = cfg["rawdataprocessorconf"].get<readoutconfig::RawDataProcessorConf>();
-  //m_emulator_mode = config.emulator_mode;
   auto cfg = conf->get_module_configuration()->get_data_processor();
   m_postprocess_queue_sizes = cfg->get_queue_sizes();
   m_sourceid.id = conf->get_source_id();
@@ -118,6 +116,17 @@ TaskRawDataProcessorModel<ReadoutType>::run_post_processing_thread(
       std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
   }
+}
+
+template<class ReadoutType>
+void
+TaskRawDataProcessorModel<ReadoutType>::generate_opmon_data() 
+{
+  opmon::DataProcessorInfo info;
+   for (size_t i = 0; i < m_items_to_postprocess_queues.size(); ++i) {
+    info.add_elements_queued(m_items_to_postprocess_queues[i]->sizeGuess());
+  }
+  this->publish(std::move(info));
 }
 
 } // namespace datahandlinglibs

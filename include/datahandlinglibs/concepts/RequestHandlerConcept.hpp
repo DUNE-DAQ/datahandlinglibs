@@ -12,6 +12,7 @@
 #include "daqdataformats/Fragment.hpp"
 #include "dfmessages/DataRequest.hpp"
 #include "appmodel/DataHandlerModule.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <map>
 #include <memory>
@@ -22,7 +23,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class ReadoutType, class LatencyBufferType>
-class RequestHandlerConcept
+class RequestHandlerConcept : public opmonlib::MonitorableObject
 {
 
 public:

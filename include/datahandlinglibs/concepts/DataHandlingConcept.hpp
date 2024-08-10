@@ -10,11 +10,11 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 
 #include "appmodel/DataHandlerModule.hpp"
-
+#include "opmonlib/MonitorableObject.hpp"
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class DataHandlingConcept 
+class DataHandlingConcept: public opmonlib::MonitorableObject 
 {
 public:
   DataHandlingConcept() {}

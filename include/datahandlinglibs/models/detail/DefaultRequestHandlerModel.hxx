@@ -86,6 +86,7 @@ DefaultRequestHandlerModel<RDT, LBT>::start(const nlohmann::json& /*args*/)
   m_pop_reqs = 0;
   m_pops_count = 0;
   m_payloads_written = 0;
+  m_bytes_written = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
 
@@ -173,6 +174,7 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
                 ers::warning(CannotWriteToFile(ERS_HERE, m_output_file));
               }
               m_payloads_written++;
+	      m_bytes_written += chunk_iter->get_payload_size();
               processed_chunks_in_loop++;
               m_next_timestamp_to_record = (*chunk_iter).get_first_timestamp() +
                                            RDT::expected_tick_difference * (*chunk_iter).get_num_frames();
@@ -261,54 +263,57 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
   });
 }
 
-// template<class RDT, class LBT>
-// void 
-// DefaultRequestHandlerModel<RDT, LBT>::get_info(opmonlib::InfoCollector& ci, int /*level*/)
-// {
-//   readoutinfo::RequestHandlerInfo info;
-//   info.num_requests_found = m_num_requests_found.exchange(0);
-//   info.num_requests_bad = m_num_requests_bad.exchange(0);
-//   info.num_requests_old_window = m_num_requests_old_window.exchange(0);
-//   info.num_requests_delayed = m_num_requests_delayed.exchange(0);
-//   info.num_requests_uncategorized = m_num_requests_uncategorized.exchange(0);
-//   info.num_buffer_cleanups = m_num_buffer_cleanups.exchange(0);
-//   info.num_requests_waiting = m_waiting_requests.size();
-//   info.num_requests_timed_out = m_num_requests_timed_out.exchange(0);
-//   info.num_periodic_sent = m_num_periodic_sent.exchange(0);
-//   info.num_periodic_send_failed = m_num_periodic_send_failed.exchange(0);
-//   info.is_recording = m_recording;
-//   info.num_payloads_written = m_payloads_written.exchange(0);
-//   info.recording_status = m_recording ? "Y" : "N";
+template<class RDT, class LBT>
+void 
+DefaultRequestHandlerModel<RDT, LBT>::generate_opmon_data()
+ {
+   opmon::RequestHandlerInfo info;
 
+   info.set_num_requests_handled(m_handled_requests.exchange(0));
+   info.set_num_requests_found(m_num_requests_found.exchange(0));
+   info.set_num_requests_bad(m_num_requests_bad.exchange(0));
+   info.set_num_requests_old_window(m_num_requests_old_window.exchange(0));
+   info.set_num_requests_delayed(m_num_requests_delayed.exchange(0));
+   info.set_num_requests_uncategorized(m_num_requests_uncategorized.exchange(0));
+   info.set_num_requests_timed_out(m_num_requests_timed_out.exchange(0));
+   info.set_num_requests_waiting(m_waiting_requests.size());
 
-//   int new_pop_reqs = 0;
-//   int new_pop_count = 0;
-//   int new_occupancy = 0;
-//   info.num_requests_handled = m_handled_requests.exchange(0);
-//   info.tot_request_response_time = m_response_time_acc.exchange(0);
-//   info.max_request_response_time = m_response_time_max.exchange(0);
-//   info.min_request_response_time = m_response_time_min.exchange(std::numeric_limits<int>::max());
-//   auto now = std::chrono::high_resolution_clock::now();
-//   new_pop_reqs = m_pop_reqs.exchange(0);
-//   new_pop_count = m_pops_count.exchange(0);
-//   new_occupancy = m_occupancy;
-//   double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
-//   TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Cleanup request rate: " << new_pop_reqs / seconds / 1. << " [Hz]"
-//                                 << " Dropped: " << new_pop_count << " Occupancy: " << new_occupancy;
+   int new_pop_reqs = 0;
+   int new_pop_count = 0;
+   int new_occupancy = 0;
+   info.set_tot_request_response_time(m_response_time_acc.exchange(0));
+   info.set_max_request_response_time(m_response_time_max.exchange(0));
+   info.set_min_request_response_time(m_response_time_min.exchange(std::numeric_limits<int>::max()));
+   auto now = std::chrono::high_resolution_clock::now();
+   new_pop_reqs = m_pop_reqs.exchange(0);
+   new_pop_count = m_pops_count.exchange(0);
+   new_occupancy = m_occupancy;
+   double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
+   TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Cleanup request rate: " << new_pop_reqs / seconds / 1. << " [Hz]"
+                                 << " Dropped: " << new_pop_count << " Occupancy: " << new_occupancy;
 
-//   if (info.num_requests_handled > 0) {
+   if (info.num_requests_handled() > 0) {
 
-//     info.avg_request_response_time = info.tot_request_response_time / info.num_requests_handled;
-//     TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Completed requests: " << info.num_requests_handled
-//     TLOG() << "Completed requests: " << info.num_requests_handled
-//                                   << " | Avarage response time: " << info.avg_request_response_time << "[us]"
-// 	  			     << " | Periodic sends: " << info.num_periodic_sent;
-//   }
+     info.set_avg_request_response_time(info.tot_request_response_time() / info.num_requests_handled());
+     TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Completed requests: " << info.num_requests_handled()
+                                   << " | Avarage response time: " << info.avg_request_response_time() << "[us]"
+ 	  			     << " | Periodic sends: " << info.num_periodic_sent();
+   }
 
-//   m_t0 = now;
+   m_t0 = now;
 
-//   ci.add(info);
-// }
+   info.set_num_buffer_cleanups(m_num_buffer_cleanups.exchange(0));
+   info.set_num_periodic_sent(m_num_periodic_sent.exchange(0));
+   info.set_num_periodic_send_failed(m_num_periodic_send_failed.exchange(0));
+
+   this->publish(std::move(info));
+
+   opmon::RecordingInfo rinfo;
+   rinfo.set_recording_status(m_recording? "Y" : "N");
+   rinfo.set_packets_recorded(m_payloads_written.exchange(0));   
+   rinfo.set_bytes_recorded(m_bytes_written.exchange(0));   
+   this->publish(std::move(rinfo));
+ }
 
 
 template<class RDT, class LBT>

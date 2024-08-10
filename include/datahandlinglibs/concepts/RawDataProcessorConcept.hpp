@@ -10,6 +10,7 @@
 
 #include "daqdataformats/SourceID.hpp"
 #include "appmodel/DataHandlerModule.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <string>
 #include <nlohmann/json.hpp>
@@ -18,7 +19,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class ReadoutType>
-class RawDataProcessorConcept
+class RawDataProcessorConcept : public opmonlib::MonitorableObject
 {
 public:
   RawDataProcessorConcept() {}

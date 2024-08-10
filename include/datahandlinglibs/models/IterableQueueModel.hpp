@@ -27,8 +27,7 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "datahandlinglibs/concepts/LatencyBufferConcept.hpp"
 
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
-//#include "datahandlinglibs/readoutconfig/Structs.hpp"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "logging/Logging.hpp"
 
@@ -311,6 +310,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   }
 
 protected:
+  virtual void generate_opmon_data() override;
+
   // Hidden original write implementation with signature difference. Only used for pre-allocation
   template<class... Args>
   bool write_(Args&&... recordArgs);

@@ -14,6 +14,7 @@
 
 #include "appfwk/DAQModule.hpp"
 #include "confmodel/DaqModule.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <memory>
 #include <sstream>
@@ -22,7 +23,7 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class SourceConcept 
+class SourceConcept : public opmonlib::MonitorableObject
 {
 public:
   SourceConcept() {}

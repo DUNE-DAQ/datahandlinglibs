@@ -116,16 +116,16 @@ SourceEmulatorModel<ReadoutType>::stop(const nlohmann::json& /*args*/)
   }
 }
 
-// template<class ReadoutType>
-// void
-// SourceEmulatorModel<ReadoutType>::get_info(opmonlib::InfoCollector& ci, int /*level*/)
-// {
-//   sourceemulatorinfo::Info info;
-//   info.packets = m_packet_count_tot.load();
-//   info.new_packets = m_packet_count.exchange(0);
+template<class ReadoutType>
+void
+SourceEmulatorModel<ReadoutType>::generate_opmon_data()
+{
+   opmon::DataSourceInfo info;
+   info.set_sum_packets(m_packet_count_tot.load());
+   info.set_num_packets(m_packet_count.exchange(0));
 
-//   ci.add(info);
-// }
+   this->publish(std::move(info));
+}
 
 template<class ReadoutType>
 void

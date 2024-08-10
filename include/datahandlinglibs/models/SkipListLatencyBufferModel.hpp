@@ -69,7 +69,8 @@ public:
 
     bool good() { return m_iter.good(); }
 
-  private:
+
+private:
     SkipListTAcc m_acc;
     SkipListTIter m_iter;
   };
@@ -109,6 +110,8 @@ public:
 
   // Pop X override
   void pop(size_t num = 1) override; // NOLINT(build/unsigned)
+protected:
+    virtual void generate_opmon_data() override;  
 
 private:
   // Concurrent SkipList

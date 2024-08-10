@@ -13,9 +13,12 @@
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataHandlerConf.hpp"
+#include "appmodel/RequestHandler.hpp"
+#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/DataProcessor.hpp"
 
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
-//#include "appfwk/DAQModuleHelper.hpp"
 #include "iomanager/IOManager.hpp"
 #include "iomanager/Sender.hpp"
 #include "iomanager/Receiver.hpp"
@@ -136,6 +139,10 @@ protected:
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
 
+
+  // Operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Constuctor params
   std::atomic<bool>& m_run_marker;
 
@@ -184,17 +191,17 @@ protected:
   uint32_t m_pid_of_current_process;
 
   // LATENCY BUFFER
-  std::unique_ptr<LatencyBufferType> m_latency_buffer_impl;
+  std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
 
   // RAW PROCESSING
-  std::unique_ptr<RawDataProcessorType> m_raw_processor_impl;
+  std::shared_ptr<RawDataProcessorType> m_raw_processor_impl;
 
   // REQUEST HANDLER
-  std::unique_ptr<RequestHandlerType> m_request_handler_impl;
+  std::shared_ptr<RequestHandlerType> m_request_handler_impl;
   bool m_request_handler_supports_cutoff_timestamp;
 
   // ERROR REGISTRY
-  std::unique_ptr<FrameErrorRegistry> m_error_registry;
+  std::shared_ptr<FrameErrorRegistry> m_error_registry;
 
   // RUN START T0
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
