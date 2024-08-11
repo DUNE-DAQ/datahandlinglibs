@@ -148,9 +148,9 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
         if (!m_cleanup_requested || (m_next_timestamp_to_record == 0)) {
           if (m_next_timestamp_to_record == 0) {
             auto front = m_latency_buffer->front();
-            m_next_timestamp_to_record = front == nullptr ? 0 : front->get_first_timestamp();
+            m_next_timestamp_to_record = front == nullptr ? 0 : front->get_timestamp();
           }
-          element_to_search.set_first_timestamp(m_next_timestamp_to_record);
+          element_to_search.set_timestamp(m_next_timestamp_to_record);
           size_t processed_chunks_in_loop = 0;
 
           {
@@ -168,7 +168,7 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
           m_cv.notify_all();
 
           for (; chunk_iter != end && chunk_iter.good() && processed_chunks_in_loop < 1000;) {
-            if ((*chunk_iter).get_first_timestamp() >= m_next_timestamp_to_record) {
+            if ((*chunk_iter).get_timestamp() >= m_next_timestamp_to_record) {
               if (!m_buffered_writer.write(reinterpret_cast<char*>(chunk_iter->begin()), // NOLINT
                                            chunk_iter->get_payload_size())) {
                 ers::warning(CannotWriteToFile(ERS_HERE, m_output_file));
@@ -176,7 +176,7 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
               m_payloads_written++;
 	      m_bytes_written += chunk_iter->get_payload_size();
               processed_chunks_in_loop++;
-              m_next_timestamp_to_record = (*chunk_iter).get_first_timestamp() +
+              m_next_timestamp_to_record = (*chunk_iter).get_timestamp() +
                                            RDT::expected_tick_difference * (*chunk_iter).get_num_frames();
             }
             ++chunk_iter;
@@ -368,7 +368,7 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
 
     unsigned popped = 0;
     for (size_t i = 0; i < to_pop; ++i) {
-      if (m_latency_buffer->front()->get_first_timestamp() < m_next_timestamp_to_record) {
+      if (m_latency_buffer->front()->get_timestamp() < m_next_timestamp_to_record) {
         m_latency_buffer->pop(1);
         popped++;
       } else {
@@ -378,7 +378,7 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
     // m_pops_count += to_pop;
     m_occupancy = m_latency_buffer->occupancy();
     m_pops_count += popped;
-    m_error_registry->remove_errors_until(m_latency_buffer->front()->get_first_timestamp());
+    m_error_registry->remove_errors_until(m_latency_buffer->front()->get_timestamp());
   }
   m_num_buffer_cleanups++;
   m_cleanup_requested = false;
@@ -399,7 +399,7 @@ DefaultRequestHandlerModel<RDT, LBT>::check_waiting_requests()
 
       auto last_frame = m_latency_buffer->back();                                       // NOLINT
       uint64_t newest_ts = last_frame == nullptr ? std::numeric_limits<uint64_t>::min() // NOLINT(build/unsigned)
-                                                 : last_frame->get_first_timestamp();
+                                                 : last_frame->get_timestamp();
 
       size_t size = m_waiting_requests.size();
 
@@ -450,8 +450,8 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   // Data availability is calculated here
   auto front_element = m_latency_buffer->front();           // NOLINT
   auto last_element = m_latency_buffer->back();             // NOLINT
-  uint64_t last_ts = front_element->get_first_timestamp();  // NOLINT(build/unsigned)
-  uint64_t newest_ts = last_element->get_first_timestamp(); // NOLINT(build/unsigned)
+  uint64_t last_ts = front_element->get_timestamp();  // NOLINT(build/unsigned)
+  uint64_t newest_ts = last_element->get_timestamp(); // NOLINT(build/unsigned)
 
   if (start_win_ts > newest_ts) {
   // No element is as small as the start window-> request is far in the future
@@ -462,8 +462,8 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   }
   else {
     RDT request_element = RDT();
-    //request_element.set_first_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-    request_element.set_first_timestamp(start_win_ts);
+    //request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
+    request_element.set_timestamp(start_win_ts);
 
     auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
@@ -473,7 +473,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
       rres.result_code = ResultCode::kNotFound;
     } 
     else {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_first_timestamp() << ", --> distance from window: " << int64_t(start_win_ts) - int64_t(start_iter->get_first_timestamp()) ;  
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
       if (end_win_ts > newest_ts) {
          rres.result_code = ResultCode::kPartial;
       }
@@ -488,16 +488,16 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
 
       RDT* element = &(*start_iter);
    
-      while (start_iter.good() && element->get_first_timestamp() < end_win_ts) {
-        if ( element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
-        //TLOG() << "skip processing for current element " << element->get_first_timestamp() << ", out of readout window.";
+      while (start_iter.good() && element->get_timestamp() < end_win_ts) {
+        if ( element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
+        //TLOG() << "skip processing for current element " << element->get_timestamp() << ", out of readout window.";
         } 
       
         else if ( element->get_num_frames()>1 &&
-         ((element->get_first_timestamp() < start_win_ts &&
-          element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference > start_win_ts) 
+         ((element->get_timestamp() < start_win_ts &&
+          element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference > start_win_ts) 
          ||
-          element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference >
+          element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference >
             end_win_ts)) {
           //TLOG() << "We don't need the whole aggregated object (e.g.: superchunk)" ;
           for (auto frame_iter = element->begin(); frame_iter != element->end(); frame_iter++) {
@@ -509,7 +509,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
           }
         }
         else {
-	  //TLOG() << "Add element " << element->get_first_timestamp();      
+	  //TLOG() << "Add element " << element->get_timestamp();      
           // We are somewhere in the middle -> the whole aggregated object (e.g.: superchunk) can be copied
           frag_pieces.emplace_back(
             std::make_pair<void*, size_t>(static_cast<void*>((*start_iter).begin()), element->get_payload_size()));

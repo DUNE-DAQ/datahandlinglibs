@@ -224,10 +224,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
 
       m_raw_processor_impl->preprocess_item(&payload);
       if (m_request_handler_supports_cutoff_timestamp) {
-        int64_t diff1 = payload.get_first_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
+        int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
         if (diff1 <= 0) {
           //m_request_handler_impl->increment_tardy_tp_count();
-          ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_first_timestamp(),
+          ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
                                                 m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                                 (static_cast<double>(diff1)/62500.0)));
         }
@@ -263,7 +263,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
         
         if (first_cycle) {
 	  auto head = m_latency_buffer_impl->front();
-          processed_element.set_first_timestamp(head->get_timestamp()); 
+          processed_element.set_timestamp(head->get_timestamp()); 
           first_cycle = false;
 	  TLOG() << "***** First pass post processing *****" ;
         }
@@ -271,7 +271,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
 	if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
     	  end_win_ts = newest_ts - m_processing_delay_ticks; 
 	  auto start_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
-	  processed_element.set_first_timestamp(end_win_ts);
+	  processed_element.set_timestamp(end_win_ts);
 	  auto end_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
 
 	  for (auto it = start_iter; it!= end_iter; ++it) { 
@@ -297,10 +297,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::consume_payload(RDT&& payload)
  //m_stats_packet_count = 0;
   m_raw_processor_impl->preprocess_item(&payload);
   if (m_request_handler_supports_cutoff_timestamp) {
-    int64_t diff1 = payload.get_first_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
+    int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
       //m_request_handler_impl->increment_tardy_tp_count();
-      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_first_timestamp(),
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
                                             m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                             (static_cast<double>(diff1)/62500.0)));
     }

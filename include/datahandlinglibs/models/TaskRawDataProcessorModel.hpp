@@ -47,7 +47,7 @@ class TaskRawDataProcessorModel : public RawDataProcessorConcept<ReadoutType>
 {
 public:
   // Excplicit constructor with error registry
-  explicit TaskRawDataProcessorModel(std::shared_ptr<FrameErrorRegistry>& error_registry)
+  explicit TaskRawDataProcessorModel(std::unique_ptr<FrameErrorRegistry>& error_registry)
     : RawDataProcessorConcept<ReadoutType>()
     , m_error_registry(error_registry)
   {}
@@ -106,7 +106,7 @@ protected:
 
   // Pre-processing pipeline functions
   std::vector<std::function<void(ReadoutType*)>> m_preprocess_functions;
-  std::shared_ptr<FrameErrorRegistry>& m_error_registry;
+  std::unique_ptr<FrameErrorRegistry>& m_error_registry;
 
   // Post-processing functions and their corresponding threads
   std::vector<std::function<void(const ReadoutType*)>> m_post_process_functions;

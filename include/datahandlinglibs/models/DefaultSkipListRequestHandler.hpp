@@ -37,7 +37,7 @@ public:
 
   // Constructor that binds LB and error registry
   DefaultSkipListRequestHandler(std::shared_ptr<datahandlinglibs::SkipListLatencyBufferModel<T>>& latency_buffer,
-                                std::shared_ptr<datahandlinglibs::FrameErrorRegistry>& error_registry)
+                                std::unique_ptr<datahandlinglibs::FrameErrorRegistry>& error_registry)
     : datahandlinglibs::DefaultRequestHandlerModel<T, datahandlinglibs::SkipListLatencyBufferModel<T>>(
         latency_buffer,
         error_registry)

@@ -9,7 +9,7 @@
 #define DATAHANDLINGLIBS_SRC_SOURCEMODEL_HPP_
 
 #include "datahandlinglibs/concepts/SourceConcept.hpp"
-
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "iomanager/IOManager.hpp"
 #include "iomanager/Sender.hpp"

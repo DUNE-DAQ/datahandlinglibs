@@ -94,7 +94,7 @@ public:
 
   // Explicit constructor with binding LB and error registry
   explicit DefaultRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
-                                      std::shared_ptr<FrameErrorRegistry>& error_registry)
+                                      std::unique_ptr<FrameErrorRegistry>& error_registry)
     : m_latency_buffer(latency_buffer)
     , m_recording_thread(0)
     , m_cleanup_thread(0)
@@ -249,7 +249,7 @@ protected:
   size_t m_num_request_handling_threads = 0;
 
   // Error registry
-  std::shared_ptr<FrameErrorRegistry>& m_error_registry;
+  std::unique_ptr<FrameErrorRegistry>& m_error_registry;
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
 
   // The run marker

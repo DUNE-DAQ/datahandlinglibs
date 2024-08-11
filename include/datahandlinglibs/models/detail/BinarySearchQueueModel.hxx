@@ -34,7 +34,7 @@ BinarySearchQueueModel<T>::lower_bound(T& element, bool /*with_errors=false*/)
     T& element_between = IterableQueueModel<T>::records_[middle_index];
 
     //if we landed on our element, let's get out of here.
-    if (element.get_first_timestamp()==element_between.get_first_timestamp())
+    if (element.get_timestamp()==element_between.get_timestamp())
       return typename IterableQueueModel<T>::Iterator(*this, middle_index);
 
     if ( diff == 0 ) {

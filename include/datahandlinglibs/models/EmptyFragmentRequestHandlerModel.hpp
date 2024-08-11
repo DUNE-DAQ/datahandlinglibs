@@ -36,7 +36,7 @@ public:
 
   // Explicit constructor to bind LB and error registry
   explicit EmptyFragmentRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
-                                            std::shared_ptr<FrameErrorRegistry>& error_registry)
+                                            std::unique_ptr<FrameErrorRegistry>& error_registry)
     : DefaultRequestHandlerModel<ReadoutType, LatencyBufferType>(latency_buffer, error_registry)
   {
     TLOG_DEBUG(TLVL_WORK_STEPS) << "EmptyFragmentRequestHandlerModel created...";

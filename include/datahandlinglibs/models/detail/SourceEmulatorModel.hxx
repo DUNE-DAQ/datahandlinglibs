@@ -148,7 +148,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
   auto rptr = reinterpret_cast<ReadoutType*>(source.data()); // NOLINT
 
   // set the initial timestamp to a configured value, otherwise just use the timestamp from the header
-  uint64_t ts_0 = rptr->get_first_timestamp(); // NOLINT(build/unsigned)
+  uint64_t ts_0 = rptr->get_timestamp(); // NOLINT(build/unsigned)
   if (m_t0_now) {
     auto time_now = std::chrono::system_clock::now().time_since_epoch();
     uint64_t current_time = // NOLINT (build/unsigned)

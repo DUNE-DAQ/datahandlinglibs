@@ -201,7 +201,7 @@ protected:
   bool m_request_handler_supports_cutoff_timestamp;
 
   // ERROR REGISTRY
-  std::shared_ptr<FrameErrorRegistry> m_error_registry;
+  std::unique_ptr<FrameErrorRegistry> m_error_registry;
 
   // RUN START T0
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
