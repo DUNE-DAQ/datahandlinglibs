@@ -16,7 +16,7 @@ message DataHandlerInfo {
   uint64 sum_payloads = 1; // Total number of received payloads
   uint64 num_payloads = 2; // Incremental number of received payloads 
   uint64 num_data_input_timeouts = 3; // Timeout on data inputs 
-  float rate_payloads_consumed = 4; // Rate of consumed packets 
+  double rate_payloads_consumed = 4; // Rate of consumed packets 
   uint64 num_payloads_overwritten = 5; // Number of overwritten payloads because the LB is full 
   uint64 sum_requests = 11; // Total number of received requests 
   uint64 num_requests = 12; // Incremental number of received requests 
@@ -44,7 +44,7 @@ message RequestHandlerInfo {
 message RecordingInfo {
   string recording_status = 1; // Recording status
   uint64 packets_recorded = 2; // Number of packets processed
-  float bytes_recorded = 3; // Throughput of processed packets
+  uint64 bytes_recorded = 3; // Bytes recorded
 }
 
 message DataProcessorInfo {
