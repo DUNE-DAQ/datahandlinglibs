@@ -9,7 +9,7 @@
 #define DATAHANDLINGLIBS_SRC_SOURCEMODEL_HPP_
 
 #include "datahandlinglibs/concepts/SourceConcept.hpp"
-
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "iomanager/IOManager.hpp"
 #include "iomanager/Sender.hpp"
@@ -55,6 +55,9 @@ public:
   }
 
   void start() {
+    m_packets = 0;
+    m_sum_packets = 0;
+    m_dropped_packets = 0;
     m_data_receiver->add_callback(std::bind(&DataSubscriberModel::handle_payload, this, std::placeholders::_1));
   }  
 
@@ -62,18 +65,24 @@ public:
     m_data_receiver->remove_callback();
   }
 
-  void get_info(opmonlib::InfoCollector& /*ci*/, int /*level*/) 
-  {
-  // FIXME: implement statistics publishing
-  }
-
   bool handle_payload(OriginalPayloadType&  message) // NOLINT(build/unsigned)
   {
+    ++m_packets;
+    ++m_sum_packets;
     TargetPayloadType& target_payload = reinterpret_cast<TargetPayloadType&>(message);
     if (!m_data_sender->try_send(std::move(target_payload), iomanager::Sender::s_no_block)) {
       ++m_dropped_packets;
     }
     return true;
+  }
+protected:
+  virtual void generate_opmon_data() override {
+   opmon::DataSourceInfo info;
+   info.set_num_packets(m_packets.exchange(0));
+   info.set_sum_packets(m_sum_packets) ;
+   info.set_num_dropped_packets(m_dropped_packets.exchange(0));
+   
+   this->publish(std::move(info));
   }
 
 private:
@@ -83,6 +92,8 @@ private:
   using sink_t = dunedaq::iomanager::SenderConcept<TargetPayloadType>;
   std::shared_ptr<sink_t> m_data_sender;
 
+  std::atomic<uint64_t> m_packets{0};
+  std::atomic<uint64_t> m_sum_packets{0};
   std::atomic<uint64_t> m_dropped_packets{0};
 };
 

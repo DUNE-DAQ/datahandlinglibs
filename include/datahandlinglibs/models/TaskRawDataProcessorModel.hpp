@@ -15,7 +15,8 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
+
+#include  "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
@@ -27,6 +28,7 @@
 
 #include <folly/ProducerConsumerQueue.h>
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -65,12 +67,6 @@ public:
   // Stops the pre-processor pipeline and the parallel post-processor threads
   void stop(const nlohmann::json& /*args*/) override;
 
-  // Generic get_info, currently empty
-  virtual void get_info(opmonlib::InfoCollector& /*ci*/, int /*level*/)
-  {
-    // No stats for now, extend later
-  }
-
   // Resets last known/processed DAQ timestamp
   void reset_last_daq_time() { m_last_processed_daq_ts.store(0); }
 
@@ -98,6 +94,9 @@ public:
   void launch_all_preprocess_functions(ReadoutType* item);
 
 protected:
+  // Operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Post-processing thread runner
   void run_post_processing_thread(std::function<void(const ReadoutType*)>& function,
                                   folly::ProducerConsumerQueue<const ReadoutType*>& queue);
@@ -119,7 +118,7 @@ protected:
   //uint32_t m_this_link_number; // NOLINT(build/unsigned)
   daqdataformats::SourceID m_sourceid;
   //bool m_emulator_mode{ false };
-  std::atomic<std::uint64_t> m_last_processed_daq_ts{ 0 }; // NOLINT(build/unsigned)
+  std::atomic<uint64_t> m_last_processed_daq_ts{ 0 }; // NOLINT(build/unsigned)
 
 };
 

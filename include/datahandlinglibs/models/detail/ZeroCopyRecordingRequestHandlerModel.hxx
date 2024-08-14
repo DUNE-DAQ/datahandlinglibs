@@ -89,7 +89,7 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(con
               current_time = std::chrono::high_resolution_clock::now();
               continue;
             }
-            inherited::m_next_timestamp_to_record = begin->get_first_timestamp();
+            inherited::m_next_timestamp_to_record = begin->get_timestamp();
             size_t skipped_frames = 0;
             while (reinterpret_cast<std::uintptr_t>(&(*begin)) % alignment_size) { // NOLINT
               ++begin;
@@ -159,7 +159,7 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(con
                 start_of_buffer_pointer +
                 (((current_write_pointer - start_of_buffer_pointer) / ReadoutType::fixed_payload_size) *
                  ReadoutType::fixed_payload_size))
-                ->get_first_timestamp();
+                ->get_timestamp();
           }
         }
         current_time = std::chrono::high_resolution_clock::now();

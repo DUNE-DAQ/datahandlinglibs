@@ -10,11 +10,11 @@ FixedRateQueueModel<T>::lower_bound(T& element, bool with_errors)
   if (with_errors) {
     return BinarySearchQueueModel<T>::lower_bound(element, with_errors);
   }
-  uint64_t timestamp = element.get_first_timestamp(); // NOLINT(build/unsigned)
+  uint64_t timestamp = element.get_timestamp(); // NOLINT(build/unsigned)
   unsigned int start_index =
     IterableQueueModel<T>::readIndex_.load(std::memory_order_relaxed); // NOLINT(build/unsigned)
   size_t occupancy_guess = IterableQueueModel<T>::occupancy();
-  uint64_t last_ts = IterableQueueModel<T>::records_[start_index].get_first_timestamp(); // NOLINT(build/unsigned)
+  uint64_t last_ts = IterableQueueModel<T>::records_[start_index].get_timestamp(); // NOLINT(build/unsigned)
   uint64_t newest_ts =                                                                   // NOLINT(build/unsigned)
     last_ts +
     occupancy_guess * T::expected_tick_difference * IterableQueueModel<T>::records_[start_index].get_num_frames();

@@ -14,6 +14,7 @@
 
 #include "appfwk/DAQModule.hpp"
 #include "confmodel/DaqModule.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <memory>
 #include <sstream>
@@ -22,7 +23,7 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class SourceConcept
+class SourceConcept : public opmonlib::MonitorableObject
 {
 public:
   SourceConcept() {}
@@ -36,7 +37,6 @@ public:
   virtual void init(const confmodel::DaqModule* mcfg) = 0;
   virtual void start() = 0;
   virtual void stop() = 0;
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
   //virtual bool handle_payload(T& data) = 0;
   
 };

@@ -9,24 +9,21 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 
-//#include "appfwk/app/Nljs.hpp"
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataHandlerConf.hpp"
+#include "appmodel/RequestHandler.hpp"
+#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/DataProcessor.hpp"
 
-//#include "appfwk/cmd/Nljs.hpp"
-//#include "appfwk/cmd/Structs.hpp"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
-
-//#include "appfwk/DAQModuleHelper.hpp"
 #include "iomanager/IOManager.hpp"
 #include "iomanager/Sender.hpp"
 #include "iomanager/Receiver.hpp"
 
 #include "logging/Logging.hpp"
-
-#include "opmonlib/InfoCollector.hpp"
 
 #include "daqdataformats/ComponentRequest.hpp"
 #include "daqdataformats/Fragment.hpp"
@@ -37,8 +34,6 @@
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
 #include "appmodel/DataHandlerModule.hpp"
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
-#include "datahandlinglibs/readoutinfo/InfoNljs.hpp"
 
 #include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
@@ -87,7 +82,6 @@ public:
     , m_callback_mode(false)
     , m_fake_trigger(false)
     , m_current_fake_trigger_id(0)
-    , m_send_partial_fragment_if_available(false)
     , m_consumer_thread(0)
     , m_raw_receiver_timeout_ms(0)
     , m_raw_receiver_sleep_us(0)
@@ -126,7 +120,7 @@ public:
   }
 
   // Opmon get_info call implementation
-  void get_info(opmonlib::InfoCollector& ci, int level);
+  //void get_info(opmonlib::InfoCollector& ci, int level);
 
   // Raw data consume callback
   void consume_payload(RDT&& payload);
@@ -145,6 +139,10 @@ protected:
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
 
+
+  // Operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Constuctor params
   std::atomic<bool>& m_run_marker;
 
@@ -156,7 +154,6 @@ protected:
   int m_current_fake_trigger_id;
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
-  bool m_send_partial_fragment_if_available;
   uint64_t m_processing_delay_ticks;
   // STATS
   std::atomic<int> m_num_payloads{ 0 };
@@ -194,13 +191,13 @@ protected:
   uint32_t m_pid_of_current_process;
 
   // LATENCY BUFFER
-  std::unique_ptr<LatencyBufferType> m_latency_buffer_impl;
+  std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
 
   // RAW PROCESSING
-  std::unique_ptr<RawDataProcessorType> m_raw_processor_impl;
+  std::shared_ptr<RawDataProcessorType> m_raw_processor_impl;
 
   // REQUEST HANDLER
-  std::unique_ptr<RequestHandlerType> m_request_handler_impl;
+  std::shared_ptr<RequestHandlerType> m_request_handler_impl;
   bool m_request_handler_supports_cutoff_timestamp;
 
   // ERROR REGISTRY

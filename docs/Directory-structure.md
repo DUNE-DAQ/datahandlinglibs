@@ -1,13 +1,12 @@
 # Directory structure of this repo
 This repository is structured as follows:
 * `cmake`
-* `config`
 * `docs`
 * `include/datahandlinglibs`
   * `concepts`
   * `models`
   * `utils`
-* `schema/datahandlinglibs`
+* `schema/datahandlinglibs/opmon`
 * `scripts`
 * `test`
 * `unittest`
@@ -34,9 +33,9 @@ When a readout unit is created, the models to use are defined and can be interch
 
 `utils` contains code that provides functionality which is not directly related or exclusive to readout applications.
 
-`schema/readout` contains the jsonnet schema files used for code generation with moo. They define structures for the configuration of the application and info structs for the operational monitoring.
+`schema` contains the protobuf info structs for the operational monitoring.
 
 ## Testing
-`test` contains configs generated with this script and some standalone test applications.
-In `unittest` one can very unsurprisingly find unit tests for the readout.
-Lastly, `scripts/` and 'config/' contains code and configurations to do thread pinning of the application.
+`test` contains some standalone test applications.
+In `unittest` one can very unsurprisingly find unit tests.
+Lastly, `scripts/` contains code to do thread pinning of the application.

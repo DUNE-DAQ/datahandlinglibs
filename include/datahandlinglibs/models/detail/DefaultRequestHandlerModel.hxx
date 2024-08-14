@@ -86,6 +86,7 @@ DefaultRequestHandlerModel<RDT, LBT>::start(const nlohmann::json& /*args*/)
   m_pop_reqs = 0;
   m_pops_count = 0;
   m_payloads_written = 0;
+  m_bytes_written = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
 
@@ -147,9 +148,9 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
         if (!m_cleanup_requested || (m_next_timestamp_to_record == 0)) {
           if (m_next_timestamp_to_record == 0) {
             auto front = m_latency_buffer->front();
-            m_next_timestamp_to_record = front == nullptr ? 0 : front->get_first_timestamp();
+            m_next_timestamp_to_record = front == nullptr ? 0 : front->get_timestamp();
           }
-          element_to_search.set_first_timestamp(m_next_timestamp_to_record);
+          element_to_search.set_timestamp(m_next_timestamp_to_record);
           size_t processed_chunks_in_loop = 0;
 
           {
@@ -167,14 +168,15 @@ DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
           m_cv.notify_all();
 
           for (; chunk_iter != end && chunk_iter.good() && processed_chunks_in_loop < 1000;) {
-            if ((*chunk_iter).get_first_timestamp() >= m_next_timestamp_to_record) {
+            if ((*chunk_iter).get_timestamp() >= m_next_timestamp_to_record) {
               if (!m_buffered_writer.write(reinterpret_cast<char*>(chunk_iter->begin()), // NOLINT
                                            chunk_iter->get_payload_size())) {
                 ers::warning(CannotWriteToFile(ERS_HERE, m_output_file));
               }
               m_payloads_written++;
+	      m_bytes_written += chunk_iter->get_payload_size();
               processed_chunks_in_loop++;
-              m_next_timestamp_to_record = (*chunk_iter).get_first_timestamp() +
+              m_next_timestamp_to_record = (*chunk_iter).get_timestamp() +
                                            RDT::expected_tick_difference * (*chunk_iter).get_num_frames();
             }
             ++chunk_iter;
@@ -195,21 +197,20 @@ template<class RDT, class LBT>
 void 
 DefaultRequestHandlerModel<RDT, LBT>::cleanup_check()
 {
-  std::unique_lock<std::mutex> lock(m_cv_mutex);
-  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested.exchange(true)) {
-    m_cv.wait(lock, [&] { return m_requests_running == 0; });
+  //std::unique_lock<std::mutex> lock(m_cv_mutex);
+  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested) {
+    //m_cv.wait(lock, [&] { return m_requests_running == 0; });
     cleanup();
-    m_cleanup_requested = false;
-    m_cv.notify_all();
+    //m_cleanup_requested = false;
+    //m_cv.notify_all();
   }
 }
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest datarequest,
-                                                    bool send_partial_fragment_if_available)
+DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest datarequest)
 {
-  boost::asio::post(*m_request_handler_thread_pool, [&, send_partial_fragment_if_available, datarequest]() { // start a thread from pool
+  boost::asio::post(*m_request_handler_thread_pool, [&, datarequest]() { // start a thread from pool
     auto t_req_begin = std::chrono::high_resolution_clock::now();
     {
       std::unique_lock<std::mutex> lock(m_cv_mutex);
@@ -217,18 +218,27 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
       m_requests_running++;
     }
     m_cv.notify_all();
-    auto result = data_request(datarequest, send_partial_fragment_if_available);
+    auto result = data_request(datarequest);
     {
       std::lock_guard<std::mutex> lock(m_cv_mutex);
       m_requests_running--;
     }
     m_cv.notify_all();
-    if (result.result_code == ResultCode::kFound || result.result_code == ResultCode::kNotFound) {
+
+    if ((result.result_code == ResultCode::kNotYet || result.result_code == ResultCode::kPartial) && m_request_timeout_ms >0 ) {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Re-queue request. "
+                                  << "With timestamp=" << result.data_request.trigger_timestamp;
+      std::lock_guard<std::mutex> wait_lock_guard(m_waiting_requests_lock);
+      m_waiting_requests.push_back(RequestElement(datarequest, std::chrono::high_resolution_clock::now()));
+    }
+    else {
       try { // Send to fragment connection
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Sending fragment with trigger/sequence_number "
+        //TLOG_DEBUG(TLVL_WORK_STEPS) << "Sending fragment with trigger/sequence_number "
+        TLOG() << "Sending fragment with trigger/sequence_number "
           << result.fragment->get_trigger_number() << "."
           << result.fragment->get_sequence_number() << ", run number "
-          << result.fragment->get_run_number() << ", and SourceID "
+          << result.fragment->get_run_number() << ", and DetectorID "
+          << result.fragment->get_detector_id() << ", and SourceID "
           << result.fragment->get_element_id() << ", and size "
           << result.fragment->get_size() << ", and result code "
 	  << result.result_code;
@@ -239,21 +249,11 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
       } catch (const ers::Issue& excpt) {
         ers::warning(CannotWriteToQueue(ERS_HERE, m_sourceid, datarequest.data_destination, excpt));
       }
-    } else if (result.result_code == ResultCode::kNotYet) {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "Re-queue request. "
-                                  << "With timestamp=" << result.data_request.trigger_timestamp;
-      std::lock_guard<std::mutex> wait_lock_guard(m_waiting_requests_lock);
-      m_waiting_requests.push_back(RequestElement(datarequest, std::chrono::high_resolution_clock::now(),
-                                                  send_partial_fragment_if_available));
     }
+
     auto t_req_end = std::chrono::high_resolution_clock::now();
     auto us_req_took = std::chrono::duration_cast<std::chrono::microseconds>(t_req_end - t_req_begin);
     TLOG_DEBUG(TLVL_WORK_STEPS) << "Responding to data request took: " << us_req_took.count() << "[us]";
-    // if (result.result_code == ResultCode::kFound) {
-    //   std::lock_guard<std::mutex> time_lock_guard(m_response_time_log_lock);
-    //   m_response_time_log.push_back( std::make_pair<int, int>(result.data_request.trigger_number,
-    //   us_req_took.count()) );
-    // }
     m_response_time_acc.fetch_add(us_req_took.count());
     if ( us_req_took.count() > m_response_time_max.load() )
       m_response_time_max.store(us_req_took.count());
@@ -265,52 +265,55 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::get_info(opmonlib::InfoCollector& ci, int /*level*/)
-{
-  readoutinfo::RequestHandlerInfo info;
-  info.num_requests_found = m_num_requests_found.exchange(0);
-  info.num_requests_bad = m_num_requests_bad.exchange(0);
-  info.num_requests_old_window = m_num_requests_old_window.exchange(0);
-  info.num_requests_delayed = m_num_requests_delayed.exchange(0);
-  info.num_requests_uncategorized = m_num_requests_uncategorized.exchange(0);
-  info.num_buffer_cleanups = m_num_buffer_cleanups.exchange(0);
-  info.num_requests_waiting = m_waiting_requests.size();
-  info.num_requests_timed_out = m_num_requests_timed_out.exchange(0);
-  info.num_periodic_sent = m_num_periodic_sent.exchange(0);
-  info.num_periodic_send_failed = m_num_periodic_send_failed.exchange(0);
-  info.is_recording = m_recording;
-  info.num_payloads_written = m_payloads_written.exchange(0);
-  info.recording_status = m_recording ? "Y" : "N";
+DefaultRequestHandlerModel<RDT, LBT>::generate_opmon_data()
+ {
+   opmon::RequestHandlerInfo info;
 
+   info.set_num_requests_handled(m_handled_requests.exchange(0));
+   info.set_num_requests_found(m_num_requests_found.exchange(0));
+   info.set_num_requests_bad(m_num_requests_bad.exchange(0));
+   info.set_num_requests_old_window(m_num_requests_old_window.exchange(0));
+   info.set_num_requests_delayed(m_num_requests_delayed.exchange(0));
+   info.set_num_requests_uncategorized(m_num_requests_uncategorized.exchange(0));
+   info.set_num_requests_timed_out(m_num_requests_timed_out.exchange(0));
+   info.set_num_requests_waiting(m_waiting_requests.size());
 
-  int new_pop_reqs = 0;
-  int new_pop_count = 0;
-  int new_occupancy = 0;
-  info.num_requests_handled = m_handled_requests.exchange(0);
-  info.tot_request_response_time = m_response_time_acc.exchange(0);
-  info.max_request_response_time = m_response_time_max.exchange(0);
-  info.min_request_response_time = m_response_time_min.exchange(std::numeric_limits<int>::max());
-  auto now = std::chrono::high_resolution_clock::now();
-  new_pop_reqs = m_pop_reqs.exchange(0);
-  new_pop_count = m_pops_count.exchange(0);
-  new_occupancy = m_occupancy;
-  double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
-  TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Cleanup request rate: " << new_pop_reqs / seconds / 1. << " [Hz]"
-                                << " Dropped: " << new_pop_count << " Occupancy: " << new_occupancy;
+   int new_pop_reqs = 0;
+   int new_pop_count = 0;
+   int new_occupancy = 0;
+   info.set_tot_request_response_time(m_response_time_acc.exchange(0));
+   info.set_max_request_response_time(m_response_time_max.exchange(0));
+   info.set_min_request_response_time(m_response_time_min.exchange(std::numeric_limits<int>::max()));
+   auto now = std::chrono::high_resolution_clock::now();
+   new_pop_reqs = m_pop_reqs.exchange(0);
+   new_pop_count = m_pops_count.exchange(0);
+   new_occupancy = m_occupancy;
+   double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
+   TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Cleanup request rate: " << new_pop_reqs / seconds / 1. << " [Hz]"
+                                 << " Dropped: " << new_pop_count << " Occupancy: " << new_occupancy;
 
-  if (info.num_requests_handled > 0) {
+   if (info.num_requests_handled() > 0) {
 
-    info.avg_request_response_time = info.tot_request_response_time / info.num_requests_handled;
-    //TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Completed requests: " << info.num_requests_handled
-    TLOG() << "Completed requests: " << info.num_requests_handled
-                                  << " | Avarage response time: " << info.avg_request_response_time << "[us]"
-				  << " | Periodic sends: " << info.num_periodic_sent;
-  }
+     info.set_avg_request_response_time(info.tot_request_response_time() / info.num_requests_handled());
+     TLOG_DEBUG(TLVL_HOUSEKEEPING) << "Completed requests: " << info.num_requests_handled()
+                                   << " | Avarage response time: " << info.avg_request_response_time() << "[us]"
+ 	  			     << " | Periodic sends: " << info.num_periodic_sent();
+   }
 
-  m_t0 = now;
+   m_t0 = now;
 
-  ci.add(info);
-}
+   info.set_num_buffer_cleanups(m_num_buffer_cleanups.exchange(0));
+   info.set_num_periodic_sent(m_num_periodic_sent.exchange(0));
+   info.set_num_periodic_send_failed(m_num_periodic_send_failed.exchange(0));
+
+   this->publish(std::move(info));
+
+   opmon::RecordingInfo rinfo;
+   rinfo.set_recording_status(m_recording? "Y" : "N");
+   rinfo.set_packets_recorded(m_payloads_written.exchange(0));   
+   rinfo.set_bytes_recorded(m_bytes_written.exchange(0));   
+   this->publish(std::move(rinfo));
+ }
 
 
 template<class RDT, class LBT>
@@ -353,6 +356,10 @@ template<class RDT, class LBT>
 void 
 DefaultRequestHandlerModel<RDT, LBT>::cleanup()
 {
+ // Put the lock here to avoid concurrent access to latency buffer
+  std::unique_lock<std::mutex> lock(m_cv_mutex);
+  m_cv.wait(lock, [&] { return m_requests_running == 0; });
+  m_cleanup_requested = true;
   // auto now_s = time::now_as<std::chrono::seconds>();
   auto size_guess = m_latency_buffer->occupancy();
   if (size_guess > m_pop_limit_size) {
@@ -361,7 +368,7 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
 
     unsigned popped = 0;
     for (size_t i = 0; i < to_pop; ++i) {
-      if (m_latency_buffer->front()->get_first_timestamp() < m_next_timestamp_to_record) {
+      if (m_latency_buffer->front()->get_timestamp() < m_next_timestamp_to_record) {
         m_latency_buffer->pop(1);
         popped++;
       } else {
@@ -371,9 +378,11 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
     // m_pops_count += to_pop;
     m_occupancy = m_latency_buffer->occupancy();
     m_pops_count += popped;
-    m_error_registry->remove_errors_until(m_latency_buffer->front()->get_first_timestamp());
+    m_error_registry->remove_errors_until(m_latency_buffer->front()->get_timestamp());
   }
   m_num_buffer_cleanups++;
+  m_cleanup_requested = false;
+  m_cv.notify_all();
 }
 
 template<class RDT, class LBT>
@@ -390,18 +399,18 @@ DefaultRequestHandlerModel<RDT, LBT>::check_waiting_requests()
 
       auto last_frame = m_latency_buffer->back();                                       // NOLINT
       uint64_t newest_ts = last_frame == nullptr ? std::numeric_limits<uint64_t>::min() // NOLINT(build/unsigned)
-                                                 : last_frame->get_first_timestamp();
+                                                 : last_frame->get_timestamp();
 
       size_t size = m_waiting_requests.size();
 
       for (size_t i = 0; i < size;) {
         if (m_waiting_requests[i].request.request_information.window_end < newest_ts) {
-          issue_request(m_waiting_requests[i].request, m_waiting_requests[i].send_partial_fragment_if_available);
+          issue_request(m_waiting_requests[i].request);
           std::swap(m_waiting_requests[i], m_waiting_requests.back());
           m_waiting_requests.pop_back();
           size--;
         } else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_waiting_requests[i].start_time).count() >= m_request_timeout_ms) {
-          issue_request(m_waiting_requests[i].request, true);
+          issue_request(m_waiting_requests[i].request);
 
           if (m_warn_on_timeout) {
             ers::warning(dunedaq::datahandlinglibs::VerboseRequestTimedOut(ERS_HERE, m_sourceid,
@@ -436,59 +445,81 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Looking for frags between " << start_win_ts << " and " << end_win_ts;
+
   std::vector<std::pair<void*, size_t>> frag_pieces;
-  RDT request_element = RDT();
-  request_element.set_first_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-  auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
+  // Data availability is calculated here
+  auto front_element = m_latency_buffer->front();           // NOLINT
+  auto last_element = m_latency_buffer->back();             // NOLINT
+  uint64_t last_ts = front_element->get_timestamp();  // NOLINT(build/unsigned)
+  uint64_t newest_ts = last_element->get_timestamp(); // NOLINT(build/unsigned)
+
+  if (start_win_ts > newest_ts) {
+  // No element is as small as the start window-> request is far in the future
+     rres.result_code = ResultCode::kNotYet; // give it another chance
+  }
+  else if (end_win_ts < last_ts ) {
+     rres.result_code = ResultCode::kTooOld;
+  }
+  else {
+    RDT request_element = RDT();
+    //request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
+    request_element.set_timestamp(start_win_ts);
+
+    auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
                       : m_latency_buffer->lower_bound(request_element, false);
-  if (start_iter == m_latency_buffer->end()) {
-    // Due to some concurrent access, the start_iter could not be retrieved successfully, try again
-    ++m_num_requests_delayed;
-    rres.result_code = ResultCode::kNotYet; // give it another chance
-    TLOG() << "Timestamp in future";
-  } else {
-    TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_first_timestamp() << ", --> distance from window: " << int64_t(start_win_ts) - int64_t(start_iter->get_first_timestamp()) ;  
-    rres.result_code = ResultCode::kFound;
-    ++m_num_requests_found;
-
-    auto elements_handled = 0;
-
-    RDT* element = &(*start_iter);
-   
-    while (start_iter.good() && element->get_first_timestamp() < end_win_ts) {
-      //if ( element->get_first_timestamp() + (element->get_num_frames() - 1) * RDT::expected_tick_difference < start_win_ts) {
-      if ( element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
-        //TLOG() << "skip processing for current element " << element->get_first_timestamp() << ", out of readout window.";
-      } 
-      
-      else if ( element->get_num_frames()>1 &&
-         ((element->get_first_timestamp() < start_win_ts &&
-          element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference > start_win_ts) 
-         ||
-          element->get_first_timestamp() + element->get_num_frames() * RDT::expected_tick_difference >
-            end_win_ts)) {
-        //TLOG() << "We don't need the whole aggregated object (e.g.: superchunk)" ;
-        for (auto frame_iter = element->begin(); frame_iter != element->end(); frame_iter++) {
-          if (get_frame_iterator_timestamp(frame_iter) > (start_win_ts - RDT::expected_tick_difference)&&
-              get_frame_iterator_timestamp(frame_iter) < end_win_ts ) {
-            frag_pieces.emplace_back(
-              std::make_pair<void*, size_t>(static_cast<void*>(&(*frame_iter)), element->get_frame_size()));
-          }
-        }
+    if (!start_iter.good()) {
+      // Accessor problem 
+      rres.result_code = ResultCode::kNotFound;
+    } 
+    else {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
+      if (end_win_ts > newest_ts) {
+         rres.result_code = ResultCode::kPartial;
+      }
+      else if (start_win_ts < last_ts) {
+	rres.result_code = ResultCode::kPartiallyOld;
       }
       else {
-	//TLOG() << "Add element " << element->get_first_timestamp();      
-        // We are somewhere in the middle -> the whole aggregated object (e.g.: superchunk) can be copied
-        frag_pieces.emplace_back(
-          std::make_pair<void*, size_t>(static_cast<void*>((*start_iter).begin()), element->get_payload_size()));
+        rres.result_code = ResultCode::kFound;
       }
 
-      elements_handled++;
-      ++start_iter;
-      element = &(*start_iter);
+      auto elements_handled = 0;
+
+      RDT* element = &(*start_iter);
+   
+      while (start_iter.good() && element->get_timestamp() < end_win_ts) {
+        if ( element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
+        //TLOG() << "skip processing for current element " << element->get_timestamp() << ", out of readout window.";
+        } 
+      
+        else if ( element->get_num_frames()>1 &&
+         ((element->get_timestamp() < start_win_ts &&
+          element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference > start_win_ts) 
+         ||
+          element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference >
+            end_win_ts)) {
+          //TLOG() << "We don't need the whole aggregated object (e.g.: superchunk)" ;
+          for (auto frame_iter = element->begin(); frame_iter != element->end(); frame_iter++) {
+            if (get_frame_iterator_timestamp(frame_iter) > (start_win_ts - RDT::expected_tick_difference)&&
+                get_frame_iterator_timestamp(frame_iter) < end_win_ts ) {
+              frag_pieces.emplace_back(
+                std::make_pair<void*, size_t>(static_cast<void*>(&(*frame_iter)), element->get_frame_size()));
+            }
+          }
+        }
+        else {
+	  //TLOG() << "Add element " << element->get_timestamp();      
+          // We are somewhere in the middle -> the whole aggregated object (e.g.: superchunk) can be copied
+          frag_pieces.emplace_back(
+            std::make_pair<void*, size_t>(static_cast<void*>((*start_iter).begin()), element->get_payload_size()));
+        }
+
+        elements_handled++;
+        ++start_iter;
+        element = &(*start_iter);
+      }
     }
-    
   }
   TLOG_DEBUG(TLVL_WORK_STEPS) << "*** Number of frames retrieved: " << frag_pieces.size();
   return frag_pieces;
@@ -496,8 +527,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
 
 template<class RDT, class LBT>
 typename DefaultRequestHandlerModel<RDT, LBT>::RequestResult 
-DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr, 
-                                                   bool send_partial_fragment_if_available)
+DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
 {
   // Prepare response
   RequestResult rres(ResultCode::kUnknown, dr);
@@ -507,132 +537,45 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr,
   std::vector<std::pair<void*, size_t>> frag_pieces;
   std::ostringstream oss;
 
-  bool local_data_not_found_flag = false;
-  if (m_latency_buffer->occupancy() != 0) {
-    // Data availability is calculated here
-    auto front_element = m_latency_buffer->front();           // NOLINT
-    auto last_element = m_latency_buffer->back();             // NOLINT
-    uint64_t last_ts = front_element->get_first_timestamp();  // NOLINT(build/unsigned)
-    uint64_t newest_ts = last_element->get_first_timestamp(); // NOLINT(build/unsigned)
-
-    uint64_t start_win_ts = dr.request_information.window_begin; // NOLINT(build/unsigned)
-    uint64_t end_win_ts = dr.request_information.window_end;     // NOLINT(build/unsigned)
-    TLOG_DEBUG(TLVL_WORK_STEPS) << "Data request for trig/seq_num=" << dr.trigger_number
-      << "." << dr.sequence_number << " and SourceID[" << m_sourceid << "] with"
-      << " Trigger TS=" << dr.trigger_timestamp
-      << " Oldest stored TS=" << last_ts
-      << " Newest stored TS=" << newest_ts
-      << " Start of window TS=" << start_win_ts
-      << " End of window TS=" << end_win_ts
-      << " Latency buffer occupancy=" << m_latency_buffer->occupancy();
-
-    // List of safe-extraction conditions
-    if (last_ts <= start_win_ts && end_win_ts <= newest_ts) { // the full window of data is there
-      frag_pieces = get_fragment_pieces(start_win_ts, end_win_ts, rres);
-    } else if (send_partial_fragment_if_available && last_ts <= end_win_ts && end_win_ts <= newest_ts) { // partial data is there
-      frag_pieces = get_fragment_pieces(start_win_ts, end_win_ts, rres);
-      if (rres.result_code == ResultCode::kNotYet) {
-        // 15-Sep-2022, KAB: this is really ugly.  I'm not sure why get_fragment_pieces occasionally
-        // returns kNotYet when running with long readout windows, but I suspect that it has something
-        // to do with that code assuming that the readout window is fully contained within the data
-        // that exists in the latency buffer.  In any case, this code simply bails out when that happens.
-        local_data_not_found_flag = true;
-        rres.result_code = ResultCode::kNotFound;
-      }
-    } else if ((! send_partial_fragment_if_available) && last_ts > start_win_ts) { // data at the start of the window is missing
-      frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
-      rres.result_code = ResultCode::kNotFound;
-      ++m_num_requests_old_window;
-      ++m_num_requests_bad;
-    } else if (send_partial_fragment_if_available && last_ts > end_win_ts) { // data is completely gone
-      local_data_not_found_flag = true;
-      frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
-      rres.result_code = ResultCode::kNotFound;
-      ++m_num_requests_old_window;
-      ++m_num_requests_bad;
-    } else if (newest_ts < end_win_ts) { // data at the end of the window is missing (more could still arrive)
-      if (send_partial_fragment_if_available) {
-        // We've been asked to send the partial fragment if we don't
-        // have an object past the end of the window, so fill the
-        // fragment with what we have so far
-        if (m_warn_on_timeout) {
-          TLOG()
-            << "Returning partial fragment for trig/seq number " << dr.trigger_number << "." << dr.sequence_number
-            << " with TS " << dr.trigger_timestamp 
-            << ". Component " << dr.request_information.component 
-            << " with type " << daqdataformats::fragment_type_to_string(daqdataformats::FragmentType(frag_header.fragment_type));
-        } else {
-          TLOG_DEBUG(TLVL_WORK_STEPS)
-            << "Returning partial fragment for trig/seq number " << dr.trigger_number << "." << dr.sequence_number
-            << " with TS " << dr.trigger_timestamp 
-            << ". Component " << dr.request_information.component 
-            << " with type " << daqdataformats::fragment_type_to_string(daqdataformats::FragmentType(frag_header.fragment_type));
-        }
-        frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
-        frag_pieces = get_fragment_pieces(start_win_ts, end_win_ts, rres);
-        // 06-Jul-2022, KAB: added the following line to translate a kNotYet status code from
-        // get_fragment_pieces() to kFound. The reasoning behind this addition is that when
-        // send_partial_fragment_if_available is set to true, we should accept whatever we've got
-        // in the buffer and *not* retry any longer. So, we force that behavior with the
-        // following line. The data-taking scenario which illustrates
-        // this situation is long-window-readout in which a given trigger is split into a sequence
-        // of TriggerRecords and the 2..Nth DataRequest find nothing useful in the TriggerCandidate
-        // (TCBuffer) latency buffer (and no data later than the request window end time).
-        // In those cases, get_fragment_pieces() returns kNotYet, and we need to change that
-        // kFound in order to not keep looping.
-        if (rres.result_code == ResultCode::kNotYet) {rres.result_code = ResultCode::kFound;}
-      } else {
-        ++m_num_requests_delayed;
-        rres.result_code = ResultCode::kNotYet; // give it another chance
-      }
-    } else {
-      TLOG() << "Don't know how to categorise this request";
-      frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
-      rres.result_code = ResultCode::kNotFound;
-      ++m_num_requests_uncategorized;
-      ++m_num_requests_bad;
-    }
-
-    // Requeue if needed
-    if (rres.result_code == ResultCode::kNotYet) {
-      if (m_run_marker.load()) {
-        return rres; // If kNotYet, return immediately, don't check for fragment pieces.
-      } else {
-        frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
-        rres.result_code = ResultCode::kNotFound;
-        ++m_num_requests_bad;
-      }
-    }
-
-    // Build fragment
-    oss << "TS match result for SourceID[" << m_sourceid << "]: "
-        << " Trigger/sequence number=" << dr.trigger_number << "." << dr.sequence_number
-        << " Oldest stored TS=" << last_ts
-        << " Start of window TS=" << start_win_ts
-        << " End of window TS=" << end_win_ts
-        << " Estimated newest stored TS=" << newest_ts
-        << " Requestor=" << dr.data_destination;
-    TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
-  } else {
-    local_data_not_found_flag = true;
+  //bool local_data_not_found_flag = false;
+  if (m_latency_buffer->occupancy() == 0) {
     if (m_warn_about_empty_buffer) {
       ers::warning(RequestOnEmptyBuffer(ERS_HERE, m_sourceid, "Data not found"));
-    } else {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "SourceID[" << m_sourceid << "] Request on empty buffer: Data not found";
-    }
+    } 
     frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
     rres.result_code = ResultCode::kNotFound;
-    ++m_num_requests_bad;
+    ++m_num_requests_bad;    
   }
-
-  if (rres.result_code != ResultCode::kFound) {
-    if (m_warn_about_empty_buffer || (! local_data_not_found_flag)) {
-      ers::warning(dunedaq::datahandlinglibs::TrmWithEmptyFragment(ERS_HERE, m_sourceid, oss.str()));
-    } else {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "SourceID[" << m_sourceid << "] Trigger Matching result with empty fragment: " << oss.str();
+  else {
+    frag_pieces = get_fragment_pieces(dr.request_information.window_begin, dr.request_information.window_end, rres);
+    switch (rres.result_code) {
+	case ResultCode::kNotFound:
+	case ResultCode::kTooOld:
+		// return empty frag
+	        ++m_num_requests_old_window;
+                ++m_num_requests_bad;
+		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+		break;
+	case ResultCode::kPartiallyOld:
+                ++m_num_requests_old_window;
+                ++m_num_requests_found;
+		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
+		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+                break;
+	case ResultCode::kFound:
+		++m_num_requests_found;
+		break;
+	case ResultCode::kPartial:
+                frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
+	case ResultCode::kNotYet:
+		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+		++m_num_requests_delayed;
+		break;
+	default:
+		// Unknown result of data search
+		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
     }
   }
-
   // Create fragment from pieces
   rres.fragment = std::make_unique<daqdataformats::Fragment>(frag_pieces);
 

@@ -35,7 +35,7 @@ public:
 
 
   // Explicit constructor to bind LB and error registry
-  explicit EmptyFragmentRequestHandlerModel(std::unique_ptr<LatencyBufferType>& latency_buffer,
+  explicit EmptyFragmentRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
                                             std::unique_ptr<FrameErrorRegistry>& error_registry)
     : DefaultRequestHandlerModel<ReadoutType, LatencyBufferType>(latency_buffer, error_registry)
   {
@@ -44,8 +44,7 @@ public:
 
   // Override the issue_request implementation of the DefaultRequestHandlerModel
   // in order to always respond with empty fragments. 
-  void issue_request(dfmessages::DataRequest datarequest,
-                     bool /*send_partial_fragment_if_not_yet*/) override;
+  void issue_request(dfmessages::DataRequest datarequest) override;
 
 };
 

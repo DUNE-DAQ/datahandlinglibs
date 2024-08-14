@@ -6,12 +6,6 @@ FakeCardReaderBase::FakeCardReaderBase(const std::string& name)
   , m_name(name)
   , m_run_marker{ false }
 {
-/*
-  register_command("conf", &FakeCardReaderBase::do_conf);
-  register_command("scrap", &FakeCardReaderBase::do_scrap);
-  register_command("start", &FakeCardReaderBase::do_start);
-  register_command("drain_dataflow", &FakeCardReaderBase::do_stop);
-*/
 }
 
 void
@@ -43,15 +37,6 @@ FakeCardReaderBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
     }
   }
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting init() method";
-}
-
-void
-FakeCardReaderBase::get_info(opmonlib::InfoCollector& ci, int level)
-{
-
-  for (auto& [name, emu] : m_source_emus) {
-    emu->get_info(ci, level);
-  }
 }
 
 void

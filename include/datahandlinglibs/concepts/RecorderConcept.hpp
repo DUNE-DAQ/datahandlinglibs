@@ -9,7 +9,6 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RECORDERCONCEPT_HPP_
 
 #include "utilities/WorkerThread.hpp"
-#include "opmonlib/InfoCollector.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
 //#include "datahandlinglibs/recorderconfig/Structs.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
@@ -36,7 +35,6 @@ public:
   RecorderConcept(RecorderConcept&&) = delete;
   RecorderConcept& operator=(RecorderConcept&&) = delete;
 
-  virtual void get_info(opmonlib::InfoCollector& ci, int level) = 0;
   virtual void init(const appmodel::DataRecorderModule* mcfg) = 0;
   
  // Commands
