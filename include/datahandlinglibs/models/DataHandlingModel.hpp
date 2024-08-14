@@ -82,7 +82,6 @@ public:
     , m_callback_mode(false)
     , m_fake_trigger(false)
     , m_current_fake_trigger_id(0)
-    , m_send_partial_fragment_if_available(false)
     , m_consumer_thread(0)
     , m_raw_receiver_timeout_ms(0)
     , m_raw_receiver_sleep_us(0)
@@ -155,7 +154,6 @@ protected:
   int m_current_fake_trigger_id;
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
-  bool m_send_partial_fragment_if_available;
   uint64_t m_processing_delay_ticks;
   // STATS
   std::atomic<int> m_num_payloads{ 0 };
