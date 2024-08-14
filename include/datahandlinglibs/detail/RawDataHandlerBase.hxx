@@ -35,11 +35,11 @@ RawDataHandlerBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Exiting init() method";
 }
 
-void
-RawDataHandlerBase::get_info(opmonlib::InfoCollector& ci, int level)
-{
-  m_readout_impl->get_info(ci, level);
-}
+// void
+// RawDataHandlerBase::get_info(opmonlib::InfoCollector& ci, int level)
+// {
+//   m_readout_impl->get_info(ci, level);
+// }
 
 void
 RawDataHandlerBase::do_conf(const nlohmann::json& args)

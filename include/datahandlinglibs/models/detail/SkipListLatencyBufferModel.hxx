@@ -112,5 +112,13 @@ SkipListLatencyBufferModel<T>::pop(size_t num) // NOLINT(build/unsigned)
   }
 }
 
+template<class T>
+void
+SkipListLatencyBufferModel<T>::generate_opmon_data() {
+   opmon::LatencyBufferInfo info;
+   info.set_num_buffer_elements(occupancy());
+   this->publish(std::move(info));
+}
+
 } // namespace datahandlinglibs
 } // namespace dunedaq

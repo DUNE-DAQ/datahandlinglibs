@@ -118,13 +118,13 @@ SourceEmulatorModel<ReadoutType>::stop(const nlohmann::json& /*args*/)
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::get_info(opmonlib::InfoCollector& ci, int /*level*/)
+SourceEmulatorModel<ReadoutType>::generate_opmon_data()
 {
-  sourceemulatorinfo::Info info;
-  info.packets = m_packet_count_tot.load();
-  info.new_packets = m_packet_count.exchange(0);
+   opmon::DataSourceInfo info;
+   info.set_sum_packets(m_packet_count_tot.load());
+   info.set_num_packets(m_packet_count.exchange(0));
 
-  ci.add(info);
+   this->publish(std::move(info));
 }
 
 template<class ReadoutType>
@@ -148,7 +148,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
   auto rptr = reinterpret_cast<ReadoutType*>(source.data()); // NOLINT
 
   // set the initial timestamp to a configured value, otherwise just use the timestamp from the header
-  uint64_t ts_0 = rptr->get_first_timestamp(); // NOLINT(build/unsigned)
+  uint64_t ts_0 = rptr->get_timestamp(); // NOLINT(build/unsigned)
   if (m_t0_now) {
     auto time_now = std::chrono::system_clock::now().time_since_epoch();
     uint64_t current_time = // NOLINT (build/unsigned)

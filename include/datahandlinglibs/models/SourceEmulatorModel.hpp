@@ -13,12 +13,7 @@
 
 #include "logging/Logging.hpp"
 
-#include "opmonlib/InfoCollector.hpp"
-
-//#include "datahandlinglibs/sourceemulatorconfig/Nljs.hpp"
-#include "datahandlinglibs/sourceemulatorinfo/InfoNljs.hpp"
 #include "confmodel/DetectorStream.hpp"
-//#include "confmodel/StreamParameters.hpp"
 #include "confmodel/GeoId.hpp"
 
 #include "datahandlinglibs/DataHandlingIssues.hpp"
@@ -27,6 +22,8 @@
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
+
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "unistd.h"
 #include <chrono>
@@ -103,11 +100,12 @@ public:
 
   void start(const nlohmann::json& /*args*/);
   void stop(const nlohmann::json& /*args*/);
-  void get_info(opmonlib::InfoCollector& ci, int /*level*/);
+  //  void get_info(opmonlib::InfoCollector& ci, int /*level*/);
 
 protected:
   // The data emulator function that the worker thread runs
   void run_produce();
+  virtual void generate_opmon_data() override;
 
 private:
   // Constuctor params

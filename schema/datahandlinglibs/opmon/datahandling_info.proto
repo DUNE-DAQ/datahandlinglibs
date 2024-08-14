@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package dunedaq.datahandlinglibs.opmon;
+
+message LatencyBufferInfo {
+  uint64 num_buffer_elements = 1; // Occupancy of the LB 
+}
+
+message DataSourceInfo {
+  uint64 sum_packets = 1; // Data packets since start of run
+  uint64 num_packets = 2; // Number of packets generated since last publication
+  uint64 num_dropped_packets = 3; // Number of dropped packets
+}
+
+message DataHandlerInfo {
+  uint64 sum_payloads = 1; // Total number of received payloads
+  uint64 num_payloads = 2; // Incremental number of received payloads 
+  uint64 num_data_input_timeouts = 3; // Timeout on data inputs 
+  double rate_payloads_consumed = 4; // Rate of consumed packets 
+  uint64 num_payloads_overwritten = 5; // Number of overwritten payloads because the LB is full 
+  uint64 sum_requests = 11; // Total number of received requests 
+  uint64 num_requests = 12; // Incremental number of received requests 
+  uint64 last_daq_timestamp = 21; // Most recent DAQ timestamp processed 
+}
+
+message RequestHandlerInfo {
+  uint64 num_requests_handled = 1;
+  uint64 num_requests_found = 2; // Number of found requests
+  uint64 num_requests_bad = 3; // Number of bad requests
+  uint64 num_requests_old_window = 4; // Number of requests with data that is too old"
+  uint64 num_requests_delayed = 5; // Number of delayed requests (data not there yet)
+  uint64 num_requests_uncategorized = 6; // Number of uncategorized requests
+  uint64 num_requests_timed_out = 7; // Number of timed out requests
+  uint64 num_requests_waiting = 8; // Number of waiting requests
+  uint64 avg_request_response_time = 21; // Average response time in us
+  uint64 tot_request_response_time = 22; // Total response time in us for the requests handled in between publication calls
+  uint64 min_request_response_time = 23; // Min response time in us for the requests handled in between publication calls
+  uint64 max_request_response_time = 24; // Max response time in us for the requests handled in between publication calls
+  uint64 num_buffer_cleanups = 31; // Number of latency buffer cleanups
+  uint64 num_periodic_sent = 41; // Number of periodic sends
+  uint64 num_periodic_send_failed = 42; // Number of failed periodic sends
+}
+
+message RecordingInfo {
+  string recording_status = 1; // Recording status
+  uint64 packets_recorded = 2; // Number of packets processed
+  uint64 bytes_recorded = 3; // Bytes recorded
+}
+
+message DataProcessorInfo {
+  repeated uint64 elements_queued = 1; // Queued elements waiting to be post-processed for each task
+}
+
+message FixedRateDataProcessorInfo {
+  uint64 num_seq_id_errors = 1;
+  uint64 min_seq_id_jump = 2;
+  uint64 max_seq_id_jump= 3;
+  uint64 num_ts_errors= 4;
+}
+
+message HitFindingInfo {
+  float rate_tp_hits = 1; // TP hit rate in kHz 
+  uint64 num_tps_sent = 2; //Number of sent TPs
+  uint64 num_tps_send_failed = 3; // Number of TPs that were lost because they could not successfully be sent from one module or process to another
+  uint64 num_tps_suppressed_too_long = 4; // Number of TPs that were discarded because their time over threshold was too large
+}
+
+message TPChannelInfo {
+  uint64 channel_id = 1; //Offline channel identifier
+  uint64 number_of_tps = 2; // Numer of hits, i.e. TPs
+}
+
+message TPChannelsInfo {
+  repeated TPChannelInfo channels = 1;
+}
+

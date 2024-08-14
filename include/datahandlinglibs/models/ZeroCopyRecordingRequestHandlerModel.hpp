@@ -24,7 +24,7 @@ public:
   using inherited = DefaultRequestHandlerModel<ReadoutType, LatencyBufferType>;
 
   // Explicit constructor for binding LB and error registry
-  explicit ZeroCopyRecordingRequestHandlerModel(std::unique_ptr<LatencyBufferType>& latency_buffer,
+  explicit ZeroCopyRecordingRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
                                                 std::unique_ptr<FrameErrorRegistry>& error_registry)
     : DefaultRequestHandlerModel<ReadoutType, LatencyBufferType>(latency_buffer, error_registry)
   {

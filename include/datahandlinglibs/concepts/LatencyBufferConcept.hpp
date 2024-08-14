@@ -10,6 +10,7 @@
 
 #include <nlohmann/json.hpp>
 #include "appmodel/LatencyBuffer.hpp"
+#include "opmonlib/MonitorableObject.hpp"
 
 #include <cstddef>
 
@@ -23,7 +24,7 @@ namespace datahandlinglibs {
  * @tparam KeyType the type of key for searchability
  */
 template<class T>
-class LatencyBufferConcept
+class LatencyBufferConcept : public opmonlib::MonitorableObject
 {
 
 public:

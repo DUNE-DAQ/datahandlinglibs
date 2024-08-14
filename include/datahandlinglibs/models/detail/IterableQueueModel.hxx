@@ -369,6 +369,14 @@ IterableQueueModel<T>::write_(Args&&... recordArgs)
   return false;
 }
 
+template<class T>
+void
+IterableQueueModel<T>::generate_opmon_data() {
+   opmon::LatencyBufferInfo info;
+   info.set_num_buffer_elements(this->occupancy());
+   this->publish(std::move(info)); 
+
+}
 
 } // namespace datahandlinglibs
 } // namespace dunedaq

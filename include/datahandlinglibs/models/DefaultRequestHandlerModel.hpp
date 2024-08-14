@@ -14,8 +14,8 @@
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/ReusableThread.hpp"
 
-//#include "datahandlinglibs/readoutconfig/Nljs.hpp"
-#include "datahandlinglibs/readoutinfo/InfoNljs.hpp"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
@@ -91,7 +91,7 @@ public:
     typename dunedaq::datahandlinglibs::RequestHandlerConcept<ReadoutType, LatencyBufferType>::ResultCode;
 
   // Explicit constructor with binding LB and error registry
-  explicit DefaultRequestHandlerModel(std::unique_ptr<LatencyBufferType>& latency_buffer,
+  explicit DefaultRequestHandlerModel(std::shared_ptr<LatencyBufferType>& latency_buffer,
                                       std::unique_ptr<FrameErrorRegistry>& error_registry)
     : m_latency_buffer(latency_buffer)
     , m_recording_thread(0)
@@ -158,7 +158,7 @@ public:
                      bool send_partial_fragment_if_available) override;
 
   // Opmon get_info implementation
-  void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
+  // void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
 
   virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() {return 0;}
   virtual bool supports_cutoff_timestamp() {return false;}
@@ -227,8 +227,12 @@ protected:
   RequestResult data_request(dfmessages::DataRequest dr, 
                              bool send_partial_fragment_if_available) override;
 
+
+  // operational monitoring
+  virtual void generate_opmon_data() override;
+
   // Data access (LB)
-  std::unique_ptr<LatencyBufferType>& m_latency_buffer;
+  std::shared_ptr<LatencyBufferType>& m_latency_buffer;
 
   // Data recording
   BufferedFileWriter<> m_buffered_writer;
@@ -297,6 +301,7 @@ protected:
   std::atomic<int> m_response_time_min{ std::numeric_limits<int>::max() };
   std::atomic<int> m_response_time_max{ 0 };
   std::atomic<int> m_payloads_written{ 0 };
+  std::atomic<int> m_bytes_written{ 0 };
   std::atomic<uint64_t> m_num_periodic_sent{ 0 };  // NOLINT(build/unsigned)
   std::atomic<uint64_t> m_num_periodic_send_failed{ 0 }; // NOLINT(build/unsigned)
 	

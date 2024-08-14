@@ -47,9 +47,9 @@ public:
   RawDataHandlerBase& operator=(RawDataHandlerBase&&) = delete;      ///< RawDataHandlerBase is not move-assignable
 
   void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
-  void get_info(opmonlib::InfoCollector& ci, int level);
+  //  void get_info(opmonlib::InfoCollector& ci, int level);
 
-  virtual std::unique_ptr<dunedaq::datahandlinglibs::DataHandlingConcept>
+  virtual std::shared_ptr<dunedaq::datahandlinglibs::DataHandlingConcept>
   create_readout(const appmodel::DataHandlerModule* modconf, std::atomic<bool>& run_marker) = 0;
 
   // Commands
@@ -71,7 +71,7 @@ private:
   std::string m_name;
 
   // Internal
-  std::unique_ptr<datahandlinglibs::DataHandlingConcept> m_readout_impl;
+  std::shared_ptr<datahandlinglibs::DataHandlingConcept> m_readout_impl;
 
   // Threading
   std::atomic<bool> m_run_marker;
