@@ -7,7 +7,6 @@ template<class RDT, class LBT>
 void 
 DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* conf)
 {
-  //auto conf = args["requesthandlerconf"].get<readoutconfig::RequestHandlerConf>();
 
   auto reqh_conf = conf->get_module_configuration()->get_request_handler();
   m_sourceid.id = conf->get_source_id();
@@ -25,12 +24,11 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
       m_fragment_send_timeout_ms = output->get_send_timeout_ms();
     }
   }
-  //m_fragment_send_timeout_ms = conf.fragment_send_timeout_ms;
   auto dr = reqh_conf->get_data_recorder();
   if(dr != nullptr) {
     m_output_file = dr->get_output_file();
     if (remove(m_output_file.c_str()) == 0) {
-      TLOG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << m_output_file << std::endl;
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << m_output_file << std::endl;
     }
     m_stream_buffer_size = dr->get_streaming_buffer_size();
     m_buffered_writer.open(m_output_file, m_stream_buffer_size, dr->get_compression_algorithm(), dr->get_use_o_direct());
@@ -107,7 +105,6 @@ void
 DefaultRequestHandlerModel<RDT, LBT>::stop(const nlohmann::json& /*args*/)
 {
   m_run_marker.store(false);
-  // if (m_recording) throw CommandError(ERS_HERE, "Recording is still ongoing!");
   while (!m_recording_thread.get_readiness()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
@@ -117,7 +114,6 @@ DefaultRequestHandlerModel<RDT, LBT>::stop(const nlohmann::json& /*args*/)
   while (!m_periodic_transmission_thread.get_readiness()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-
   m_waiting_queue_thread.join();
   m_request_handler_thread_pool->join();
 }
@@ -197,12 +193,12 @@ template<class RDT, class LBT>
 void 
 DefaultRequestHandlerModel<RDT, LBT>::cleanup_check()
 {
-  //std::unique_lock<std::mutex> lock(m_cv_mutex);
-  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested) {
-    //m_cv.wait(lock, [&] { return m_requests_running == 0; });
+  std::unique_lock<std::mutex> lock(m_cv_mutex);
+  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested.exchange(true)) {
+    m_cv.wait(lock, [&] { return m_requests_running == 0; });
     cleanup();
-    //m_cleanup_requested = false;
-    //m_cv.notify_all();
+    m_cleanup_requested = false;
+    m_cv.notify_all();
   }
 }
 
@@ -233,8 +229,7 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
     }
     else {
       try { // Send to fragment connection
-        //TLOG_DEBUG(TLVL_WORK_STEPS) << "Sending fragment with trigger/sequence_number "
-        TLOG() << "Sending fragment with trigger/sequence_number "
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Sending fragment with trigger/sequence_number "
           << result.fragment->get_trigger_number() << "."
           << result.fragment->get_sequence_number() << ", run number "
           << result.fragment->get_run_number() << ", and DetectorID "
@@ -356,11 +351,6 @@ template<class RDT, class LBT>
 void 
 DefaultRequestHandlerModel<RDT, LBT>::cleanup()
 {
- // Put the lock here to avoid concurrent access to latency buffer
-  std::unique_lock<std::mutex> lock(m_cv_mutex);
-  m_cv.wait(lock, [&] { return m_requests_running == 0; });
-  m_cleanup_requested = true;
-  // auto now_s = time::now_as<std::chrono::seconds>();
   auto size_guess = m_latency_buffer->occupancy();
   if (size_guess > m_pop_limit_size) {
     ++m_pop_reqs;
@@ -375,14 +365,11 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
         break;
       }
     }
-    // m_pops_count += to_pop;
     m_occupancy = m_latency_buffer->occupancy();
     m_pops_count += popped;
     m_error_registry->remove_errors_until(m_latency_buffer->front()->get_timestamp());
   }
   m_num_buffer_cleanups++;
-  m_cleanup_requested = false;
-  m_cv.notify_all();
 }
 
 template<class RDT, class LBT>
@@ -393,8 +380,9 @@ DefaultRequestHandlerModel<RDT, LBT>::check_waiting_requests()
   //
   // 1. been serviced because an item past the end of the window arrived in the buffer
   // 2. timed out by going past m_request_timeout_ms, and returned a partial fragment
-  while (m_run_marker.load() || m_waiting_requests.size() > 0) {
-    {
+  while (m_run_marker.load()) {
+    if (m_waiting_requests.size() > 0) {
+	    
       std::lock_guard<std::mutex> lock_guard(m_waiting_requests_lock);
 
       auto last_frame = m_latency_buffer->back();                                       // NOLINT
@@ -473,7 +461,8 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
       rres.result_code = ResultCode::kNotFound;
     } 
     else {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " 
+	      << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
       if (end_win_ts > newest_ts) {
          rres.result_code = ResultCode::kPartial;
       }
