@@ -122,11 +122,11 @@ template<class ReadoutType>
 void
 TaskRawDataProcessorModel<ReadoutType>::generate_opmon_data() 
 {
-  opmon::DataProcessorInfo info;
    for (size_t i = 0; i < m_items_to_postprocess_queues.size(); ++i) {
-    info.add_elements_queued(m_items_to_postprocess_queues[i]->sizeGuess());
+    opmon::DataProcessorInfo info;
+    info.set_elements_queued(m_items_to_postprocess_queues[i]->sizeGuess());
+    this->publish(std::move(info), {{"post_processor_id", std::to_string(i)}});
   }
-  this->publish(std::move(info));
 }
 
 } // namespace datahandlinglibs

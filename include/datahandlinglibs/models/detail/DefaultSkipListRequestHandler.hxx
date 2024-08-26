@@ -7,8 +7,6 @@ template<class T>
 void 
 DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
 {
-  inherited::m_cleanup_requested = true;
-  // size_t occupancy_guess = m_latency_buffer->occupancy();
   size_t removed_ctr = 0;
   uint64_t tailts = 0; // oldest // NOLINT(build/unsigned)
   uint64_t headts = 0; // newest // NOLINT(build/unsigned)
@@ -17,8 +15,6 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
     auto tail = acc.last();
     auto head = acc.first();
     if (tail && head) {
-      // auto tailptr = reinterpret_cast<const fddetdataformats::DAPHNEFrame*>(tail); // NOLINT
-      // auto headptr = reinterpret_cast<const fddetdataformats::DAPHNEFrame*>(head); // NOLINT
       tailts = (*tail).get_timestamp(); // tailptr->get_timestamp();
       headts = (*head).get_timestamp(); // headptr->get_timestamp();
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Cleanup REQUEST with "
@@ -35,8 +31,7 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
             ++removed_ctr;
           }
           head = acc.first();
-          // headptr = reinterpret_cast<const fddetdataformats::DAPHNEFrame*>(head);
-          headts = (*head).get_timestamp(); // headptr->get_timestamp();
+          headts = (*head).get_timestamp(); 
           timediff = tailts - headts;
         }
         inherited::m_pops_count += removed_ctr;
@@ -46,7 +41,6 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
     }
   }
   inherited::m_num_buffer_cleanups++;
-  inherited::m_cleanup_requested = false;
 }
 
 } // namespace datahandlinglibs

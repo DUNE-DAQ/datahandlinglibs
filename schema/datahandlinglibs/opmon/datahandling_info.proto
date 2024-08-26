@@ -48,7 +48,7 @@ message RecordingInfo {
 }
 
 message DataProcessorInfo {
-  repeated uint64 elements_queued = 1; // Queued elements waiting to be post-processed for each task
+  uint64 elements_queued = 1; // Queued elements waiting to be post-processed for each task
 }
 
 message FixedRateDataProcessorInfo {
@@ -68,9 +68,5 @@ message HitFindingInfo {
 message TPChannelInfo {
   uint64 channel_id = 1; //Offline channel identifier
   uint64 number_of_tps = 2; // Numer of hits, i.e. TPs
-}
-
-message TPChannelsInfo {
-  repeated TPChannelInfo channels = 1;
 }
 
