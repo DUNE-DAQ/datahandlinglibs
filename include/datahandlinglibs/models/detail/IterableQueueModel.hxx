@@ -92,10 +92,10 @@ IterableQueueModel<T>::prefill_task()
     T element = T();
     write_(std::move(element));
   }
-  flush();
-  
   // Preallocation done
   prefill_done_ = true;
+
+  flush();
   
   // Manual unlock is done before notify: avoid waking up the waiting thread only to block again.
   lk.unlock();
@@ -215,6 +215,24 @@ void
 IterableQueueModel<T>::pop(std::size_t x)
 {
   for (std::size_t i = 0; i < x; i++) {
+    popFront();
+  }
+}
+
+template<class T>
+void
+IterableQueueModel<T>::flush()
+{
+  // Clears until readIndex is at writeIndex.
+  pop(occupancy());
+
+  // pop(occupancy()) clears up to readIndex == writeIndex.
+  // Pre-fill has a special case that writeIndex doesn't cycle, so writeIndex == size_ - 1.
+  // This resets writeIndex, clears the last element, and resets readIndex.
+  if (prefill_done_) {
+    const auto currentWrite = writeIndex_.load(std::memory_order_acquire);
+    int nextWrite = (currentWrite + 1) % size_;
+    writeIndex_.store(nextWrite, std::memory_order_release);
     popFront();
   }
 }

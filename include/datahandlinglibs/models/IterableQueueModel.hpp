@@ -232,7 +232,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   void scrap(const nlohmann::json& /*cfg*/) override;
 
   // Flushes the elements from the queue
-  void flush() override { pop(occupancy()); }
+  void flush() override;
 
   // Returns the current memory alignment size
   std::size_t get_alignment_size() { return alignment_size_; }
