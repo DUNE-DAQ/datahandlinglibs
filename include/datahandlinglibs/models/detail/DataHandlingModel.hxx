@@ -63,7 +63,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::init(const appmodel::DataHandlerModule* m
   // Instantiate functionalities
   m_error_registry.reset(new FrameErrorRegistry());
   m_latency_buffer_impl.reset(new LBT());
-  m_raw_processor_impl.reset(new RPT(m_error_registry));
+  m_raw_processor_impl.reset(new RPT(m_error_registry, mcfg->get_post_processing_enabled()));
   m_request_handler_impl.reset(new RHT(m_latency_buffer_impl, m_error_registry));
 
   register_node(mcfg->get_module_configuration()->get_latency_buffer()->UID(), m_latency_buffer_impl);

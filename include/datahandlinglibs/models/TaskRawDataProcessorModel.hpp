@@ -47,9 +47,10 @@ class TaskRawDataProcessorModel : public RawDataProcessorConcept<ReadoutType>
 {
 public:
   // Excplicit constructor with error registry
-  explicit TaskRawDataProcessorModel(std::unique_ptr<FrameErrorRegistry>& error_registry)
+  explicit TaskRawDataProcessorModel(std::unique_ptr<FrameErrorRegistry>& error_registry, bool post_processing_enabled)
     : RawDataProcessorConcept<ReadoutType>()
     , m_error_registry(error_registry)
+	, m_post_processing_enabled(post_processing_enabled)
   {}
 
   // Destructor
@@ -97,16 +98,17 @@ protected:
   // Operational monitoring
   virtual void generate_opmon_data() override;
 
-  // Post-processing thread runner
-  void run_post_processing_thread(std::function<void(const ReadoutType*)>& function,
-                                  folly::ProducerConsumerQueue<const ReadoutType*>& queue);
-
-  // Run marker
-  std::atomic<bool> m_run_marker{ false };
-
   // Pre-processing pipeline functions
   std::vector<std::function<void(ReadoutType*)>> m_preprocess_functions;
   std::unique_ptr<FrameErrorRegistry>& m_error_registry;
+
+  // Post-processing thread runner
+  void run_post_processing_thread(std::function<void(const ReadoutType*)>& function,
+                                  folly::ProducerConsumerQueue<const ReadoutType*>& queue);
+  bool m_post_processing_enabled;
+
+  // Run marker
+  std::atomic<bool> m_run_marker{ false };
 
   // Post-processing functions and their corresponding threads
   std::vector<std::function<void(const ReadoutType*)>> m_post_process_functions;
