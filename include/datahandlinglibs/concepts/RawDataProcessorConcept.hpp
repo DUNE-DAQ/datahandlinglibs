@@ -22,7 +22,7 @@ template<class ReadoutType>
 class RawDataProcessorConcept : public opmonlib::MonitorableObject
 {
 public:
-  RawDataProcessorConcept() {}
+  RawDataProcessorConcept(){}
   virtual ~RawDataProcessorConcept() {}
   
   RawDataProcessorConcept(const RawDataProcessorConcept&) =

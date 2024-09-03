@@ -538,7 +538,6 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
   else {
     frag_pieces = get_fragment_pieces(dr.request_information.window_begin, dr.request_information.window_end, rres);
     switch (rres.result_code) {
-	case ResultCode::kNotFound:
 	case ResultCode::kTooOld:
 		// return empty frag
 	        ++m_num_requests_old_window;
@@ -556,12 +555,15 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
 		break;
 	case ResultCode::kPartial:
                 frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
+		++m_num_requests_delayed;
+                break;
 	case ResultCode::kNotYet:
 		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
 		++m_num_requests_delayed;
 		break;
 	default:
 		// Unknown result of data search
+		++m_num_requests_bad;
 		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
     }
   }
