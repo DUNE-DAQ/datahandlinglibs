@@ -43,6 +43,7 @@ IterableQueueModel<T>::allocate_memory(std::size_t size,
                                        std::size_t alignment_size)
 {
   assert(size >= 2);
+  size_t capacity_bytes = sizeof(T) * size + alignof(T);
   // TODO: check for valid alignment sizes! | July-21-2021 | Roland Sipos | rsipos@cern.ch
 
   if (numa_aware && numa_node < 8) { // numa allocator from libnuma; we get "numa_node >= 0" for free, given its datatype
@@ -54,18 +55,18 @@ IterableQueueModel<T>::allocate_memory(std::size_t size,
  #ifdef WITH_LIBNUMA_STRICT_POLICY
     numa_set_strict(WITH_LIBNUMA_STRICT_POLICY);    // https://linux.die.net/man/3/numa_set_strict
  #endif
-    records_ = static_cast<T*>(numa_alloc_onnode(sizeof(T) * size, numa_node));
+    records_ = static_cast<T*>(numa_alloc_onnode(capacity_bytes, numa_node));
 #else
     throw GenericConfigurationError(ERS_HERE,
                                     "NUMA allocation was requested but program was built without USE_LIBNUMA");
 #endif
   } else if (intrinsic_allocator && alignment_size > 0) { // _mm allocator
-    records_ = static_cast<T*>(_mm_malloc(sizeof(T) * size, alignment_size));
+    records_ = static_cast<T*>(_mm_malloc(capacity_bytes, alignment_size));
   } else if (!intrinsic_allocator && alignment_size > 0) { // std aligned allocator
-    records_ = static_cast<T*>(std::aligned_alloc(alignment_size, sizeof(T) * size));
+    records_ = static_cast<T*>(std::aligned_alloc(alignment_size, capacity_bytes));
   } else if (!numa_aware && !intrinsic_allocator && alignment_size == 0) {
     // Standard allocator
-    records_ = static_cast<T*>(std::malloc(sizeof(T) * size));
+    records_ = static_cast<T*>(std::malloc(capacity_bytes));
 
   } else {
     // Let it fail, as expected combination might be invalid
