@@ -204,9 +204,9 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup_check()
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest datarequest)
+DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest datarequest, bool is_retry)
 {
-  boost::asio::post(*m_request_handler_thread_pool, [&, datarequest]() { // start a thread from pool
+  boost::asio::post(*m_request_handler_thread_pool, [&, datarequest, is_retry]() { // start a thread from pool
     auto t_req_begin = std::chrono::high_resolution_clock::now();
     {
       std::unique_lock<std::mutex> lock(m_cv_mutex);
@@ -220,10 +220,9 @@ DefaultRequestHandlerModel<RDT, LBT>::issue_request(dfmessages::DataRequest data
       m_requests_running--;
     }
     m_cv.notify_all();
-
-    if ((result.result_code == ResultCode::kNotYet || result.result_code == ResultCode::kPartial) && m_request_timeout_ms >0 ) {
+    if ((result.result_code == ResultCode::kNotYet || result.result_code == ResultCode::kPartial) && m_request_timeout_ms >0 && is_retry == false) {
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Re-queue request. "
-                                  << "With timestamp=" << result.data_request.trigger_timestamp;
+                                  << " with timestamp=" << result.data_request.trigger_timestamp;
       std::lock_guard<std::mutex> wait_lock_guard(m_waiting_requests_lock);
       m_waiting_requests.push_back(RequestElement(datarequest, std::chrono::high_resolution_clock::now()));
     }
@@ -389,39 +388,32 @@ DefaultRequestHandlerModel<RDT, LBT>::check_waiting_requests()
       uint64_t newest_ts = last_frame == nullptr ? std::numeric_limits<uint64_t>::min() // NOLINT(build/unsigned)
                                                  : last_frame->get_timestamp();
 
-      size_t size = m_waiting_requests.size();
-
-      for (size_t i = 0; i < size;) {
-        if (m_waiting_requests[i].request.request_information.window_end < newest_ts) {
-          issue_request(m_waiting_requests[i].request);
-          std::swap(m_waiting_requests[i], m_waiting_requests.back());
-          m_waiting_requests.pop_back();
-          size--;
-        } else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - m_waiting_requests[i].start_time).count() >= m_request_timeout_ms) {
-          issue_request(m_waiting_requests[i].request);
-
+      for (auto iter = m_waiting_requests.begin(); iter!= m_waiting_requests.end();) {
+	if((*iter).request.request_information.window_end < newest_ts) {
+          issue_request((*iter).request, true);
+	  iter = m_waiting_requests.erase(iter);
+	}
+	else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - (*iter).start_time).count() >= m_request_timeout_ms) {
+          issue_request((*iter).request, true);
           if (m_warn_on_timeout) {
             ers::warning(dunedaq::datahandlinglibs::VerboseRequestTimedOut(ERS_HERE, m_sourceid,
-                                                                      m_waiting_requests[i].request.trigger_number,
-                                                                      m_waiting_requests[i].request.sequence_number,
-                                                                      m_waiting_requests[i].request.run_number,
-                                                                      m_waiting_requests[i].request.request_information.window_begin,
-                                                                      m_waiting_requests[i].request.request_information.window_end,
-                                                                      m_waiting_requests[i].request.data_destination));
+                                                                      (*iter).request.trigger_number,
+                                                                      (*iter).request.sequence_number,
+                                                                      (*iter).request.run_number,
+                                                                      (*iter).request.request_information.window_begin,
+                                                                      (*iter).request.request_information.window_end,
+                                                                      (*iter).request.data_destination));
           }
-
-          m_num_requests_bad++;
+	  m_num_requests_bad++;
           m_num_requests_timed_out++;
-
-          std::swap(m_waiting_requests[i], m_waiting_requests.back());
-          m_waiting_requests.pop_back();
-          size--;
-        } else {
-          i++;
-        }
+	  iter = m_waiting_requests.erase(iter);
+	}
+	else {
+	++iter;
+	}
       }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
 
