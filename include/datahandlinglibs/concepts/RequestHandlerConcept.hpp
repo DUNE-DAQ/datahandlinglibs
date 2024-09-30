@@ -51,7 +51,7 @@ public:
   virtual void periodic_data_transmission() = 0;
 
   //! Issue a data request to the request handler
-  virtual void issue_request(dfmessages::DataRequest /*dr*/) = 0;
+  virtual void issue_request(dfmessages::DataRequest /*dr*/, bool /*is_retry*/) = 0;
 
 
 protected:

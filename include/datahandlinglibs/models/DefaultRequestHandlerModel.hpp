@@ -150,7 +150,7 @@ public:
   virtual void periodic_data_transmission() override;
 
   // Implementation of default request handling. (boost::asio post to a thread pool)
-  void issue_request(dfmessages::DataRequest datarequest) override;
+  void issue_request(dfmessages::DataRequest datarequest, bool is_retry=false) override;
 
   // Opmon get_info implementation
   // void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
