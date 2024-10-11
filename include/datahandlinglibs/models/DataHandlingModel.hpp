@@ -59,7 +59,7 @@ using dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS;
 namespace dunedaq {
 namespace datahandlinglibs {
 
-template<class ReadoutType, class RequestHandlerType, class LatencyBufferType, class RawDataProcessorType>
+template<class ReadoutType, class RequestHandlerType, class LatencyBufferType, class RawDataProcessorType, class InputDataType = ReadoutType>
 class DataHandlingModel : public DataHandlingConcept
 {
 public:
@@ -68,6 +68,7 @@ public:
   using RHT = RequestHandlerType;
   using LBT = LatencyBufferType;
   using RPT = RawDataProcessorType;
+  using IDT = InputDataType;
 
   // Using timestamp typenames
   using timestamp_t = std::uint64_t; // NOLINT(build/unsigned)
@@ -139,6 +140,11 @@ protected:
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
 
+  // Transform input data type to readout
+  RDT& transform_payload(IDT& payload) const
+  {
+    return reinterpret_cast<RDT&>(payload);
+  }
 
   // Operational monitoring
   virtual void generate_opmon_data() override;
@@ -170,7 +176,7 @@ protected:
   // RAW RECEIVER
   std::chrono::milliseconds m_raw_receiver_timeout_ms;
   std::chrono::microseconds m_raw_receiver_sleep_us;
-  using raw_receiver_ct = iomanager::ReceiverConcept<ReadoutType>;
+  using raw_receiver_ct = iomanager::ReceiverConcept<InputDataType>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
   std::string m_raw_data_receiver_connection_name;
 

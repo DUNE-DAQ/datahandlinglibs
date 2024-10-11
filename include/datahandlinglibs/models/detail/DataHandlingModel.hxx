@@ -5,9 +5,9 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::init(const appmodel::DataHandlerModule* mcfg)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModule* mcfg)
 {
   // Setup request queues
   //setup_request_queues(mcfg);
@@ -38,7 +38,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::init(const appmodel::DataHandlerModule* m
         }
 
         if (!m_callback_mode) {
-	  m_raw_data_receiver = get_iom_receiver<RDT>(m_raw_data_receiver_connection_name);
+          m_raw_data_receiver = get_iom_receiver<IDT>(m_raw_data_receiver_connection_name);
           m_raw_receiver_timeout_ms = std::chrono::milliseconds(input->get_recv_timeout_ms());
         }
       }
@@ -92,14 +92,14 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::init(const appmodel::DataHandlerModule* m
   m_request_handler_impl->conf(mcfg);
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::conf(const nlohmann::json& /*args*/)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
 {
   // Register callbacks if operating in that mode.
   if (m_callback_mode) {
     // Configure and register consume callback
-    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT>::consume_payload, this, std::placeholders::_1);
+    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload, this, std::placeholders::_1);
  
     // Register callback
     auto dmcbr = DataMoveCallbackRegistry::get();
@@ -113,9 +113,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::conf(const nlohmann::json& /*args*/)
 }
 
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::start(const nlohmann::json& args)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
 {
   // Reset opmon variables
   m_sum_payloads = 0;
@@ -134,17 +134,17 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::start(const nlohmann::json& args)
   m_raw_processor_impl->start(args);
   m_request_handler_impl->start(args);
   if (!m_callback_mode) {
-    m_consumer_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume, this);
+    m_consumer_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume, this);
   }
-  if (m_generate_timesync) m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT>::run_timesync, this);
+  if (m_generate_timesync) m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync, this);
   // Register callback to receive and dispatch data requests
   m_data_request_receiver->add_callback(
-    std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT>::dispatch_requests, this, std::placeholders::_1));
+    std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests, this, std::placeholders::_1));
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::stop(const nlohmann::json& args)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const nlohmann::json& args)
 {
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Stoppping threads...";
 
@@ -168,9 +168,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::stop(const nlohmann::json& args)
   m_raw_processor_impl->reset_last_daq_time();
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::generate_opmon_data()
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
  {
    opmon::DataHandlerInfo ri;
    ri.set_sum_payloads(m_sum_payloads.load());
@@ -192,9 +192,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::generate_opmon_data()
    this->publish(std::move(ri));
  }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread started...";
@@ -220,7 +220,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
 
     if (opt_payload) {
 
-      RDT& payload = opt_payload.value();
+      IDT& idt_payload = opt_payload.value();
+      RDT& payload = transform_payload(idt_payload);
 
       m_raw_processor_impl->preprocess_item(&payload);
       if (m_request_handler_supports_cutoff_timestamp) {
@@ -287,9 +288,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_consume()
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread joins... ";
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void
-DataHandlingModel<RDT, RHT, LBT, RPT>::consume_payload(RDT&& payload)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload(RDT&& payload)
 {
  //m_rawq_timeout_count = 0;
  //m_num_payloads = 0;
@@ -316,9 +317,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::consume_payload(RDT&& payload)
   ++m_stats_packet_count;
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::run_timesync()
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
 {
   TLOG_DEBUG(TLVL_WORK_STEPS) << "TimeSync thread started...";
   m_num_requests = 0;
@@ -397,9 +398,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT>::run_timesync()
                               << total_timestamp_count << ")";
 }
 
-template<class RDT, class RHT, class LBT, class RPT>
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT>::dispatch_requests(dfmessages::DataRequest& data_request)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests(dfmessages::DataRequest& data_request)
 {
   if (data_request.request_information.component != m_sourceid) {
      ers::error(RequestSourceIDMismatch(ERS_HERE, m_sourceid, data_request.request_information.component));
