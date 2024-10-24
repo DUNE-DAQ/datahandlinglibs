@@ -170,11 +170,13 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
 
   // Allocate memory based on different alignment strategies and allocation policies
   void allocate_memory(std::size_t size,
-                       bool numa_aware = false,
+                       bool numa_aware /*= false*/,
                        uint8_t numa_node = 0, // NOLINT (build/unsigned)
                        bool intrinsic_allocator = false,
                        std::size_t alignment_size = 0);
 
+  void allocate_memory(std::size_t size) override { allocate_memory(size,false); }
+  
   // Task that fills up the LB.
   void prefill_task();
 

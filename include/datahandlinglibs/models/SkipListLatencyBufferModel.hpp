@@ -102,7 +102,7 @@ private:
   // Iterator support
   Iterator begin();
   Iterator end();
-  Iterator lower_bound(T& element, bool /*with_errors=false*/);
+  Iterator lower_bound(T& element, bool with_errors=false);
 
   // Front/back accessors override
   const T* front() override;

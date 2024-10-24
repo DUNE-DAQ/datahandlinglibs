@@ -30,7 +30,7 @@ public:
     : IterableQueueModel<T>(size)
   {}
 
-  typename IterableQueueModel<T>::Iterator lower_bound(T& element, bool /*with_errors=false*/);
+  typename IterableQueueModel<T>::Iterator lower_bound(T& element, bool /*with_errors*/=false);
 
 };
 
