@@ -194,6 +194,32 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
+{
+  m_raw_processor_impl->preprocess_item(&payload);
+  if (m_request_handler_supports_cutoff_timestamp) {
+    int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
+    if (diff1 <= 0) {
+      //m_request_handler_impl->increment_tardy_tp_count();
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
+                                            m_request_handler_impl->get_cutoff_timestamp(), diff1,
+                                            (static_cast<double>(diff1)/62500.0)));
+    }
+  }
+  if (!m_latency_buffer_impl->write(std::move(payload))) {
+    //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
+    m_num_payloads_overwritten++;
+  }
+  if (m_processing_delay_ticks ==0) {
+    m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
+    ++m_num_payloads;
+    ++m_sum_payloads;
+    ++m_stats_packet_count;
+  }  
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void 
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 {
 
@@ -220,28 +246,16 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 
     if (opt_payload) {
 
-      IDT& idt_payload = opt_payload.value();
-      RDT& payload = transform_payload(idt_payload);
-
-      m_raw_processor_impl->preprocess_item(&payload);
-      if (m_request_handler_supports_cutoff_timestamp) {
-        int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
-        if (diff1 <= 0) {
-          //m_request_handler_impl->increment_tardy_tp_count();
-          ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
-                                                m_request_handler_impl->get_cutoff_timestamp(), diff1,
-                                                (static_cast<double>(diff1)/62500.0)));
-        }
-      }
-      if (!m_latency_buffer_impl->write(std::move(payload))) {
-        //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
-        m_num_payloads_overwritten++;
-      }
-      if (m_processing_delay_ticks ==0) {
-        m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
-        ++m_num_payloads;
-        ++m_sum_payloads;
-        ++m_stats_packet_count;
+      IDT& original = opt_payload.value();
+      
+      if constexpr (std::is_same_v<IDT, RDT>) {
+        process_item(original);
+      } else {
+        std::size_t size;
+        auto transformed = transform_payload(original, size);
+        for(auto i = 0; i < size; ++i) {
+          process_item(transformed[i]);
+        }   
       }
     } else {
       ++m_rawq_timeout_count;
@@ -249,7 +263,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
       if ( m_raw_receiver_sleep_us != std::chrono::microseconds::zero())
         std::this_thread::sleep_for(m_raw_receiver_sleep_us);
     }
-
+    
     // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
     if (m_processing_delay_ticks !=0 && m_latency_buffer_impl->occupancy() > 0) {

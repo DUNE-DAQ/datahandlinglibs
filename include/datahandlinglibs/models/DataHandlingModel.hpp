@@ -94,6 +94,8 @@ public:
     m_pid_of_current_process = getpid();
   }
 
+  virtual ~DataHandlingModel() = default;
+
   // Initializes the readoutmodel and its internals
   void init(const appmodel::DataHandlerModule* modconf);
 
@@ -130,7 +132,10 @@ public:
   std::function<void(RDT&&)> m_consume_callback;
 
 protected:
- 
+
+  // Perform processing operations on payload
+  void process_item(RDT& payload);
+  
   // Raw data consumer's work function
   void run_consume();
 
@@ -139,11 +144,14 @@ protected:
 
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
-
+  
   // Transform input data type to readout
-  RDT& transform_payload(IDT& payload) const
+  virtual std::unique_ptr<RDT[]> transform_payload(IDT& original, std::size_t& size) const
   {
-    return reinterpret_cast<RDT&>(payload);
+    size = 1;
+    auto transformed = std::make_unique_for_overwrite<RDT[]>(size);
+    transformed[0] = reinterpret_cast<RDT&>(original);
+    return transformed;
   }
 
   // Operational monitoring

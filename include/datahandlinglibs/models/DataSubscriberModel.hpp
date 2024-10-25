@@ -29,7 +29,7 @@
 
 namespace dunedaq::datahandlinglibs {
 
-template<class OriginalPayloadType, class TargetPayloadType>
+template<class PayloadType>
 class DataSubscriberModel : public SourceConcept
 {
 public: 
@@ -46,12 +46,12 @@ public:
     if (cfg->get_outputs().size() != 1) {
       throw datahandlinglibs::InitializationError(ERS_HERE, "Only 1 output supported for subscribers");
     }
-    m_data_sender = get_iom_sender<TargetPayloadType>(cfg->get_outputs()[0]->UID());
+    m_data_sender = get_iom_sender<PayloadType>(cfg->get_outputs()[0]->UID());
 
     if (cfg->get_inputs().size() != 1) {
       throw datahandlinglibs::InitializationError(ERS_HERE, "Only 1 input supported for subscribers");
     }
-    m_data_receiver = get_iom_receiver<OriginalPayloadType>(cfg->get_inputs()[0]->UID());
+    m_data_receiver = get_iom_receiver<PayloadType>(cfg->get_inputs()[0]->UID());
   }
 
   void start() {
@@ -65,12 +65,11 @@ public:
     m_data_receiver->remove_callback();
   }
 
-  bool handle_payload(OriginalPayloadType&  message) // NOLINT(build/unsigned)
+  bool handle_payload(PayloadType&  message) // NOLINT(build/unsigned)
   {
     ++m_packets;
     ++m_sum_packets;
-    TargetPayloadType& target_payload = reinterpret_cast<TargetPayloadType&>(message);
-    if (!m_data_sender->try_send(std::move(target_payload), iomanager::Sender::s_no_block)) {
+    if (!m_data_sender->try_send(std::move(message), iomanager::Sender::s_no_block)) {
       ++m_dropped_packets;
     }
     return true;
@@ -86,10 +85,10 @@ protected:
   }
 
 private:
-  using source_t = dunedaq::iomanager::ReceiverConcept<OriginalPayloadType>;
+  using source_t = dunedaq::iomanager::ReceiverConcept<PayloadType>;
   std::shared_ptr<source_t> m_data_receiver;
 
-  using sink_t = dunedaq::iomanager::SenderConcept<TargetPayloadType>;
+  using sink_t = dunedaq::iomanager::SenderConcept<PayloadType>;
   std::shared_ptr<sink_t> m_data_sender;
 
   std::atomic<uint64_t> m_packets{0};
