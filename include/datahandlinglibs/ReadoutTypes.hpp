@@ -70,7 +70,7 @@ concept HasBeginEnd = requires(T t) {
 
 // Combined concept to check all requirements for Data Handling Type
 template<typename T>
-concept IsDataHandlingType =
+concept IsDataHandlingCompliantType =
   HasTimestamp<T> &&
   HasData<T> &&
   HasGetTimestamp<T> &&
@@ -83,8 +83,8 @@ concept IsDataHandlingType =
 
 // Test compliance
 template<typename T>
-void checkDataHandlingType() {
-    static_assert(IsDataHandlingType<T>, "Type does not meet the required interface for a Data Handling Type!");
+void checkDataHandlingCompliantType() {
+    static_assert(IsDataHandlingCompliantType<T>, "Type does not meet the required interface for a Data Handling Type!");
 }
 
 struct ValidDataHandlingStruct {

@@ -22,7 +22,7 @@
 
 namespace dunedaq::datahandlinglibs {
 
-  static_assert(types::IsDataHandlingType<types::ValidDataHandlingStruct>, "ValidDataHandlingStruct does not meet the Data Handling Type requirements.");
-  static_assert(types::IsDataHandlingType<types::DUMMY_FRAME_STRUCT>, "DUMMY_FRAME_STRUCT does not meet the Data Handling Type requirements.");
+  static_assert(types::IsDataHandlingCompliantType<types::ValidDataHandlingStruct>, "ValidDataHandlingStruct does not meet the Data Handling Type requirements.");
+  static_assert(types::IsDataHandlingCompliantType<types::DUMMY_FRAME_STRUCT>, "DUMMY_FRAME_STRUCT does not meet the Data Handling Type requirements.");
 
 }
