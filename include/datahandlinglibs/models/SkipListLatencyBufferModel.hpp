@@ -14,6 +14,9 @@
 
 #include "logging/Logging.hpp"
 
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+
+#include <folly/memory/ThreadCachedArena.h>
 #include "folly/ConcurrentSkipList.h"
 
 #include <memory>
@@ -30,15 +33,20 @@ class SkipListLatencyBufferModel : public LatencyBufferConcept<T>
 
 public:
   // Using shorter Folly typenames
-  using SkipListT = typename folly::ConcurrentSkipList<T>;
+  using ThreadCachedAlloc = folly::ThreadCachedArena;
+  using AllocatorType = folly::CxxAllocatorAdaptor<T, ThreadCachedAlloc>;
+  using SkipListT = folly::ConcurrentSkipList<T, std::less<T>, AllocatorType>;
   using SkipListTIter = typename SkipListT::iterator;
-  using SkipListTAcc = typename folly::ConcurrentSkipList<T>::Accessor; // SKL Accessor
-  using SkipListTSkip = typename folly::ConcurrentSkipList<T>::Skipper; // Skipper accessor
+  using SkipListTAcc = typename SkipListT::Accessor; // SKL Accessor
+  using SkipListTSkip = typename SkipListT::Skipper; // Skipper accessor
 
   // Constructor
   SkipListLatencyBufferModel()
-    : m_skip_list(folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height))
+    : m_arena(std::make_shared<ThreadCachedAlloc>())
+    , m_allocator(m_arena)
+    , m_skip_list(folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height, m_allocator))
   {
+    m_arena->allocate(10000);
     TLOG(TLVL_WORK_STEPS) << "Initializing non configured latency buffer";
   }
 
@@ -79,7 +87,8 @@ private:
   void conf(const appmodel::LatencyBuffer* /*conf*/) override
   {
     // Reset datastructure
-    m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height);
+    m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height, m_allocator);
+    m_arena->allocate(10000);
   }
 
   // Unconfigure
@@ -114,6 +123,12 @@ protected:
     virtual void generate_opmon_data() override;  
 
 private:
+  // Arena
+  std::shared_ptr<ThreadCachedAlloc> m_arena;
+
+  // Allocator 
+  AllocatorType m_allocator;
+
   // Concurrent SkipList
   std::shared_ptr<SkipListT> m_skip_list;
 

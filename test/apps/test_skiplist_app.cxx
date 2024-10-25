@@ -1,5 +1,5 @@
 /**
- * @file test_ratelimiter_app.cxx Test application for
+ * @file test_skiplist_app.cxx Test application for
  * ratelimiter implementation
  *
  * This is part of the DUNE DAQ Application Framework, copyright 2020.
@@ -11,6 +11,7 @@
 #include "logging/Logging.hpp"
 
 #include "datahandlinglibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
 
 #include "folly/ConcurrentSkipList.h"
 
@@ -29,7 +30,9 @@ using namespace folly;
 int
 main(int /*argc*/, char** /*argv[]*/)
 {
-
+  // Arena based SKL test
+  SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT> cskl();
+  
   // ConcurrentSkipList from Folly
   typedef ConcurrentSkipList<types::DUMMY_FRAME_STRUCT> SkipListT;
   typedef SkipListT::Accessor SkipListTAcc;
@@ -73,24 +76,28 @@ main(int /*argc*/, char** /*argv[]*/)
     }
   });
 
-  // Producer thread
-  auto producer = std::thread([&]() {
-    TLOG() << "SkipList Producer spawned... Creating accessor.";
-    uint64_t ts = 0; // NOLINT(build/unsigned)
-    while (marker) {
-      types::DUMMY_FRAME_STRUCT pl;
-      auto plptr =
-        const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
-      plptr->timestamp = ts;
-      {
-        SkipListTAcc prodacc(skl);
-        prodacc.insert(std::move(pl));
+
+  std::atomic<uint64_t> key{0};
+  // Producer threads
+  std::vector<std::thread> producers;
+  for (int i = 0; i < 40; ++i) {
+    producers.emplace_back([&]() {
+      TLOG() << "SkipList Producer spawned...";
+      while (marker) {
+        types::DUMMY_FRAME_STRUCT pl;
+        auto plptr =
+          const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
+        plptr->timestamp = key;
+        {
+          SkipListTAcc prodacc(skl);
+          prodacc.insert(std::move(pl));
+        }
+        key += 25;
+        rl.limit();
       }
-      ts += 25;
-      rl.limit();
-    }
-    TLOG() << "Producer joins...";
-  });
+      TLOG() << "Producer joins...";
+    });
+  }
 
   // Cleanup thread
   auto cleaner = std::thread([&]() {
@@ -187,8 +194,10 @@ main(int /*argc*/, char** /*argv[]*/)
     killswitch.join();
   }
 
-  if (producer.joinable()) {
-    producer.join();
+  for (auto& producer : producers) {
+    if (producer.joinable()) {
+      producer.join();
+    }
   }
 
   if (cleaner.joinable()) {
