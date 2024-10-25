@@ -73,22 +73,23 @@ main(int /*argc*/, char** /*argv[]*/)
     }
   });
 
+
+  std::atomic<uint64_t> key{0};
   // Producer threads
   std::vector<std::thread> producers;
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 40; ++i) {
     producers.emplace_back([&]() {
-      TLOG() << "SkipList Producer spawned... Creating accessor.";
-      uint64_t ts = 0; // NOLINT(build/unsigned)
+      TLOG() << "SkipList Producer spawned...";
       while (marker) {
         types::DUMMY_FRAME_STRUCT pl;
         auto plptr =
           const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
-        plptr->timestamp = ts;
+        plptr->timestamp = key;
         {
           SkipListTAcc prodacc(skl);
           prodacc.insert(std::move(pl));
         }
-        ts += 25;
+        key += 25;
         rl.limit();
       }
       TLOG() << "Producer joins...";
