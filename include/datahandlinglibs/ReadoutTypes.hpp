@@ -18,6 +18,98 @@ namespace dunedaq {
 namespace datahandlinglibs {
 namespace types {
 
+// Check for specific member fields
+template<typename T>
+concept HasTimestamp = requires(T t) {
+  { t.timestamp } -> std::same_as<std::uint64_t&>;
+};
+
+template<typename T>
+concept HasData = requires(T t) {
+  std::is_same_v<decltype(std::declval<T>().timestamp), char[]>;
+};
+
+// Check for member functions
+template<typename T>
+concept HasGetTimestamp = requires(T t) {
+  { t.get_timestamp() } -> std::same_as<std::uint64_t>;
+};
+
+template<typename T>
+concept HasSetTimestamp = requires(T t, std::uint64_t ts) {
+  t.set_timestamp(ts);
+};
+
+template<typename T>
+concept HasOperatorLess = requires(T t, const T& other) {
+  { t.operator<(other) } -> std::same_as<bool>;
+};
+
+// Check for static constexpr members
+template<typename T>
+concept HasFrameSize = requires {
+    { T::frame_size } -> std::same_as<const size_t&>;
+};
+
+template<typename T>
+concept HasFramesPerElement = requires {
+  { T::frames_per_element } -> std::same_as<const std::uint8_t&>;
+};
+
+template<typename T>
+concept HasElementSize = requires {
+  { T::element_size } -> std::same_as<const size_t&>;
+};
+
+// Check begin() and end()
+template<typename T>
+concept HasBeginEnd = requires(T t) {
+  { t.begin() } -> std::same_as<typename T::FrameType*>;
+  { t.end() } -> std::same_as<typename T::FrameType*>;
+};
+
+// Combined concept to check all requirements for Data Handling Type
+template<typename T>
+concept IsDataHandlingType =
+  HasTimestamp<T> &&
+  HasData<T> &&
+  HasGetTimestamp<T> &&
+  HasSetTimestamp<T> &&
+  HasOperatorLess<T> &&
+  HasFrameSize<T> &&
+  HasFramesPerElement<T> &&
+  HasElementSize<T> &&
+  HasBeginEnd<T>;
+
+// Test compliance
+template<typename T>
+void checkDataHandlingType() {
+    static_assert(IsDataHandlingType<T>, "Type does not meet the required interface for a Data Handling Type!");
+}
+
+struct ValidDataHandlingStruct {
+    using FrameType = ValidDataHandlingStruct;
+
+    uint64_t timestamp;
+    uint64_t another_key;
+    char data[1024];
+
+    bool operator<(const ValidDataHandlingStruct& other) const {
+        return std::tie(this->timestamp, this->another_key) < std::tie(other.timestamp, other.another_key);
+    }
+
+    uint64_t get_timestamp() const { return timestamp; }
+    void set_timestamp(uint64_t ts) { timestamp = ts; }
+    void set_another_key(uint64_t key) { another_key = key; }
+
+    FrameType* begin() { return this; }
+    FrameType* end() { return this + 1; }
+
+    static const constexpr size_t frame_size = 1024;
+    static const constexpr uint8_t frames_per_element = 1;
+    static const constexpr size_t element_size = 1024;
+};
+
 const constexpr std::size_t DUMMY_FRAME_SIZE = 1024;
 struct DUMMY_FRAME_STRUCT
 {
