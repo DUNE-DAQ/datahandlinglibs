@@ -99,6 +99,11 @@ private:
   bool put(T& new_element); // override
   bool read(T& element) override;
 
+  void allocate_memory(size_t) override
+  {
+      TLOG(TLVL_DEBUG) << "SkipListLatencyBufferModel::allocate_memory not implemented.";
+  }
+
   // Iterator support
   Iterator begin();
   Iterator end();

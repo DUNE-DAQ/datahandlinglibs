@@ -69,7 +69,7 @@ public:
   virtual void flush() = 0;
 
   //! Whether or not the buffer is allocatable. false by default
-  virtual void allocate_memory(size_t /*size*/) {}
+  virtual void allocate_memory(size_t /*size*/) = 0;
 };
 
 } // namespace datahandlinglibs
