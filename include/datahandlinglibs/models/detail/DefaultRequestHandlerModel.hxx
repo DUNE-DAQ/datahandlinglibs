@@ -529,6 +529,22 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
   }
   else {
     frag_pieces = get_fragment_pieces(dr.request_information.window_begin, dr.request_information.window_end, rres);
+
+    auto front_element = m_latency_buffer->front();           // NOLINT
+    auto last_element = m_latency_buffer->back();             // NOLINT
+    uint64_t last_ts = front_element->get_timestamp();  // NOLINT(build/unsigned)
+    uint64_t newest_ts = last_element->get_timestamp(); // NOLINT(build/unsigned)
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "Data request for trig/seq_num=" << dr.trigger_number
+      << "." << dr.sequence_number << " and SourceID[" << m_sourceid << "] with"
+      << " Trigger TS=" << dr.trigger_timestamp
+      << " Oldest stored TS=" << last_ts
+      << " Newest stored TS=" << newest_ts
+      << " Start of window TS=" << dr.request_information.window_begin
+      << " End of window TS=" << dr.request_information.window_end
+      << " Latency buffer occupancy=" << m_latency_buffer->occupancy()
+      << " frag_pieces result_code=" << rres.result_code
+      << " number of frag_pieces=" << frag_pieces.size();
+
     switch (rres.result_code) {
 	case ResultCode::kTooOld:
 		// return empty frag
