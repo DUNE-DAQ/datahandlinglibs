@@ -79,6 +79,8 @@ void test_queue_model()
                                  uint32_t expected_idx,
                                  bool with_errors=false){
 
+        BOOST_TEST_MESSAGE("\ttesting ts=" << test_ts);
+
         TypeAdapter test_element; test_element.set_timestamp(test_ts);
         typename BufferType<TypeAdapter>::Iterator expected_el =  buffer->begin();
         for(size_t i=0; i<expected_idx; ++i){
@@ -124,16 +126,19 @@ void test_queue_model()
     // should return the exact value
     test_lower_bound(buffer_noskip,ticks_between*2,2);
 
-    // get lower bound when maximally unaligned
-    // should get the next element up
-    test_lower_bound(buffer_noskip,ticks_between*5/2,3);
+    if(ticks_between>1) //unaligned tests don't make sense if ticks_between < 1
+    {
+        // get lower bound when maximally unaligned
+        // should get the next element up
+        test_lower_bound(buffer_noskip, ticks_between * 5 / 2, 3);
 
-    // get lower bound when minimally unaligned, next instance
-    test_lower_bound(buffer_noskip,ticks_between+1,2);
+        // get lower bound when minimally unaligned, next instance
+        test_lower_bound(buffer_noskip, ticks_between + 1, 2);
+    }
 
     /*
      * Skipped buffer should have elements with index [0, 1 , 2 , 3 , 4 , 5 , 6 , 7 ,  8 ,  9 ]
-     *                                 and timestamps [0,1*T,2*T,5*T,6*T,7*T,8*T,9*T,10*T,11*T]
+     *                                 and timestamps [0,1*T,4*T,5*T,6*T,7*T,8*T,9*T,10*T,11*T]
      * where T = DTS ticks between successive elements (tick_diff_per_frame * n_frames_per_obj_in_buffer)
      */
     BOOST_TEST_MESSAGE("Testing buffer with skips...");
@@ -145,24 +150,28 @@ void test_queue_model()
     // get lower bound on aligned but skipped element
     // should return next available
     test_lower_bound(buffer_skip,ticks_between*2,2,true);
+    test_lower_bound(buffer_skip,ticks_between*3,2,true);
     // should be unaffected
     test_lower_bound(buffer_skip,ticks_between,1,true);
+    test_lower_bound(buffer_skip,ticks_between*4,2,true);
 
-    // get lower bound when maximally unaligned
-    // should return next available
-    test_lower_bound(buffer_skip,ticks_between*3/2,2,true);
-    test_lower_bound(buffer_skip,ticks_between*5/2,2,true);
-    test_lower_bound(buffer_skip,ticks_between*7/2,2,true);
-    // should be unaffected
-    test_lower_bound(buffer_skip,ticks_between*1/2,1,true);
-    test_lower_bound(buffer_skip,ticks_between*9/2,3,true);
-    test_lower_bound(buffer_skip,ticks_between*11/2,4,true);
+    if(ticks_between>1) //unaligned tests don't make sense if ticks_between < 1
+    {
+        // get lower bound when maximally unaligned
+        test_lower_bound(buffer_skip, ticks_between * 3 / 2, 2, true);
+        test_lower_bound(buffer_skip, ticks_between * 5 / 2, 2, true);
+        test_lower_bound(buffer_skip, ticks_between * 7 / 2, 2, true);
+        // should be unaffected
+        test_lower_bound(buffer_skip, ticks_between * 1 / 2, 1, true);
+        test_lower_bound(buffer_skip, ticks_between * 9 / 2, 3, true);
+        test_lower_bound(buffer_skip, ticks_between * 11 / 2, 4, true);
 
-    // get lower bound when minimally unaligned, next instance
-    test_lower_bound(buffer_skip,ticks_between+1,2,true);
-    test_lower_bound(buffer_skip,ticks_between*2+1,2,true);
-    // should be unaffected
-    test_lower_bound(buffer_skip,1,1,true);
+        // get lower bound when minimally unaligned, next instance
+        test_lower_bound(buffer_skip, ticks_between + 1, 2, true);
+        test_lower_bound(buffer_skip, ticks_between * 2 + 1, 2, true);
+        // should be unaffected
+        test_lower_bound(buffer_skip, 1, 1, true);
+    }
 
 }//end test_queue_model
 
@@ -194,6 +203,8 @@ void test_request_model(){
                                uint64_t start_win, uint64_t end_win,
                                std::set<size_t> objects_skipped={}){
 
+        BOOST_TEST_MESSAGE("\ttesting [start_win{" << start_win << "}, end_win{" << end_win << "})");
+
         //make the error registry we need
         auto errorRegistry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
 
@@ -208,7 +219,9 @@ void test_request_model(){
         //check that the return code is correct.
         BOOST_CHECK_EQUAL(req_res.result_code,DefaultRequestHandler::ResultCode::kFound);
 
-        //check that the first and last returned blocks are note empty
+
+
+        //check that the first and last returned blocks are not empty
         BOOST_REQUIRE_GT(ret.front().second,0);
         BOOST_REQUIRE_GT(ret.back().second,0);
 
@@ -238,13 +251,13 @@ void test_request_model(){
 
         //correct for the cases there that object has been skipped
         auto expected_start_obj = expected_start - expected_start%ticks_between;
-        while(objects_skipped.count(expected_start_obj/ticks_between)>0) {
+        while(objects_skipped.count(expected_start_obj/ticks_between)>0 && expected_start<expected_end) {
             expected_start += ticks_per_frame;
             expected_start_obj = expected_start - expected_start%ticks_between;
         }
 
         auto expected_end_obj = expected_end - ticks_per_frame - (expected_end-ticks_per_frame)%ticks_between;
-        while(objects_skipped.count(expected_end_obj/ticks_between)>0) {
+        while(objects_skipped.count(expected_end_obj/ticks_between)>0 && expected_end>(expected_start+ticks_per_frame) ) {
             expected_end -= ticks_per_frame;
             expected_start_obj = expected_end - ticks_per_frame - (expected_end-ticks_per_frame)%ticks_between;
         }
@@ -274,7 +287,7 @@ void test_request_model(){
 
     /*
      * Skipped buffer should have elements with index [0, 1 , 2 , 3 , 4 , 5 , 6 , 7 ,  8 ,  9 ]
-     *                                 and timestamps [0,1*T,2*T,5*T,6*T,7*T,8*T,9*T,10*T,11*T]
+     *                                 and timestamps [0,1*T,4*T,5*T,6*T,7*T,8*T,9*T,10*T,11*T]
      * where T = DTS ticks between successive elements (tick_diff_per_frame * n_frames_per_obj_in_buffer)
      */
     BOOST_TEST_MESSAGE("Testing buffer with skips...");
@@ -285,7 +298,8 @@ void test_request_model(){
 
     test_req_bounds(buffer_skip,ticks_between*2,ticks_between*5,obj_to_skip);
     test_req_bounds(buffer_skip,ticks_between*3/2,ticks_between*9/2,obj_to_skip);
-    test_req_bounds(buffer_skip,ticks_between*11/5,ticks_between*21/5,obj_to_skip);
+    if((ticks_between*21/5)>4*ticks_between) //protect in cases where ticks_between is very small (e.g. 1)
+        test_req_bounds(buffer_skip,ticks_between*11/5,ticks_between*21/5,obj_to_skip);
     test_req_bounds(buffer_skip,ticks_between*2+1,ticks_between*5+1,obj_to_skip);
 
 }//end test_request_model
