@@ -227,7 +227,15 @@ void test_request_model(){
 
         //grab the (first) timestamps of the first and last frames
         uint64_t first_ts = reinterpret_cast<const TypeAdapter::FrameType*>(ret.front().first)->get_timestamp();
-        uint64_t last_ts = reinterpret_cast<const TypeAdapter::FrameType*>((char*)(ret.back().first)+(ret.back().second)-sizeof(typename TypeAdapter::FrameType))->get_timestamp();
+
+        // if n_frames is 1, then all payloads are just one frame, and we can grab the timestamp directly
+        // this is particularly useful for not having to deal with wrapper objects, as those complicate things a bunch
+        // if not, then we really hope that sizeof(TypeAdapter::FrameType) is what we want ...
+        uint64_t last_ts=0;
+        if(n_frames==1)
+            last_ts = reinterpret_cast<const TypeAdapter::FrameType*>(ret.back().first)->get_timestamp();
+        else
+            last_ts = reinterpret_cast<const TypeAdapter::FrameType*>((char*)(ret.back().first)+(ret.back().second)-sizeof(typename TypeAdapter::FrameType))->get_timestamp();
 
         //general check:
         // first_ts <= start_win < first_ts + ticks_per_frame
