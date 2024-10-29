@@ -5,7 +5,7 @@ namespace datahandlinglibs {
 
 template<typename T>
 typename IterableQueueModel<T>::Iterator 
-BinarySearchQueueModel<T>::lower_bound(T& element, bool /*with_errors=false*/)
+BinarySearchQueueModel<T>::lower_bound(T& element, bool )
 {
   unsigned int start_index =
     IterableQueueModel<T>::readIndex_.load(std::memory_order_relaxed); // NOLINT(build/unsigned)
