@@ -146,12 +146,9 @@ protected:
   void dispatch_requests(dfmessages::DataRequest& data_request);
   
   // Transform input data type to readout
-  virtual std::unique_ptr<RDT[]> transform_payload(IDT& original, std::size_t& size) const
+  virtual std::vector<RDT> transform_payload(IDT& original) const
   {
-    size = 1;
-    auto transformed = std::make_unique_for_overwrite<RDT[]>(size);
-    transformed[0] = reinterpret_cast<RDT&>(original);
-    return transformed;
+    return { reinterpret_cast<RDT&>(original) };
   }
 
   // Operational monitoring

@@ -251,10 +251,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
       if constexpr (std::is_same_v<IDT, RDT>) {
         process_item(original);
       } else {
-        std::size_t size;
-        auto transformed = transform_payload(original, size);
-        for(auto i = 0; i < size; ++i) {
-          process_item(transformed[i]);
+        auto transformed = transform_payload(original);
+        for (auto& i : transformed) {
+          process_item(i);
         }   
       }
     } else {
