@@ -442,8 +442,8 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   }
   else {
     RDT request_element = RDT();
-    //request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-    request_element.set_timestamp(start_win_ts);
+    request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
+    //request_element.set_timestamp(start_win_ts);
 
     auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
@@ -459,7 +459,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
          rres.result_code = ResultCode::kPartial;
       }
       else if (start_win_ts < last_ts) {
-	rres.result_code = ResultCode::kPartiallyOld;
+        rres.result_code = ResultCode::kPartiallyOld;
       }
       else {
         rres.result_code = ResultCode::kFound;
@@ -529,6 +529,22 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
   }
   else {
     frag_pieces = get_fragment_pieces(dr.request_information.window_begin, dr.request_information.window_end, rres);
+
+    auto front_element = m_latency_buffer->front();           // NOLINT
+    auto last_element = m_latency_buffer->back();             // NOLINT
+    uint64_t last_ts = front_element->get_timestamp();  // NOLINT(build/unsigned)
+    uint64_t newest_ts = last_element->get_timestamp(); // NOLINT(build/unsigned)
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "Data request for trig/seq_num=" << dr.trigger_number
+      << "." << dr.sequence_number << " and SourceID[" << m_sourceid << "] with"
+      << " Trigger TS=" << dr.trigger_timestamp
+      << " Oldest stored TS=" << last_ts
+      << " Newest stored TS=" << newest_ts
+      << " Start of window TS=" << dr.request_information.window_begin
+      << " End of window TS=" << dr.request_information.window_end
+      << " Latency buffer occupancy=" << m_latency_buffer->occupancy()
+      << " frag_pieces result_code=" << rres.result_code
+      << " number of frag_pieces=" << frag_pieces.size();
+
     switch (rres.result_code) {
 	case ResultCode::kTooOld:
 		// return empty frag

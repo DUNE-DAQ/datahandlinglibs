@@ -24,14 +24,14 @@ FixedRateQueueModel<T>::lower_bound(T& element, bool with_errors)
     return IterableQueueModel<T>::end();
   }
 
-  int64_t time_tick_diff = (timestamp - last_ts) / T::expected_tick_difference;
+  int64_t time_tick_diff = (timestamp - last_ts);
 
   //if we are aligned on a n_frame boundary, 
-  uint32_t num_element_offset = time_tick_diff/n_frames; // NOLINT(build/unsigned)
+  uint32_t num_element_offset = time_tick_diff/T::expected_tick_difference/n_frames; // NOLINT(build/unsigned)
   uint32_t target_index = start_index + num_element_offset; // NOLINT(build/unsigned)
 
   //if we aren't perfectly aligned on a n_frames boundary, move us up so we satisfy normal lower_bound rules
-  if(time_tick_diff%n_frames!=0) ++target_index;
+  if(time_tick_diff%(T::expected_tick_difference*n_frames)!=0) ++target_index;
   
   if (target_index >= IterableQueueModel<T>::size_) {
     target_index -= IterableQueueModel<T>::size_;
