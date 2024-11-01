@@ -8,31 +8,37 @@ template<class ReadoutType, class LatencyBufferType>
 void 
 ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const appmodel::DataHandlerModule* conf)
 {
-
   auto data_rec_conf = conf->get_module_configuration()->get_request_handler()->get_data_recorder();
-
   
   if (data_rec_conf != nullptr) {
-    inherited::m_sourceid.id = conf->get_source_id();
-    inherited::m_sourceid.subsystem = ReadoutType::subsystem;
+    if (!data_rec_conf->get_output_file().empty()) {
+      inherited::m_sourceid.id = conf->get_source_id();
+      inherited::m_sourceid.subsystem = ReadoutType::subsystem;
+  
+      // Check for alignment restrictions
+      if (inherited::m_latency_buffer->get_alignment_size() == 0 ||
+          sizeof(ReadoutType) * inherited::m_latency_buffer->size() % 4096) {
+        ers::error(ConfigurationError(ERS_HERE, inherited::m_sourceid, "Latency buffer is not 4k aligned"));
+      }
+  
+      // Prepare filename with full path 
+      std::string file_full_path = data_rec_conf->get_output_file() + inherited::m_sourceid.id.to_string();
+  
+      // RS: This will need to go away with the SNB store handler!
+      if (std::remove(file_full_path.c_str()) == 0) {
+        TLOG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << file_full_path;
+      }
+  
+      m_oflag = O_CREAT | O_WRONLY;
+      if (data_rec_conf->get_use_o_direct()) {
+        m_oflag |= O_DIRECT;
+      }
+      m_fd = ::open(file_full_path.c_str(), m_oflag, 0644);
+      inherited::m_recording_configured = true;
 
-    // Check for alignment restrictions
-    if (inherited::m_latency_buffer->get_alignment_size() == 0 ||
-        sizeof(ReadoutType) * inherited::m_latency_buffer->size() % 4096) {
-      ers::error(ConfigurationError(ERS_HERE, inherited::m_sourceid, "Latency buffer is not 4k aligned"));
-    }
-
-    // RS: This will need to go away with the SNB store handler!
-    if (remove(data_rec_conf->get_output_file().c_str()) == 0) {
-      TLOG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << data_rec_conf->get_output_file();
-    }
-
-    m_oflag = O_CREAT | O_WRONLY;
-    if (data_rec_conf->get_use_o_direct()) {
-      m_oflag |= O_DIRECT;
-    }
-    m_fd = ::open(data_rec_conf->get_output_file().c_str(), m_oflag, 0644);
-    inherited::m_recording_configured = true;
+    } else { // no output dir specified
+      TLOG(TLVL_WORK_STEPS) << "No output path is specified in data recorder config. Recording feature is inactive.";
+    } 
   }
   inherited::conf(conf);
 }
@@ -40,15 +46,27 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const
 // Special record command that writes to files from memory aligned LBs
 template<class ReadoutType, class LatencyBufferType>
 void 
-ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(const nlohmann::json& /*args*/)
+ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(const nlohmann::json& cmdargs)
 {
   if (inherited::m_recording.load()) {
     ers::error(
       CommandError(ERS_HERE, inherited::m_sourceid, "A recording is still running, no new recording was started!"));
     return;
   }
-// FIXME: parameters to commands to be clarified.... hardcode for now
-  int recording_time_sec = 1;
+
+// FIXME: Recording parameters to be clarified!
+  int recording_time_sec = 0;
+  if (cmdargs.contains("duration")) {
+    recording_time_sec = cmdargs["duration"].template get<int>;
+  } else {
+    ers::warning(
+      CommandError(ERS_HERE, inherited::m_sourceid, "A recording command with missing duration field received!"));
+  }
+  if (recording_time_sec == 0) {
+    ers::warning(
+      CommandError(ERS_HERE, inherited::m_sourceid, "Recording for 0 seconds requested. Recording command is ignored!"));
+    return;
+  }
 
   inherited::m_recording_thread.set_work(
     [&](int duration) {
