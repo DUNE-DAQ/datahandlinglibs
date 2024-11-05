@@ -24,15 +24,18 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
       m_fragment_send_timeout_ms = output->get_send_timeout_ms();
     }
   }
-  auto dr = reqh_conf->get_data_recorder();
-  if(dr != nullptr) {
-    m_output_file = dr->get_output_file();
-    if (remove(m_output_file.c_str()) == 0) {
-      TLOG_DEBUG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << m_output_file << std::endl;
+
+  if (m_recording_configured == false) {
+    auto dr = reqh_conf->get_data_recorder();
+    if(dr != nullptr) {
+      m_output_file = dr->get_output_file();
+      if (remove(m_output_file.c_str()) == 0) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << m_output_file << std::endl;
+      }
+      m_stream_buffer_size = dr->get_streaming_buffer_size();
+      m_buffered_writer.open(m_output_file, m_stream_buffer_size, dr->get_compression_algorithm(), dr->get_use_o_direct());
+      m_recording_configured = true;
     }
-    m_stream_buffer_size = dr->get_streaming_buffer_size();
-    m_buffered_writer.open(m_output_file, m_stream_buffer_size, dr->get_compression_algorithm(), dr->get_use_o_direct());
-    m_recording_configured = true;
   }
 
   m_warn_on_timeout = reqh_conf->get_warn_on_timeout();
