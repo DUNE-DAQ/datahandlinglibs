@@ -59,7 +59,7 @@ using dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS;
 namespace dunedaq {
 namespace datahandlinglibs {
 
-template<class ReadoutType, class RequestHandlerType, class LatencyBufferType, class RawDataProcessorType>
+template<class ReadoutType, class RequestHandlerType, class LatencyBufferType, class RawDataProcessorType, class InputDataType = ReadoutType>
 class DataHandlingModel : public DataHandlingConcept
 {
 public:
@@ -68,6 +68,7 @@ public:
   using RHT = RequestHandlerType;
   using LBT = LatencyBufferType;
   using RPT = RawDataProcessorType;
+  using IDT = InputDataType;
 
   // Using timestamp typenames
   using timestamp_t = std::uint64_t; // NOLINT(build/unsigned)
@@ -92,6 +93,8 @@ public:
   {
     m_pid_of_current_process = getpid();
   }
+
+  virtual ~DataHandlingModel() = default;
 
   // Initializes the readoutmodel and its internals
   void init(const appmodel::DataHandlerModule* modconf);
@@ -129,7 +132,10 @@ public:
   std::function<void(RDT&&)> m_consume_callback;
 
 protected:
- 
+
+  // Perform processing operations on payload
+  void process_item(RDT& payload);
+  
   // Raw data consumer's work function
   void run_consume();
 
@@ -138,7 +144,12 @@ protected:
 
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
-
+  
+  // Transform input data type to readout
+  virtual std::vector<RDT> transform_payload(IDT& original) const
+  {
+    return { reinterpret_cast<RDT&>(original) };
+  }
 
   // Operational monitoring
   virtual void generate_opmon_data() override;
@@ -170,7 +181,7 @@ protected:
   // RAW RECEIVER
   std::chrono::milliseconds m_raw_receiver_timeout_ms;
   std::chrono::microseconds m_raw_receiver_sleep_us;
-  using raw_receiver_ct = iomanager::ReceiverConcept<ReadoutType>;
+  using raw_receiver_ct = iomanager::ReceiverConcept<InputDataType>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
   std::string m_raw_data_receiver_connection_name;
 
