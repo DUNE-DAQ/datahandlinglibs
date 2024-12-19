@@ -273,7 +273,8 @@ protected:
   bool m_warn_on_timeout = true; // Whether to warn when a request times out
   bool m_warn_about_empty_buffer = true; // Whether to warn about an empty buffer when processing a request
   uint32_t m_periodic_data_transmission_ms = 0;
-  
+  std::vector<std::string> m_frag_out_conn_ids;
+
   // Stats
   std::atomic<int> m_pop_counter;
   std::atomic<int> m_num_buffer_cleanups{ 0 };
