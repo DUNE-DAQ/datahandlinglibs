@@ -20,7 +20,7 @@
 #include "nlohmann/json.hpp"
 #include "rcif/cmd/Nljs.hpp"
 
-#include "appfwk/ModuleConfiguration.hpp"
+#include "appfwk/ConfigurationManager.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 
 #include <chrono>
@@ -46,7 +46,7 @@ public:
   RawDataHandlerBase(RawDataHandlerBase&&) = delete;                 ///< RawDataHandlerBase is not move-constructible
   RawDataHandlerBase& operator=(RawDataHandlerBase&&) = delete;      ///< RawDataHandlerBase is not move-assignable
 
-  void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
+  void init(std::shared_ptr<appfwk::ConfigurationManager> cfg);
   //  void get_info(opmonlib::InfoCollector& ci, int level);
 
   virtual std::shared_ptr<dunedaq::datahandlinglibs::DataHandlingConcept>

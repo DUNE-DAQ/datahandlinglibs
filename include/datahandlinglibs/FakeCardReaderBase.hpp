@@ -24,7 +24,7 @@
 #include "appmodel/DataReaderModule.hpp"
 #include "appmodel/DataReaderConf.hpp"
 
-#include "appfwk/ModuleConfiguration.hpp"
+#include "appfwk/ConfigurationManager.hpp"
 
 #include "datahandlinglibs/utils/ReusableThread.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
@@ -58,7 +58,7 @@ public:
   FakeCardReaderBase(FakeCardReaderBase&&) = delete;                 ///< FakeCardReaderBase is not move-constructible
   FakeCardReaderBase& operator=(FakeCardReaderBase&&) = delete;      ///< FakeCardReaderBase is not move-assignable
 
-  void init(std::shared_ptr<appfwk::ModuleConfiguration> cfg);
+  void init(std::shared_ptr<appfwk::ConfigurationManager> cfg);
 
   // To be implemented by final module
   virtual std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>
@@ -76,7 +76,7 @@ private:
   // Configuration
   bool m_configured;
   std::string m_name;
-  std::shared_ptr<appfwk::ModuleConfiguration> m_cfg;
+  std::shared_ptr<appfwk::ConfigurationManager> m_cfg;
 
   std::map<std::string, std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>> m_source_emus;
 

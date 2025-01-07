@@ -9,12 +9,12 @@ FakeCardReaderBase::FakeCardReaderBase(const std::string& name)
 }
 
 void
-FakeCardReaderBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
+FakeCardReaderBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)
 {
   m_cfg = cfg;
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering init() method";
   //auto ini = args.get<appfwk::app::ModInit>();
-  auto ini = cfg->module<appmodel::DataReaderModule>(m_name);
+  auto ini = cfg->get_dal<appmodel::DataReaderModule>(m_name);
   if (ini != nullptr && ini->get_configuration()->get_emulation_mode()) {
 
     for (auto qi : ini->get_outputs()) {
@@ -47,7 +47,7 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
   if (m_configured) {
     TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS) << "This module is already configured!";
   } else {
-      auto cfg = m_cfg->module<appmodel::DataReaderModule>(get_fcr_name());
+      auto cfg = m_cfg->get_dal<appmodel::DataReaderModule>(get_fcr_name());
 
     std::map<uint32_t, const confmodel::DetectorStream*> streams;
     for (const auto & det_connections : cfg->get_connections()) {
