@@ -1,5 +1,5 @@
 /**
- * @file test_ratelimiter_app.cxx Test application for
+ * @file test_skiplist_app.cxx Test application for
  * ratelimiter implementation
  *
  * This is part of the DUNE DAQ Application Framework, copyright 2020.
@@ -11,6 +11,7 @@
 #include "logging/Logging.hpp"
 
 #include "datahandlinglibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
 
 #include "folly/ConcurrentSkipList.h"
 
@@ -29,18 +30,31 @@ using namespace folly;
 int
 main(int /*argc*/, char** /*argv[]*/)
 {
+  // Arena based SKL test
+  std::unique_ptr<SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT>> cskl = std::make_unique<SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT>>(); // ();
+
+  //cskl->set_capacity(1000000);
+  ///cskl->allocate_memory();
+ 
+  TLOG() << "Total size of arena: " << cskl->m_arena.totalSize();
+  TLOG() << "Maximum size of arna: " << 1000000*sizeof(types::DUMMY_FRAME_STRUCT);
+
+ 
+  using SkipListT = SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT>::SkipListT;
+  using SkipListTAcc = SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT>::SkipListTAcc;
 
   // ConcurrentSkipList from Folly
-  typedef ConcurrentSkipList<types::DUMMY_FRAME_STRUCT> SkipListT;
-  typedef SkipListT::Accessor SkipListTAcc;
+  //typedef ConcurrentSkipList<types::DUMMY_FRAME_STRUCT> SkipListT;
+  //typedef SkipListT::Accessor SkipListTAcc;
   // typedef SkipListT::Skipper SkipListTSkip; //Skipper accessor to test
 
   // Skiplist instance
   auto head_height = 2;
-  std::shared_ptr<SkipListT> skl(SkipListT::createInstance(head_height));
+  //std::shared_ptr<SkipListT> skl(SkipListT::createInstance(head_height));
+  auto& skl = cskl->get_skip_list(); 
 
   // Run for seconds
-  int runsecs = 15;
+  int runsecs = 60;
 
   // Run marker
   std::atomic<bool> marker{ true };
@@ -63,7 +77,7 @@ main(int /*argc*/, char** /*argv[]*/)
     int idx = 0;
     while (marker) {
       TLOG() << "Adjusting rate to: " << rand_rates[idx] << " [kHz]";
-      rl.adjust(rand_rates[idx]);
+      rl.adjust(1); //rand_rates[idx]);
       if (idx > runsecs - 1) {
         idx = 0;
       } else {
@@ -73,24 +87,28 @@ main(int /*argc*/, char** /*argv[]*/)
     }
   });
 
-  // Producer thread
-  auto producer = std::thread([&]() {
-    TLOG() << "SkipList Producer spawned... Creating accessor.";
-    uint64_t ts = 0; // NOLINT(build/unsigned)
-    while (marker) {
-      types::DUMMY_FRAME_STRUCT pl;
-      auto plptr =
-        const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
-      plptr->timestamp = ts;
-      {
-        SkipListTAcc prodacc(skl);
-        prodacc.insert(std::move(pl));
+
+  std::atomic<uint64_t> key{0};
+  // Producer threads
+  std::vector<std::thread> producers;
+  for (int i = 0; i < 10; ++i) {
+    producers.emplace_back([&]() {
+      TLOG() << "SkipList Producer spawned...";
+      while (marker) {
+        types::DUMMY_FRAME_STRUCT pl;
+        auto plptr =
+          const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
+        plptr->timestamp = key;
+        {
+          SkipListTAcc prodacc(skl);
+          prodacc.insert(std::move(pl));
+        }
+        key += 25;
+        rl.limit();
       }
-      ts += 25;
-      rl.limit();
-    }
-    TLOG() << "Producer joins...";
-  });
+      TLOG() << "Producer joins...";
+    });
+  }
 
   // Cleanup thread
   auto cleaner = std::thread([&]() {
@@ -98,6 +116,7 @@ main(int /*argc*/, char** /*argv[]*/)
     TLOG() << "SkipList " << tname << " spawned... Creating accessor.";
     uint64_t max_time_diff = 100000; // accounts for few seconds in FE clock // NOLINT(build/unsigned)
     while (marker) {
+      TLOG() << "Total size of arena: " << cskl->m_arena.totalSize();
       SkipListTAcc cleanacc(skl);
       TLOG() << tname << ": SkipList size: " << cleanacc.size();
       auto tail = cleanacc.last();
@@ -127,6 +146,7 @@ main(int /*argc*/, char** /*argv[]*/)
       } else {
         TLOG() << tname << ": Didn't manage to get SKL head and tail!";
       }
+      //cskl->m_arena.clear();
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     TLOG() << "Cleaner joins...";
@@ -187,8 +207,10 @@ main(int /*argc*/, char** /*argv[]*/)
     killswitch.join();
   }
 
-  if (producer.joinable()) {
-    producer.join();
+  for (auto& producer : producers) {
+    if (producer.joinable()) {
+      producer.join();
+    }
   }
 
   if (cleaner.joinable()) {

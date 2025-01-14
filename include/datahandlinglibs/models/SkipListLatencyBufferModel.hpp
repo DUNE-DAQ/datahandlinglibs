@@ -14,6 +14,10 @@
 
 #include "logging/Logging.hpp"
 
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+
+#include <folly/memory/Arena.h>
+#include <folly/memory/ThreadCachedArena.h>
 #include "folly/ConcurrentSkipList.h"
 
 #include <memory>
@@ -30,16 +34,27 @@ class SkipListLatencyBufferModel : public LatencyBufferConcept<T>
 
 public:
   // Using shorter Folly typenames
-  using SkipListT = typename folly::ConcurrentSkipList<T>;
+  using FixedSizeAlloc = FixedSizeAllocator<T>;
+  using ThreadCachedAlloc = folly::ThreadCachedArena;
+  using SysArenaAlloc = folly::SysArena;
+  //using AllocatorType = folly::CxxAllocatorAdaptor<T, FixedSizeAlloc>;
+  using AllocatorType = folly::CxxAllocatorAdaptor<T, SysArenaAlloc>; // folly::CxxAllocatorAdaptor<T, ThreadCachedAlloc>;
+  //using AllocatorType = folly::CxxAllocatorAdaptor<T, ThreadCachedAlloc>;
+  using SkipListT = folly::ConcurrentSkipList<T, std::less<T>, AllocatorType>;
   using SkipListTIter = typename SkipListT::iterator;
-  using SkipListTAcc = typename folly::ConcurrentSkipList<T>::Accessor; // SKL Accessor
-  using SkipListTSkip = typename folly::ConcurrentSkipList<T>::Skipper; // Skipper accessor
+  using SkipListTAcc = typename SkipListT::Accessor; // SKL Accessor
+  using SkipListTSkip = typename SkipListT::Skipper; // Skipper accessor
 
   // Constructor
   SkipListLatencyBufferModel()
-    : m_skip_list(folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height))
+    : m_capacity(0)
+    , m_arena(SysArenaAlloc(100000*sizeof(T), 100000*sizeof(T))) //m_arena(ThreadCachedAlloc()) //std::make_shared<ThreadCachedAlloc>())
+    //, m_arena(ThreadCachedAlloc(sizeof(T)))
+    , m_allocator(m_arena)
+    , m_skip_list(SkipListT::createInstance(unconfigured_head_height, m_allocator)) //folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height, m_allocator))
   {
     TLOG(TLVL_WORK_STEPS) << "Initializing non configured latency buffer";
+    //TLOG() << "Block good alloc size: " << m_arena::blockGoodAllocSize();
   }
 
   // Iterator for SkipList
@@ -69,28 +84,42 @@ public:
 
     bool good() { return m_iter.good(); }
 
-
-private:
+  private:
     SkipListTAcc m_acc;
     SkipListTIter m_iter;
   };
 
+  SysArenaAlloc m_arena; //ThreadCachedAlloc m_arena;
+  //ThreadCachedAlloc m_arena;
+
   // Configure
-  void conf(const appmodel::LatencyBuffer* /*conf*/) override
+  void conf(const appmodel::LatencyBuffer* cfg) override
   {
     // Reset datastructure
-    m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height);
+    m_skip_list = SkipListT::createInstance(unconfigured_head_height, m_allocator);
+      // folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height, m_allocator);
+    set_capacity(cfg->get_size());
+    allocate_memory();
   }
 
   // Unconfigure
   void scrap(const nlohmann::json& /*args*/) override
   {
     // RS -> Cross-check, we don't need to flush first?
-    m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height);
+    m_skip_list = SkipListT::createInstance(unconfigured_head_height, m_allocator);
+      // folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height, m_allocator);
   }
 
   // Get whole skip-list helper function
   std::shared_ptr<SkipListT>& get_skip_list() { return std::ref(m_skip_list); }
+
+  // Set capacity
+  void set_capacity(std::size_t capacity) { m_capacity = capacity; }
+
+  // Allocate memory
+  void allocate_memory() {
+    m_arena.allocate(m_capacity*sizeof(T));
+  }
 
   // Override interface implementations
   size_t occupancy() const override;
@@ -99,15 +128,10 @@ private:
   bool put(T& new_element); // override
   bool read(T& element) override;
 
-  void allocate_memory(size_t) override
-  {
-      TLOG(TLVL_DEBUG) << "SkipListLatencyBufferModel::allocate_memory not implemented.";
-  }
-
   // Iterator support
   Iterator begin();
   Iterator end();
-  Iterator lower_bound(T& element, bool with_errors=false);
+  Iterator lower_bound(T& element, bool /*with_errors=false*/);
 
   // Front/back accessors override
   const T* front() override;
@@ -115,10 +139,20 @@ private:
 
   // Pop X override
   void pop(size_t num = 1) override; // NOLINT(build/unsigned)
+
 protected:
     virtual void generate_opmon_data() override;  
 
 private:
+  std::size_t m_capacity;
+
+  // Arena
+  //std::shared_ptr<ThreadCachedAlloc> m_arena;
+  SysArenaAlloc m_arena; //ThreadCachedAlloc m_arena;
+
+  // Allocator 
+  AllocatorType m_allocator;
+
   // Concurrent SkipList
   std::shared_ptr<SkipListT> m_skip_list;
 
