@@ -14,7 +14,7 @@
 #include "datahandlinglibs/ReadoutTypes.hpp"
 #include "datahandlinglibs/concepts/RecorderConcept.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
-#include "datahandlinglibs/utils/ReusableThread.hpp"
+#include "utilities/ReusableThread.hpp"
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
@@ -68,7 +68,7 @@ private:
   BufferedFileWriter<> m_buffered_writer;
 
   // Threading
-  ReusableThread m_work_thread;
+  utilities::ReusableThread m_work_thread;
   std::atomic<bool> m_run_marker;
 
   // Stats
