@@ -24,7 +24,7 @@
 #include "appmodel/DataHandlerConf.hpp"
 #include "appmodel/DataProcessor.hpp"
 
-#include "utilities/ReusableThread.hpp"
+#include "datahandlinglibs/utils/ReusableThread.hpp"
 
 #include <folly/ProducerConsumerQueue.h>
 
@@ -113,7 +113,7 @@ protected:
   // Post-processing functions and their corresponding threads
   std::vector<std::function<void(const ReadoutType*)>> m_post_process_functions;
   std::vector<std::unique_ptr<folly::ProducerConsumerQueue<const ReadoutType*>>> m_items_to_postprocess_queues;
-  std::vector<std::unique_ptr<utilities::ReusableThread>> m_post_process_threads;
+  std::vector<std::unique_ptr<ReusableThread>> m_post_process_threads;
 
   // Internals
   size_t m_postprocess_queue_sizes;

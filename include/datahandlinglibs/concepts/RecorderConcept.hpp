@@ -12,7 +12,7 @@
 #include "datahandlinglibs/ReadoutTypes.hpp"
 //#include "datahandlinglibs/recorderconfig/Structs.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
-#include "utilities/ReusableThread.hpp"
+#include "datahandlinglibs/utils/ReusableThread.hpp"
 #include "appmodel/DataRecorderModule.hpp"
 
 #include <atomic>
