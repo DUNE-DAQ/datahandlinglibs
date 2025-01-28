@@ -80,7 +80,7 @@ template<typename Task>
 void 
 TaskRawDataProcessorModel<ReadoutType>::add_postprocess_task(Task&& task)
 {
-  m_post_process_threads.emplace_back(std::make_unique<ReusableThread>(0));
+  m_post_process_threads.emplace_back(std::make_unique<utilities::ReusableThread>(0));
   m_post_process_functions.push_back(std::forward<Task>(task));
 }
 

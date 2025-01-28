@@ -26,7 +26,7 @@
 
 #include "appfwk/ConfigurationManager.hpp"
 
-#include "datahandlinglibs/utils/ReusableThread.hpp"
+#include "utilities/ReusableThread.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
 
 #include "nlohmann/json.hpp"

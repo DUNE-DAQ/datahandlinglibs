@@ -21,7 +21,7 @@
 #include "datahandlinglibs/utils/ErrorBitGenerator.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
 #include "datahandlinglibs/utils/RateLimiter.hpp"
-#include "datahandlinglibs/utils/ReusableThread.hpp"
+#include "utilities/ReusableThread.hpp"
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
@@ -140,7 +140,7 @@ private:
   std::unique_ptr<FileSourceBuffer> m_file_source;
   ErrorBitGenerator m_error_bit_generator;
 
-  ReusableThread m_producer_thread;
+  utilities::ReusableThread m_producer_thread;
 
   std::string m_name;
   bool m_is_configured = false;

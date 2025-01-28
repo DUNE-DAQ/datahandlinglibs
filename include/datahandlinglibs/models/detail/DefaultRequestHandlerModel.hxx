@@ -22,6 +22,9 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   for (auto output : conf->get_outputs()) {
     if (output->get_data_type() == "Fragment") {
       m_fragment_send_timeout_ms = output->get_send_timeout_ms();
+      // 19-Dec-2024, KAB: store the names/IDs of the Fragment output connections so that
+      // we can confirm that they are ready for sending at 'start' time.
+      m_frag_out_conn_ids.push_back(output->UID());
     }
   }
 
@@ -90,6 +93,21 @@ DefaultRequestHandlerModel<RDT, LBT>::start(const nlohmann::json& /*args*/)
   m_bytes_written = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
+
+  // 19-Dec-2024, KAB: check that Fragment senders are ready to send. This is done so
+  // that the IOManager infrastructure fetches the necessary connection details from
+  // the ConnectivityService at 'start' time, instead of the first time that the sender
+  // is used to send data.  This avoids delays in the sending of the first fragment in
+  // the first data-taking run in a DAQ session. Such delays can lead to undesirable
+  // system behavior like trigger inhibits.
+  for (auto frag_out_conn : m_frag_out_conn_ids) {
+    auto sender = get_iom_sender<std::unique_ptr<daqdataformats::Fragment>>(frag_out_conn);
+    if (sender != nullptr) {
+      bool is_ready = sender->is_ready_for_sending(std::chrono::milliseconds(100));
+      TLOG_DEBUG(0) << "The Fragment sender for " << frag_out_conn << " " << (is_ready ? "is" : "is not")
+                    << " ready, my source_id is [" << m_sourceid << "]";
+    }
+  }
 
   m_request_handler_thread_pool = std::make_unique<boost::asio::thread_pool>(m_num_request_handling_threads);
 
