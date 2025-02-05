@@ -12,7 +12,7 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "datahandlinglibs/concepts/RequestHandlerConcept.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
-#include "datahandlinglibs/utils/ReusableThread.hpp"
+#include "utilities/ReusableThread.hpp"
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
@@ -227,10 +227,10 @@ protected:
 
   // Data recording
   BufferedFileWriter<> m_buffered_writer;
-  ReusableThread m_recording_thread;
+  utilities::ReusableThread m_recording_thread;
 
-  ReusableThread m_cleanup_thread;
-  ReusableThread m_periodic_transmission_thread;
+  utilities::ReusableThread m_cleanup_thread;
+  utilities::ReusableThread m_periodic_transmission_thread;
 
   // Bookkeeping of OOB requests
   std::map<dfmessages::DataRequest, int> m_request_counter;

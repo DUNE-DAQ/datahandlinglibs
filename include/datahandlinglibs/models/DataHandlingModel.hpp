@@ -43,7 +43,7 @@
 #include "datahandlinglibs/concepts/RequestHandlerConcept.hpp"
 
 #include "datahandlinglibs/DataHandlingIssues.hpp"
-#include "datahandlinglibs/utils/ReusableThread.hpp"
+#include "utilities/ReusableThread.hpp"
 
 #include <functional>
 #include <memory>
@@ -176,7 +176,7 @@ protected:
   std::atomic<int> m_num_payloads_overwritten{ 0 };
 
   // CONSUMER
-  ReusableThread m_consumer_thread;
+  utilities::ReusableThread m_consumer_thread;
 
   // RAW RECEIVER
   std::chrono::milliseconds m_raw_receiver_timeout_ms;
@@ -197,7 +197,7 @@ protected:
   // TIME-SYNC
   using timesync_sender_ct = iomanager::SenderConcept<dfmessages::TimeSync>; // no timeout -> published
   std::shared_ptr<timesync_sender_ct> m_timesync_sender;
-  ReusableThread m_timesync_thread;
+  utilities::ReusableThread m_timesync_thread;
   std::string m_timesync_connection_name;
   uint32_t m_pid_of_current_process;
 
