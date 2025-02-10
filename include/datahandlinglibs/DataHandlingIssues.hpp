@@ -12,6 +12,7 @@
 #include "daqdataformats/Types.hpp"
 
 #include <ers/Issue.hpp>
+#include <logging/Logging.hpp> // NOTE: if ISSUES ARE DECLARED BEFORE include logging/Logging.hpp, TLOG_DEBUG<<issue wont work.
 
 #include <string>
 
