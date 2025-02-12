@@ -18,11 +18,11 @@ RawDataHandlerBase::RawDataHandlerBase(const std::string& name)
 
 
 void
-RawDataHandlerBase::init(std::shared_ptr<appfwk::ModuleConfiguration> cfg)
+RawDataHandlerBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)
 {
   
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_dlh_name() << ": Entering init() method";
-  const appmodel::DataHandlerModule* modconf = cfg->module<appmodel::DataHandlerModule>(get_dlh_name());
+  const appmodel::DataHandlerModule* modconf = cfg->get_dal<appmodel::DataHandlerModule>(get_dlh_name());
   if(modconf == nullptr) {
     throw dunedaq::datahandlinglibs::FailedReadoutInitialization(ERS_HERE, get_dlh_name(), "not a DataHandlerModule");
   }
