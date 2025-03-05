@@ -8,47 +8,80 @@ template<class ReadoutType, class LatencyBufferType>
 void 
 ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const appmodel::DataHandlerModule* conf)
 {
-
   auto data_rec_conf = conf->get_module_configuration()->get_request_handler()->get_data_recorder();
-
   
   if (data_rec_conf != nullptr) {
-    inherited::m_sourceid.id = conf->get_source_id();
-    inherited::m_sourceid.subsystem = ReadoutType::subsystem;
+    if (!data_rec_conf->get_output_file().empty()) {
+      inherited::m_sourceid.id = conf->get_source_id();
+      inherited::m_sourceid.subsystem = ReadoutType::subsystem;
+  
+      // Check for alignment restrictions for filesystem block size. (XFS default: 4096) 
+      if (inherited::m_latency_buffer->get_alignment_size() == 0 ||
+          sizeof(ReadoutType) * inherited::m_latency_buffer->size() % 4096) {
+        ers::error(ConfigurationError(ERS_HERE, inherited::m_sourceid, "Latency buffer is not 4kB aligned"));
+      }
 
-    // Check for alignment restrictions
-    if (inherited::m_latency_buffer->get_alignment_size() == 0 ||
-        sizeof(ReadoutType) * inherited::m_latency_buffer->size() % 4096) {
-      ers::error(ConfigurationError(ERS_HERE, inherited::m_sourceid, "Latency buffer is not 4k aligned"));
-    }
+      // Check for sensible stream chunk size
+      inherited::m_stream_buffer_size = data_rec_conf->get_streaming_buffer_size();
+      if (inherited::m_stream_buffer_size % 4096 != 0) {
+        ers::error(ConfigurationError(ERS_HERE, inherited::m_sourceid, "Streaming chunk size is not divisible by 4kB!"));
+      }
+  
+      // Prepare filename with full path 
+      std::string file_full_path = data_rec_conf->get_output_file() + inherited::m_sourceid.to_string() + std::string(".bin");
+      inherited::m_output_file = file_full_path;
 
-    // RS: This will need to go away with the SNB store handler!
-    if (remove(data_rec_conf->get_output_file().c_str()) == 0) {
-      TLOG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << data_rec_conf->get_output_file();
-    }
+  
+      // RS: This will need to go away with the SNB store handler!
+      if (std::remove(file_full_path.c_str()) == 0) {
+        TLOG(TLVL_WORK_STEPS) << "Removed existing output file from previous run: " << file_full_path;
+      }
+  
+      m_oflag = O_CREAT | O_WRONLY;
+      if (data_rec_conf->get_use_o_direct()) {
+        m_oflag |= O_DIRECT;
+      }
+      m_fd = ::open(file_full_path.c_str(), m_oflag, 0644);
+      if (m_fd == -1) {
+        TLOG() << "Failed to open file!";
+        throw ConfigurationError(ERS_HERE, inherited::m_sourceid, "Failed to open file!");
+      }
+      inherited::m_recording_configured = true;
 
-    m_oflag = O_CREAT | O_WRONLY;
-    if (data_rec_conf->get_use_o_direct()) {
-      m_oflag |= O_DIRECT;
-    }
-    m_fd = ::open(data_rec_conf->get_output_file().c_str(), m_oflag, 0644);
-    inherited::m_recording_configured = true;
+    } else { // no output dir specified
+      TLOG(TLVL_WORK_STEPS) << "No output path is specified in data recorder config. Recording feature is inactive.";
+    } 
+  } else {
+    TLOG(TLVL_WORK_STEPS) << "No recording config object specified. Recording feature is inactive."; 
   }
+  
   inherited::conf(conf);
 }
 
 // Special record command that writes to files from memory aligned LBs
 template<class ReadoutType, class LatencyBufferType>
 void 
-ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(const nlohmann::json& /*args*/)
+ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(const nlohmann::json& cmdargs)
 {
   if (inherited::m_recording.load()) {
     ers::error(
       CommandError(ERS_HERE, inherited::m_sourceid, "A recording is still running, no new recording was started!"));
     return;
   }
-// FIXME: parameters to commands to be clarified.... hardcode for now
-  int recording_time_sec = 1;
+
+// FIXME: Recording parameters to be clarified!
+  int recording_time_sec = 0;
+  if (cmdargs.contains("duration")) {
+    recording_time_sec = cmdargs["duration"];
+  } else {
+    ers::warning(
+      CommandError(ERS_HERE, inherited::m_sourceid, "A recording command with missing duration field received!"));
+  }
+  if (recording_time_sec == 0) {
+    ers::warning(
+      CommandError(ERS_HERE, inherited::m_sourceid, "Recording for 0 seconds requested. Recording command is ignored!"));
+    return;
+  }
 
   inherited::m_recording_thread.set_work(
     [&](int duration) {
@@ -67,6 +100,7 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(con
       const char* end_of_buffer_pointer = reinterpret_cast<const char*>(inherited::m_latency_buffer->end_of_buffer()); // NOLINT
 
       size_t bytes_written = 0;
+      size_t failed_writes = 0;
 
       while (std::chrono::duration_cast<std::chrono::seconds>(current_time - start_of_recording).count() < duration) {
         if (!inherited::m_cleanup_requested || (inherited::m_next_timestamp_to_record == 0)) {
@@ -149,7 +183,7 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(con
             }
 
             if (failed_write) {
-              TLOG() << "Failed write!";
+              ++failed_writes;
               ers::warning(CannotWriteToFile(ERS_HERE, inherited::m_output_file));
             }
             considered_chunks_in_loop++;
@@ -186,7 +220,7 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(con
 
       inherited::m_next_timestamp_to_record = std::numeric_limits<uint64_t>::max(); // NOLINT (build/unsigned)
 
-      TLOG() << "Stopped recording, wrote " << bytes_written << " bytes";
+      TLOG() << "Stopped recording, wrote " << bytes_written << " bytes. Failed write count: " << failed_writes;
       inherited::m_recording.exchange(false);
     }, recording_time_sec);
 }
