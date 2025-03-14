@@ -67,6 +67,7 @@ public:
 
 private:
   DataMoveCallbackRegistry() {}
+  std::mutex m_mutex;
   std::map<std::string, std::shared_ptr<CallbackConcept>> m_callback_map;
   static std::shared_ptr<DataMoveCallbackRegistry> s_instance;
 };
