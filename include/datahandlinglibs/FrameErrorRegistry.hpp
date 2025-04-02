@@ -8,6 +8,8 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_FRAMEERRORREGISTRY_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_FRAMEERRORREGISTRY_HPP_
 
+#include "DataHandlingIssues.hpp"
+
 #include <cstdint> // uint_t types
 #include <map>
 #include <mutex>
@@ -40,11 +42,16 @@ public:
     : m_errors()
   {}
 
+  void set_ers_metadata(uint32_t sourceid)
+  {
+    m_ers_metadata = "DLH of SourceID[" + std::to_string(sourceid) + "] ";
+  }
+
   void add_error(std::string error_name, ErrorInterval error)
   {
     std::lock_guard<std::mutex> guard(m_error_map_mutex);
     if (m_errors.find(error_name) == m_errors.end()) {
-      TLOG("FrameErrorRegistry") << "Encountered new error, name=\"" << error_name << "\"";
+      ers::warning(NewErrorRegistered(ERS_HERE, m_ers_metadata.value_or(""), error_name));
     }
     m_errors.erase(error_name);
     m_errors.insert(std::make_pair(error_name, error));
@@ -57,7 +64,7 @@ public:
       if (ts > it->second.end_ts) {
         std::string error_name = it->first;
         it = m_errors.erase(it);
-        TLOG("FrameErrorRegistry") << "Removed error, name=\"" << error_name << "\"";
+        ers::info(ClearedError(ERS_HERE, m_ers_metadata.value_or(""), error_name));
       } else {
         it++;
       }
@@ -69,8 +76,9 @@ public:
   bool has_error() { return !m_errors.empty(); }
 
 private:
-  std::map<std::string, ErrorInterval> m_errors;
-  std::mutex m_error_map_mutex;
+std::map<std::string, ErrorInterval> m_errors;
+std::mutex m_error_map_mutex;
+std::optional<std::string> m_ers_metadata;
 };
 
 } // namespace datahandlinglibs
