@@ -42,9 +42,9 @@ public:
     : m_errors()
   {}
 
-  void set_ers_metadata(uint32_t sourceid)
+  void set_ers_metadata(const std::string& ers_metadata)
   {
-    m_ers_metadata = "DLH of SourceID[" + std::to_string(sourceid) + "] ";
+    m_ers_metadata = ers_metadata;
   }
 
   void add_error(std::string error_name, ErrorInterval error)
