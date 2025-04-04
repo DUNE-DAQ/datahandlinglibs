@@ -50,9 +50,6 @@ public:
   void add_error(std::string error_name, ErrorInterval error)
   {
     std::lock_guard<std::mutex> guard(m_error_map_mutex);
-    if (m_errors.find(error_name) == m_errors.end()) {
-      ers::warning(NewErrorRegistered(ERS_HERE, m_ers_metadata.value_or(""), error_name));
-    }
     m_errors.erase(error_name);
     m_errors.insert(std::make_pair(error_name, error));
   }
@@ -68,6 +65,13 @@ public:
       } else {
         it++;
       }
+    }
+  }
+
+  void log_registered_errors() {
+    std::lock_guard<std::mutex> guard(m_error_map_mutex);
+    for (const auto& [error_name, _] : m_errors) {
+      ers::warning(NewErrorRegistered(ERS_HERE, m_ers_metadata.value_or(""), error_name));
     }
   }
 
