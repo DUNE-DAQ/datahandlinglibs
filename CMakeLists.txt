@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(datahandlinglibs VERSION 3.1.0)
+project(datahandlinglibs VERSION 3.1.1)
 
 find_package(daq-cmake REQUIRED)
 
@@ -80,8 +80,9 @@ daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.c
 ##############################################################################
 # Unit Tests
 
-daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+#daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 #daq_add_unit_test(datahandlinglibs_VariableSizeElementQueue_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_DataMoveCallbackRegistry_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Installation

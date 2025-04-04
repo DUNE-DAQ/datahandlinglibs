@@ -61,6 +61,14 @@ public:
   template<typename DataType>
   void register_callback(const std::string& id, std::function<void(DataType&&)> callback);
  
+  /**
+   * @brief Gets the callback function registered with the given ID
+   * 
+   * @tparam DataType The expected parameter type of the callback function
+   * @param id The unique identifier for the callback
+   * @return A shared pointer to the callback function
+   * @throw GenericConfigurationError if the registered callback function's parameter type does not match `DataType`
+   */
   template<typename DataType>
   std::shared_ptr<std::function<void(DataType&&)>>
   get_callback(const std::string& id);
