@@ -184,6 +184,15 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   " ticks, " << msec_diff << " msec.",
                   ((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
 
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  NewErrorRegistered,
+                  ers_metadata << "New error registered with \"" << error_name << "\"",
+                  ((std::string)ers_metadata) ((std::string)error_name))
+
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  ClearedError,
+                  ers_metadata << "Cleared error of \"" << error_name << "\"",
+                  ((std::string)ers_metadata) ((std::string)error_name))                  
 } // namespace dunedaq
 
 #endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_READOUTISSUES_HPP_

@@ -62,6 +62,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
 
   // Instantiate functionalities
   m_error_registry.reset(new FrameErrorRegistry());
+  m_error_registry->set_ers_metadata("DLH of SourceID[" + std::to_string(mcfg->get_source_id()) + "] ");
   m_latency_buffer_impl.reset(new LBT());
   m_raw_processor_impl.reset(new RPT(m_error_registry, mcfg->get_post_processing_enabled()));
   m_request_handler_impl.reset(new RHT(m_latency_buffer_impl, m_error_registry));
