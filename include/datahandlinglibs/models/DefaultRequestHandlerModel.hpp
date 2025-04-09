@@ -24,7 +24,6 @@
 #include "appmodel/LatencyBuffer.hpp"
 #include "appmodel/DataRecorderConf.hpp"
 
-#include "appfwk/Issues.hpp"
 #include "dfmessages/Fragment_serialization.hpp"
 #include "daqdataformats/Types.hpp"
 #include "dfmessages/DataRequest.hpp"
