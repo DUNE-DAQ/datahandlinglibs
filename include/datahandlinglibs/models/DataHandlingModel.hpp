@@ -129,7 +129,7 @@ public:
   //void get_info(opmonlib::InfoCollector& ci, int level);
 
   // Raw data consume callback
-  void consume_payload(RDT&& payload);
+  void consume_payload(RDT&& payload);  
 
   // Consume callback
   std::function<void(RDT&&)> m_consume_callback;
@@ -145,11 +145,11 @@ protected:
   // Timesync thread's work function
   void run_timesync();
 
-  // Delayed postprocessing thread's work function
-  void run_delayed_postprocessing();
+  // Postprocess scheduler thread's work function
+  void run_postprocess_scheduler();
 
-  // Delayed postprocessing coroutine
-  folly::coro::Task<void> delayed_postprocessing();  
+  // Postprocess schedule coroutine
+  folly::coro::Task<void> postprocess_schedule();  
 
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
@@ -210,8 +210,9 @@ protected:
   std::string m_timesync_connection_name;
   uint32_t m_pid_of_current_process;
 
-  // DELAYED POSTPROCESSING
-  utilities::ReusableThread m_delayed_postprocessing_thread;
+  // POSTPROCESS SCHEDULER
+  utilities::ReusableThread m_postprocess_scheduler_thread;
+  folly::coro::Baton m_baton;
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
@@ -228,8 +229,6 @@ protected:
 
   // RUN START T0
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
-
-  folly::coro::Baton m_baton;
 };
 
 } // namespace datahandlinglibs

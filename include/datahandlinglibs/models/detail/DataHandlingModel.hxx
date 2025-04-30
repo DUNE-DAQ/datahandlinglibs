@@ -115,7 +115,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
     m_timesync_thread.set_name("timesync", m_sourceid.id);
   }
   if (m_processing_delay_ticks) {
-    m_delayed_postprocessing_thread.set_name("dpostproc", m_sourceid.id);
+    m_postprocess_scheduler_thread.set_name("pprocsched", m_sourceid.id);
   }  
 }
 
@@ -147,7 +147,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
     m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync, this);
   }
   if (m_processing_delay_ticks) {
-    m_delayed_postprocessing_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_delayed_postprocessing, this);
+    m_postprocess_scheduler_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_postprocess_scheduler, this);
   }  
   // Register callback to receive and dispatch data requests
   m_data_request_receiver->add_callback(
@@ -175,8 +175,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const nlohmann::json& args)
     }
   }
   if (m_processing_delay_ticks) {
-    m_baton.post();
-    while (!m_delayed_postprocessing_thread.get_readiness()) {
+    m_baton.post(); // In case the coroutine is still waiting when the consumer has stopped
+    while (!m_postprocess_scheduler_thread.get_readiness()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }  
   }  
@@ -240,9 +240,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_delayed_postprocessing()
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_postprocess_scheduler()
 {
-  folly::coro::blockingWait(delayed_postprocessing());
+  folly::coro::blockingWait(postprocess_schedule());
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
@@ -285,8 +285,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 folly::coro::Task<void>
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::delayed_postprocessing() {  
-  TLOG() << "Delayed postprocessing coroutine started...";
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {  
+  TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
 
   timestamp_t newest_ts = 0;
   timestamp_t end_win_ts = 0;
@@ -296,7 +296,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::delayed_postprocessing() {
   std::chrono::milliseconds milliseconds;
   RDT processed_element;
 
-  // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
+  // Deferral of the post processing, to allow elements being reordered in the LB
   // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value  
   while (m_run_marker.load()) {
     co_await m_baton;
@@ -312,6 +312,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::delayed_postprocessing() {
     if (milliseconds.count() <= 1) {
       continue;
     }
+
     last_post_proc_time = now;
     // Get the LB boundaries
     auto tail = m_latency_buffer_impl->back();
