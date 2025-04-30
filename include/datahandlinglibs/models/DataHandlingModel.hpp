@@ -45,6 +45,9 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "utilities/ReusableThread.hpp"
 
+#include <folly/coro/Baton.h>
+#include <folly/coro/Task.h>
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -142,6 +145,12 @@ protected:
   // Timesync thread's work function
   void run_timesync();
 
+  // Delayed postprocessing thread's work function
+  void run_delayed_postprocessing();
+
+  // Delayed postprocessing coroutine
+  folly::coro::Task<void> delayed_postprocessing();  
+
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
   
@@ -201,6 +210,9 @@ protected:
   std::string m_timesync_connection_name;
   uint32_t m_pid_of_current_process;
 
+  // DELAYED POSTPROCESSING
+  utilities::ReusableThread m_delayed_postprocessing_thread;
+
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
 
@@ -216,6 +228,8 @@ protected:
 
   // RUN START T0
   std::chrono::time_point<std::chrono::high_resolution_clock> m_t0;
+
+  folly::coro::Baton m_baton;
 };
 
 } // namespace datahandlinglibs

@@ -1,5 +1,7 @@
 // Declarations for DataHandlingModel
 
+#include <folly/coro/BlockingWait.h>
+
 #include <typeinfo>
 
 namespace dunedaq {
@@ -17,7 +19,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
         m_data_request_receiver = get_iom_receiver<dfmessages::DataRequest>(input->UID()) ;
       }
       else {
-	m_raw_data_receiver_connection_name = input->UID();
+        m_raw_data_receiver_connection_name = input->UID();
         // Parse for prefix
         std::string conn_name = input->UID(); 
         const char delim = '_';
@@ -78,7 +80,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_raw_receiver_sleep_us = std::chrono::microseconds::zero();
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
-  m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
+  m_processing_delay_ticks = 1;//mcfg->get_module_configuration()->get_post_processing_delay_ticks();
   
 
   // Configure implementations:
@@ -109,8 +111,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
 
   // Configure threads:
   m_consumer_thread.set_name("consumer", m_sourceid.id);
-  if (m_generate_timesync)
+  if (m_generate_timesync) {
     m_timesync_thread.set_name("timesync", m_sourceid.id);
+  }
+  if (m_processing_delay_ticks) {
+    m_delayed_postprocessing_thread.set_name("dpostproc", m_sourceid.id);
+  }  
 }
 
 
@@ -137,7 +143,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
   if (!m_callback_mode) {
     m_consumer_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume, this);
   }
-  if (m_generate_timesync) m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync, this);
+  if (m_generate_timesync) {
+    m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync, this);
+  }
+  if (m_processing_delay_ticks) {
+    m_delayed_postprocessing_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_delayed_postprocessing, this);
+  }  
   // Register callback to receive and dispatch data requests
   m_data_request_receiver->add_callback(
     std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests, this, std::placeholders::_1));
@@ -163,6 +174,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const nlohmann::json& args)
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
+  if (m_processing_delay_ticks) {
+    m_baton.post();
+    while (!m_delayed_postprocessing_thread.get_readiness()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }  
+  }  
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Flushing latency buffer with occupancy: " << m_latency_buffer_impl->occupancy();
   m_latency_buffer_impl->flush();
   m_raw_processor_impl->stop(args);
@@ -211,7 +228,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
     //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
     m_num_payloads_overwritten++;
   }
-  if (m_processing_delay_ticks ==0) {
+  if (m_processing_delay_ticks == 0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
     ++m_num_payloads;
     ++m_sum_payloads;
@@ -221,24 +238,21 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_delayed_postprocessing()
+{
+  folly::coro::blockingWait(delayed_postprocessing());
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void 
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 {
 
-  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread started...";
+  TLOG() << "Consumer thread started...";
   m_rawq_timeout_count = 0;
   m_num_payloads = 0;
   m_sum_payloads = 0;
   m_stats_packet_count = 0;
-
-  // Variables for book-keeping of delayed post-processing
-  //timestamp_t oldest_ts=0;
-  timestamp_t newest_ts=0;
-  timestamp_t end_win_ts=0;
-  bool first_cycle = true;
-  auto last_post_proc_time = std::chrono::system_clock::now();
-  auto now = last_post_proc_time;
-  std::chrono::milliseconds milliseconds;
-  RDT processed_element;
 
   while (m_run_marker.load()) {
     // Try to acquire data
@@ -257,49 +271,75 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
           process_item(i);
         }   
       }
+
+      if (m_processing_delay_ticks != 0) {
+        m_baton.post();
+      }
     } else {
       ++m_rawq_timeout_count;
       // Protection against a zero sleep becoming a yield
       if ( m_raw_receiver_sleep_us != std::chrono::microseconds::zero())
         std::this_thread::sleep_for(m_raw_receiver_sleep_us);
     }
-    
-    // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
-    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    if (m_processing_delay_ticks !=0 && m_latency_buffer_impl->occupancy() > 0) {
-      now = std::chrono::system_clock::now();
-      milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
+  }
+  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread joins... ";
+}
 
-      if (milliseconds.count() > 1) {
-        last_post_proc_time = now;
-  	// Get the LB boundaries
-	auto tail = m_latency_buffer_impl->back();
-        newest_ts = tail->get_timestamp();
-        
-        if (first_cycle) {
-	  auto head = m_latency_buffer_impl->front();
-          processed_element.set_timestamp(head->get_timestamp()); 
-          first_cycle = false;
-	  TLOG() << "***** First pass post processing *****" ;
-        }
-        
-	if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
-    	  end_win_ts = newest_ts - m_processing_delay_ticks; 
-	  auto start_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
-	  processed_element.set_timestamp(end_win_ts);
-	  auto end_iter=m_latency_buffer_impl->lower_bound(processed_element, false);
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+folly::coro::Task<void>
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::delayed_postprocessing() {  
+  TLOG() << "Delayed postprocessing coroutine started...";
 
-	  for (auto it = start_iter; it!= end_iter; ++it) { 
-              m_raw_processor_impl->postprocess_item(&(*it));
-              ++m_num_payloads;
-              ++m_sum_payloads;
-              ++m_stats_packet_count;
-	  }
- 	 }
+  timestamp_t newest_ts = 0;
+  timestamp_t end_win_ts = 0;
+  bool first_cycle = true;
+  auto last_post_proc_time = std::chrono::system_clock::now();
+  auto now = last_post_proc_time;
+  std::chrono::milliseconds milliseconds;
+  RDT processed_element;
+
+  // Add here a possible deferral of the post processing, to allow elements being reordered in the LB
+  // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value  
+  while (m_run_marker.load()) {
+    co_await m_baton;
+    m_baton.reset();
+
+    if (m_latency_buffer_impl->occupancy() == 0) {
+      continue;
+    }
+
+    now = std::chrono::system_clock::now();
+    milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
+
+    if (milliseconds.count() <= 1) {
+      continue;
+    }
+    last_post_proc_time = now;
+    // Get the LB boundaries
+    auto tail = m_latency_buffer_impl->back();
+    newest_ts = tail->get_timestamp();
+
+    if (first_cycle) {
+      auto head = m_latency_buffer_impl->front();
+      processed_element.set_timestamp(head->get_timestamp());
+      first_cycle = false;
+      TLOG() << "***** First pass post processing *****";
+    }
+
+    if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
+      end_win_ts = newest_ts - m_processing_delay_ticks;
+      auto start_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
+      processed_element.set_timestamp(end_win_ts);
+      auto end_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
+
+      for (auto it = start_iter; it != end_iter; ++it) {
+        m_raw_processor_impl->postprocess_item(&(*it));
+        ++m_num_payloads;
+        ++m_sum_payloads;
+        ++m_stats_packet_count;
       }
     }
   }
-  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread joins... ";
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
