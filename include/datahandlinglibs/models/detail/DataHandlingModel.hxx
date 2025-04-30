@@ -102,7 +102,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
   // Register callbacks if operating in that mode.
   if (m_callback_mode) {
     // Configure and register consume callback
-    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload, this, std::placeholders::_1);
+    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item, this, std::placeholders::_1);
  
     // Register callback
     auto dmcbr = DataMoveCallbackRegistry::get();
@@ -212,7 +212,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 {
   m_raw_processor_impl->preprocess_item(&payload);
   if (m_request_handler_supports_cutoff_timestamp) {
@@ -266,11 +266,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
       IDT& original = opt_payload.value();
       
       if constexpr (std::is_same_v<IDT, RDT>) {
-        process_item(original);
+        process_item(std::move(original));
       } else {
         auto transformed = transform_payload(original);
         for (auto& i : transformed) {
-          process_item(i);
+          process_item(std::move(i));
         }   
       }
     } else {
@@ -339,13 +339,6 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
       }
     }
   }
-}
-
-template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload(RDT&& payload)
-{
-  process_item(payload);
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>

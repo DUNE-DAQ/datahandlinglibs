@@ -128,16 +128,13 @@ public:
   // Opmon get_info call implementation
   //void get_info(opmonlib::InfoCollector& ci, int level);
 
-  // Raw data consume callback
-  void consume_payload(RDT&& payload);  
-
   // Consume callback
   std::function<void(RDT&&)> m_consume_callback;
 
 protected:
 
   // Perform processing operations on payload
-  void process_item(RDT& payload);
+  void process_item(RDT&& payload);
   
   // Raw data consumer's work function
   void run_consume();
