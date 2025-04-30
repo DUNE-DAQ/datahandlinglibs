@@ -80,7 +80,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_raw_receiver_sleep_us = std::chrono::microseconds::zero();
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
-  m_processing_delay_ticks = 1;//mcfg->get_module_configuration()->get_post_processing_delay_ticks();
+  m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
   
 
   // Configure implementations:
@@ -248,7 +248,7 @@ void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 {
 
-  TLOG() << "Consumer thread started...";
+  TLOG_DEBUG(TLVL_WORK_STEPS) << "Consumer thread started...";
   m_rawq_timeout_count = 0;
   m_num_payloads = 0;
   m_sum_payloads = 0;
