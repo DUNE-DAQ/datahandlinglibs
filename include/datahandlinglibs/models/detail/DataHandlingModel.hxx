@@ -233,7 +233,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
     ++m_num_payloads;
     ++m_sum_payloads;
     ++m_stats_packet_count;
-  }  
+  } else {
+    m_baton.post();
+  }
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
@@ -270,10 +272,6 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
         for (auto& i : transformed) {
           process_item(i);
         }   
-      }
-
-      if (m_processing_delay_ticks != 0) {
-        m_baton.post();
       }
     } else {
       ++m_rawq_timeout_count;
@@ -346,29 +344,7 @@ template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload(RDT&& payload)
 {
- //m_rawq_timeout_count = 0;
- //m_num_payloads = 0;
- //m_sum_payloads = 0;
- //m_stats_packet_count = 0;
-  m_raw_processor_impl->preprocess_item(&payload);
-  if (m_request_handler_supports_cutoff_timestamp) {
-    int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
-    if (diff1 <= 0) {
-      //m_request_handler_impl->increment_tardy_tp_count();
-      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
-                                            m_request_handler_impl->get_cutoff_timestamp(), diff1,
-                                            (static_cast<double>(diff1)/62500.0)));
-    }
-  }
-  if (!m_latency_buffer_impl->write(std::move(payload))) {
-    TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
-    m_num_payloads_overwritten++;
-  }
-#warning RS FIXME: Post-processing delay feature is not implemented in callback consume!
-  m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
-  ++m_num_payloads;
-  ++m_sum_payloads;
-  ++m_stats_packet_count;
+  process_item(payload);
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
