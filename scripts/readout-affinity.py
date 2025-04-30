@@ -14,7 +14,7 @@ try:
   args = parser.parse_args()
 except:
   parser.print_help()
-  sys.exit(0)
+  exit(1)
 pinfile = args.pinfile
 
 print('### Basic information...')
@@ -81,7 +81,7 @@ try:
             continue
 except Exception as e:
   print(e)
-  sys.exit(0)
+  exit(2)
 print('\n')
 
 ### Apply CPU masks
