@@ -16,6 +16,10 @@ RawDataHandlerBase::RawDataHandlerBase(const std::string& name)
 */
 }
 
+RawDataHandlerBase::~RawDataHandlerBase()
+{
+  m_readout_impl.reset();
+}
 
 void
 RawDataHandlerBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)

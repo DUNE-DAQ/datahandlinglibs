@@ -39,7 +39,7 @@ public:
    * @param name Instance name for this RawDataHandlerBase instance
    */
   explicit RawDataHandlerBase(const std::string& name);
-  virtual ~RawDataHandlerBase() {}
+  virtual ~RawDataHandlerBase();
 
   RawDataHandlerBase(const RawDataHandlerBase&) = delete;            ///< RawDataHandlerBase is not copy-constructible
   RawDataHandlerBase& operator=(const RawDataHandlerBase&) = delete; ///< RawDataHandlerBase is not copy-assignable
