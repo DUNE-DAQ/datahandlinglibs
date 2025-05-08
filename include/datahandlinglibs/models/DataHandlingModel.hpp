@@ -167,13 +167,13 @@ protected:
   daqdataformats::run_number_t m_run_number;
   uint64_t m_processing_delay_ticks;
   // STATS
-  std::atomic<int> m_num_payloads{ 0 };
-  std::atomic<int> m_sum_payloads{ 0 };
-  std::atomic<int> m_num_requests{ 0 };
-  std::atomic<int> m_sum_requests{ 0 };
-  std::atomic<int> m_rawq_timeout_count{ 0 };
-  std::atomic<int> m_stats_packet_count{ 0 };
-  std::atomic<int> m_num_payloads_overwritten{ 0 };
+  std::atomic<uint64_t> m_num_payloads{ 0 };
+  std::atomic<uint64_t> m_sum_payloads{ 0 };
+  std::atomic<uint64_t> m_num_requests{ 0 };
+  std::atomic<uint64_t> m_sum_requests{ 0 };
+  std::atomic<uint64_t> m_rawq_timeout_count{ 0 };
+  std::atomic<uint64_t> m_stats_packet_count{ 0 };
+  std::atomic<uint64_t> m_num_payloads_overwritten{ 0 };
 
   // CONSUMER
   utilities::ReusableThread m_consumer_thread;
