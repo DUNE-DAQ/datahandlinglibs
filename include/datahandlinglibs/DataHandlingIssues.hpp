@@ -185,6 +185,12 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   ((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
+                  NonZeroOverWrittenDataPackets,
+                  "There were " << fail_count << " failures to write data to the latency buffer out of " <<
+                  total_count << " attempts in the latest monitoring interval.",
+                  ((int64_t)fail_count)((int64_t)total_count))
+
+ERS_DECLARE_ISSUE(datahandlinglibs,
                   NewErrorRegistered,
                   ers_metadata << "New error registered with \"" << error_name << "\"",
                   ((std::string)ers_metadata) ((std::string)error_name))

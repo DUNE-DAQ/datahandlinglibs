@@ -184,8 +184,15 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
    double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
    m_t0 = now;
 
+   // 08-May-2025, KAB: added a message to warn users when payloads are being overwritten.
+   // "overwritten" means that they failed to be added to the latency buffer.
+   int local_num_payloads_overwritten = m_num_payloads_overwritten.exchange(0);
+   if (local_num_payloads_overwritten != 0) {
+     ers::warning(NonZeroOverWrittenDataPackets(ERS_HERE, local_num_payloads_overwritten, ri.num_payloads()));
+   }
+
    ri.set_rate_payloads_consumed(new_packets / seconds / 1000.);
-   ri.set_num_payloads_overwritten(m_num_payloads_overwritten.exchange(0));
+   ri.set_num_payloads_overwritten(local_num_payloads_overwritten);
    ri.set_sum_requests(m_sum_requests.load());
    ri.set_num_requests(m_num_requests.exchange(0));
    ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
