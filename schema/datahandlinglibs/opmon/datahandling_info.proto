@@ -17,7 +17,7 @@ message DataHandlerInfo {
   uint64 num_payloads = 2; // Incremental number of received payloads 
   uint64 num_data_input_timeouts = 3; // Timeout on data inputs 
   double rate_payloads_consumed = 4; // Rate of consumed packets 
-  uint64 num_payloads_overwritten = 5; // Number of overwritten payloads because the LB is full 
+  uint64 num_lb_insert_failures = 5; // Number of failures to insert data into the LB
   uint64 sum_requests = 11; // Total number of received requests 
   uint64 num_requests = 12; // Incremental number of received requests 
   uint64 last_daq_timestamp = 21; // Most recent DAQ timestamp processed 
