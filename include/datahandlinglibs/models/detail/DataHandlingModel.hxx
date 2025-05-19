@@ -123,7 +123,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
   m_num_payloads = 0;
   m_sum_requests = 0;
   m_num_requests = 0;
-  m_num_payloads_overwritten = 0;
+  m_num_lb_insert_failures = 0;
   m_stats_packet_count = 0;
   m_rawq_timeout_count = 0;
 
@@ -184,8 +184,14 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
    double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
    m_t0 = now;
 
+   // 08-May-2025, KAB: added a message to warn users when latency buffer inserts are failing.
+   int local_num_lb_insert_failures = m_num_lb_insert_failures.exchange(0);
+   if (local_num_lb_insert_failures != 0) {
+     ers::warning(NonZeroLatencyBufferInsertFailures(ERS_HERE, local_num_lb_insert_failures, ri.num_payloads()));
+   }
+
    ri.set_rate_payloads_consumed(new_packets / seconds / 1000.);
-   ri.set_num_payloads_overwritten(m_num_payloads_overwritten.exchange(0));
+   ri.set_num_lb_insert_failures(local_num_lb_insert_failures);
    ri.set_sum_requests(m_sum_requests.load());
    ri.set_num_requests(m_num_requests.exchange(0));
    ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
@@ -209,7 +215,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT& payload)
   }
   if (!m_latency_buffer_impl->write(std::move(payload))) {
     //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
-    m_num_payloads_overwritten++;
+    m_num_lb_insert_failures++;
   }
   if (m_processing_delay_ticks ==0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
@@ -322,7 +328,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_payload(RDT&& payload)
   }
   if (!m_latency_buffer_impl->write(std::move(payload))) {
     TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer is full and data was overwritten!";
-    m_num_payloads_overwritten++;
+    m_num_lb_insert_failures++;
   }
 #warning RS FIXME: Post-processing delay feature is not implemented in callback consume!
   m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
