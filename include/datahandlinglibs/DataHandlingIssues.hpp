@@ -52,6 +52,16 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "Configuration Error: " << conferror,
                   ((std::string)conferror))
 
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  FileHasExtraData,
+                  "Binary file contains extra data, " << numbytes
+                  << " bytes beyond an exact integer number of super-chunks. "
+                  << "This is not a problem and those bytes will be ignored, "
+                  << "filesize is " << filesize << ", "
+                  << "chunk_size is " << chunksize << ", "
+                  << "filename is " << filename,
+                  ((int32_t)numbytes)((size_t)filesize)((int32_t)chunksize)((std::string)filename))
+
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   TimeSyncTransmissionFailed,
