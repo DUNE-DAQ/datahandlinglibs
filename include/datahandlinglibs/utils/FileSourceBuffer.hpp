@@ -65,12 +65,7 @@ public:
       if (m_chunk_size > 0) {
         int remainder = filesize % m_chunk_size;
         if (remainder > 0) {
-          std::ostringstream oss;
-          oss << "Binary file contains more data than expected, "
-              << "filesize is " << filesize << ", "
-              << "chunk_size is " << m_chunk_size << ", "
-              << "filename is " << m_source_filename;
-          ers::warning(GenericConfigurationError(ERS_HERE, oss.str()));
+          ers::info(FileHasExtraData(ERS_HERE, remainder, filesize, m_chunk_size, m_source_filename));
         }
         // Set usable element count
         m_element_count = filesize / m_chunk_size;

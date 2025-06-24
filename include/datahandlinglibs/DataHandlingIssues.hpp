@@ -52,6 +52,16 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "Configuration Error: " << conferror,
                   ((std::string)conferror))
 
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  FileHasExtraData,
+                  "Binary file contains extra data, " << numbytes
+                  << " bytes beyond an exact integer number of super-chunks. "
+                  << "This is not a problem and those bytes will be ignored, "
+                  << "filesize is " << filesize << ", "
+                  << "chunk_size is " << chunksize << ", "
+                  << "filename is " << filename,
+                  ((int32_t)numbytes)((size_t)filesize)((int32_t)chunksize)((std::string)filename))
+
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   TimeSyncTransmissionFailed,
@@ -183,6 +193,12 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   ", request_handler cutoff timestamp = " << ts2 << ", difference = " << tick_diff <<
                   " ticks, " << msec_diff << " msec.",
                   ((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
+
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  NonZeroLatencyBufferInsertFailures,
+                  "There were " << fail_count << " failures to insert data into the latency buffer out of " <<
+                  total_count << " attempts in the latest monitoring interval.",
+                  ((int64_t)fail_count)((int64_t)total_count))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NewErrorRegistered,

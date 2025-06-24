@@ -172,14 +172,23 @@ protected:
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
   uint64_t m_processing_delay_ticks;
+
   // STATS
-  std::atomic<int> m_num_payloads{ 0 };
-  std::atomic<int> m_sum_payloads{ 0 };
-  std::atomic<int> m_num_requests{ 0 };
-  std::atomic<int> m_sum_requests{ 0 };
-  std::atomic<int> m_rawq_timeout_count{ 0 };
+  using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
+  using num_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_payloads),metric_t>::type>::type;
+  using sum_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_payloads),metric_t>::type>::type;
+  using num_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_requests),metric_t>::type>::type;
+  using sum_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_requests),metric_t>::type>::type;
+  using rawq_timeout_count_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_data_input_timeouts),metric_t>::type>::type;
+  using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
+
+  std::atomic<num_payload_t> m_num_payloads{ 0 };
+  std::atomic<sum_payload_t> m_sum_payloads{ 0 };
+  std::atomic<num_request_t> m_num_requests{ 0 };
+  std::atomic<sum_request_t> m_sum_requests{ 0 };
+  std::atomic<rawq_timeout_count_t> m_rawq_timeout_count{ 0 };
+  std::atomic<num_lb_insert_failures_t> m_num_lb_insert_failures{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
-  std::atomic<int> m_num_payloads_overwritten{ 0 };
 
   // CONSUMER
   utilities::ReusableThread m_consumer_thread;
