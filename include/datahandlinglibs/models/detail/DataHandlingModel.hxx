@@ -1,6 +1,7 @@
 // Declarations for DataHandlingModel
 
 #include <folly/coro/BlockingWait.h>
+#include <folly/coro/Timeout.h>
 
 #include <typeinfo>
 
@@ -81,6 +82,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
+  m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
+  m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
   
 
   // Configure implementations:
@@ -116,6 +119,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
   }
   if (m_processing_delay_ticks) {
     m_postprocess_scheduler_thread.set_name("pprocsched", m_sourceid.id);
+    m_timekeeper = std::make_unique<folly::ThreadWheelTimekeeper>();
   }  
 }
 
@@ -132,6 +136,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
   m_num_lb_insert_failures = 0;
   m_stats_packet_count = 0;
   m_rawq_timeout_count = 0;
+  m_num_post_processing_delay_max_waits = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
 
@@ -211,6 +216,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
    ri.set_num_lb_insert_failures(local_num_lb_insert_failures);
    ri.set_sum_requests(m_sum_requests.load());
    ri.set_num_requests(m_num_requests.exchange(0));
+   ri.set_num_post_processing_delay_max_waits(m_num_post_processing_delay_max_waits.exchange(0));
    ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
 
    this->publish(std::move(ri));
@@ -261,6 +267,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
   m_num_payloads = 0;
   m_sum_payloads = 0;
   m_stats_packet_count = 0;
+  m_num_post_processing_delay_max_waits = 0;
 
   while (m_run_marker.load()) {
     // Try to acquire data
@@ -292,8 +299,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 folly::coro::Task<void>
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {  
-  TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
 
+  TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
   timestamp_t newest_ts = 0;
   timestamp_t end_win_ts = 0;
   bool first_cycle = true;
@@ -305,8 +312,15 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
   // Deferral of the post processing, to allow elements being reordered in the LB
   // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value  
   while (m_run_marker.load()) {
-    co_await m_baton;
-    m_baton.reset();
+    try {
+      co_await folly::coro::timeout(
+        m_baton.operator co_await(),
+        std::chrono::milliseconds{m_post_processing_delay_max_wait},
+        m_timekeeper.get());
+      m_baton.reset();
+    } catch (const folly::FutureTimeout&) {
+      ++m_num_post_processing_delay_max_waits;
+    }
 
     if (m_latency_buffer_impl->occupancy() == 0) {
       continue;
@@ -315,11 +329,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
     now = std::chrono::system_clock::now();
     milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
 
-    if (milliseconds.count() <= 1) {
+    if (milliseconds.count() <= m_post_processing_delay_min_wait) {
       continue;
     }
 
     last_post_proc_time = now;
+
     // Get the LB boundaries
     auto tail = m_latency_buffer_impl->back();
     newest_ts = tail->get_timestamp();

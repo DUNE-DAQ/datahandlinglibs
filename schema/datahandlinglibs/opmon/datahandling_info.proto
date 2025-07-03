@@ -21,6 +21,7 @@ message DataHandlerInfo {
   uint64 sum_requests = 11; // Total number of received requests 
   uint64 num_requests = 12; // Incremental number of received requests 
   uint64 last_daq_timestamp = 21; // Most recent DAQ timestamp processed 
+  uint64 num_post_processing_delay_max_waits = 31; // Number of times post-processing was triggered due to max wait time elapsing before data arrival
 }
 
 message RequestHandlerInfo {
