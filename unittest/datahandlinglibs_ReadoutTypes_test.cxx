@@ -15,30 +15,27 @@
 
 #include "datahandlinglibs/ReadoutTypes.hpp"
 
+#include <iostream>
+#include <string>
+
 using namespace dunedaq::datahandlinglibs;
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_ReadoutTypes_test)
 
-BOOST_AUTO_TEST_CASE(ReadoutTypes_get_set_timestamp_one)
-{
-    types::DUMMY_FRAME_STRUCT test;
-    
-    test.set_timestamp(1);
 
-    BOOST_REQUIRE_EQUAL(test.get_timestamp(),1);
-}
-
-BOOST_AUTO_TEST_CASE(ReadoutTypes_get_set_timestamp_big_number)
+BOOST_AUTO_TEST_CASE(ReadoutTypes_get_set_timestamp_max)
 {
     types::DUMMY_FRAME_STRUCT test;
     
     test.set_timestamp(UINT64_MAX);
+    test.set_another_key(UINT64_MAX);
 
     BOOST_REQUIRE_EQUAL(test.get_timestamp(),UINT64_MAX);
+    BOOST_REQUIRE_EQUAL(test.another_key,UINT64_MAX);
 }
 
 
-BOOST_AUTO_TEST_CASE(ReadoutTypes_operator_and_another_key)
+BOOST_AUTO_TEST_CASE(ReadoutTypes_less_than_operator)
 {
     types::DUMMY_FRAME_STRUCT test1, test2;
     
@@ -49,6 +46,20 @@ BOOST_AUTO_TEST_CASE(ReadoutTypes_operator_and_another_key)
     test2.set_another_key(500);
 
     BOOST_REQUIRE_EQUAL(test1 < test2,false);
+    BOOST_REQUIRE_EQUAL(test2 < test1,true);
 }
+
+
+BOOST_AUTO_TEST_CASE(ReadoutTypes_begin_end)
+{
+    types::DUMMY_FRAME_STRUCT frame;
+
+    types::DUMMY_FRAME_STRUCT* fr_begin = frame.begin();
+    types::DUMMY_FRAME_STRUCT* fr_end = frame.end();
+
+    BOOST_REQUIRE_EQUAL(fr_begin, &frame);
+    BOOST_REQUIRE_EQUAL(fr_end, &frame + 1);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
