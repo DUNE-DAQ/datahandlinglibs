@@ -80,7 +80,7 @@ daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.c
 ##############################################################################
 # Unit Tests
 
-#daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 #daq_add_unit_test(datahandlinglibs_VariableSizeElementQueue_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_DataMoveCallbackRegistry_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_ReadoutTypes_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
