@@ -34,7 +34,9 @@ test_read_write(BufferedFileWriter<>& writer, BufferedFileReader<int>& reader, u
   for (uint i = 0; i < numbers.size(); ++i) {
     numbers[i] = i;
     write_successful = writer.write(reinterpret_cast<char*>(&i), sizeof(i));
-    BOOST_REQUIRE(write_successful);
+    if (!write_successful) {
+      BOOST_FAIL("Failed to write to file at index " + std::to_string(i));
+    }
   }
 
   writer.close();
@@ -43,10 +45,12 @@ test_read_write(BufferedFileWriter<>& writer, BufferedFileReader<int>& reader, u
   bool read_successful = false;
   for (uint i = 0; i < numbers.size(); ++i) {
     read_successful = reader.read(read_value);
-    if (!read_successful)
+    if (!read_successful){
       TLOG() << i << std::endl;
-    BOOST_REQUIRE(read_successful);
-    BOOST_REQUIRE_EQUAL(read_value, numbers[i]);
+      BOOST_FAIL("Failed to read file at index " + std::to_string(i));
+    }
+    if (read_value != numbers[i])
+      BOOST_FAIL("Data mismatch at index " + std::to_string(i));
   }
 
   read_successful = reader.read(read_value);
