@@ -52,7 +52,7 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
     std::map<uint32_t, const confmodel::DetectorStream*> streams;
     for (const auto & det_connections : cfg->get_connections()) {
       	    
-      for (const auto& stream : det_connections->get_streams()) {
+      for (const auto& stream : det_connections->streams()) {
         streams[stream->get_source_id()] = stream;
       }
     }
