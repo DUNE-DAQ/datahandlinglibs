@@ -25,7 +25,7 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class RecorderConcept
+class RecorderConcept : public opmonlib::MonitorableObject
 {
 public:
   RecorderConcept() {}

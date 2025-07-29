@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(datahandlinglibs VERSION 3.1.4)
+project(datahandlinglibs VERSION 3.1.5)
 
 find_package(daq-cmake REQUIRED)
 
@@ -76,6 +76,8 @@ daq_add_application(datahandlinglibs_test_bufferedfilewriter test_bufferedfilewr
 daq_add_application(datahandlinglibs_test_bufferedfilereader test_bufferedfilereader_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+
+daq_add_application(datahandlinglibs_test_to_include_to_lcov_app test_to_include_to_lcov_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Unit Tests
