@@ -9,23 +9,87 @@
 /**
  * @brief Name of this test module
  */
-#define BOOST_TEST_MODULE datahandlinglibs_IterableQueueModel_test // NOLINT
+#define BOOST_TEST_MODULE datahandlinglibs_SkiplistLatencyBufferModel_test // NOLINT
 
 #include "boost/test/unit_test.hpp"
 
-#include "datahandlinglibs/models/SkiplistLatencyBufferModel.hpp"
-#include "datahandlinglibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+#include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
+
+#include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
 
 using namespace dunedaq::datahandlinglibs;
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_SkiplistLatencyBufferModel_test)
 
 /**
- * @brief Tests is_Empty, capacity, read, write, isFull functions
+ * @brief Tests occupancy, write,put,read, flush funtions functions
  */
-BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_basic_queue_functionality)
+BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_basic_list_functionality)
 {
-    SkipListLatencyBufferModel <types::DUMMY_FRAME_STRUCT> skip_list;
+    SkipListLatencyBufferModel <unittest::FakeReadoutType> skip_list;
 
+    unittest::FakeReadoutType dummy_put;
+    for (int i = 0; i<10; i++ ){
+        dummy_put.set_timestamp(i*i);
+        skip_list.put(dummy_put);
+    }
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 10);
+    
+    for (int i = 10; i<20; i++ ){
+        unittest::FakeReadoutType dummy_move;
+        dummy_move.set_timestamp(i*i);
+        skip_list.write(std::move(dummy_move));
+    }   
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 20);
+    
+    skip_list.pop(3);
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 17);
+    
+    unittest::FakeReadoutType dummy_read;
+    dummy_read.set_timestamp(16*16);
+    BOOST_REQUIRE_EQUAL(dummy_read.get_timestamp(),16*16);
+    bool read = skip_list.read(dummy_read);
+    BOOST_REQUIRE(read);
+    BOOST_CHECK_EQUAL(dummy_read.get_timestamp(),16*16);
 
+    skip_list.flush();
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 0);
 }
+
+BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_iterator_and_pointers){
+
+    SkipListLatencyBufferModel <unittest::FakeReadoutType> skip_list;
+    unittest::FakeReadoutType dummy_put;
+    for (int i = 0; i<5; i++ ){
+        dummy_put.set_timestamp(i);
+        skip_list.put(dummy_put);
+    }
+
+    unittest::FakeReadoutType dummy_bound;
+    dummy_bound.set_timestamp(4);
+    auto it_lower = skip_list.lower_bound(dummy_bound);
+    unittest::FakeReadoutType& d = *it_lower;
+    //BOOST_REQUIRE_EQUAL(it, skip_list.end());
+    BOOST_REQUIRE_EQUAL(d.get_timestamp(), 4);
+
+    auto it = skip_list.begin();
+    auto it_end = skip_list.end();
+    int val = 0;
+    while (it!= it_end){
+        BOOST_REQUIRE_EQUAL(it->get_timestamp(), val);
+        val++;
+        ++it;
+    }
+
+    const unittest::FakeReadoutType* front_ptr = skip_list.front();
+    const unittest::FakeReadoutType* back_ptr = skip_list.back();
+
+    BOOST_REQUIRE(front_ptr != nullptr);
+    BOOST_REQUIRE(back_ptr != nullptr);
+
+    BOOST_REQUIRE_EQUAL(front_ptr->get_timestamp(), 0);
+    BOOST_REQUIRE_EQUAL(back_ptr->get_timestamp(), 4);
+}
+
+BOOST_AUTO_TEST_SUITE_END()

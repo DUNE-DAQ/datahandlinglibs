@@ -186,7 +186,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   // Gives a pointer to the current read index
   const T* front() override;
 
-  // Gives a pointer to the current write index
+  // Gives a pointer to the last written element
   const T* back() override;
 
   // Gives a pointer to the first available slot of the queue
