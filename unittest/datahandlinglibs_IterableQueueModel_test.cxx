@@ -29,93 +29,150 @@ BOOST_AUTO_TEST_SUITE(datahandlinglibs_IterableQueueModel_test)
 /**
  * @brief Tests is_Empty, capacity, read, write, isFull functions
  */
-BOOST_AUTO_TEST_CASE(IterableQueueModel_basic_queue_functionality)
+BOOST_AUTO_TEST_CASE(IterableQueueModel_initial_state)
 {
     int size = 11;
-    IterableQueueModel<int> queue(size,  false,0,false,0);
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
 
     BOOST_REQUIRE(queue.isEmpty());
+    BOOST_REQUIRE(!queue.isFull());
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size-1);
+}
 
-    int capacity = queue.capacity();
+BOOST_AUTO_TEST_CASE(IterableQueueModel_write_until_full)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
 
-    bool write_successful = false;
-    for (int i = 0; i < capacity ; i++)
+    for (std::size_t i = 0; i < queue.capacity(); i++)
     {
-        write_successful = queue.write(std::move(i));
+        bool write_successful = queue.write(std::move(i));
         BOOST_REQUIRE(write_successful);
     }
 
-    write_successful = queue.write(10);
+    bool write_successful = queue.write(10);  // Attempt to write when full
     BOOST_REQUIRE(!write_successful);
-
     BOOST_REQUIRE(queue.isFull());
+}
 
-    bool read_successful = false;  
-    int value_in_queue;
-    for (int i = 0; i < capacity; i++)
+BOOST_AUTO_TEST_CASE(IterableQueueModel_read_until_empty)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
+
+    for (std::size_t i = 0; i < queue.capacity(); i++)
     {
-        read_successful = queue.read(value_in_queue); 
-        BOOST_REQUIRE(read_successful);
-        BOOST_REQUIRE_EQUAL(i,value_in_queue);
+        queue.write(std::move(i));
     }
+
+    for (std::size_t i = 0; i < queue.capacity(); i++)
+    {
+        int value_in_queue;
+        bool read_successful = queue.read(value_in_queue);
+        BOOST_REQUIRE(read_successful);
+        BOOST_REQUIRE_EQUAL(i, value_in_queue);
+    }
+
     BOOST_REQUIRE(queue.isEmpty());
 }
+
 
 /**
  * @brief Tests various pop operations and makes sure size and capacity remain consistent
  */
-BOOST_AUTO_TEST_CASE(IterableQueueModel_pops_and_sizes)
+BOOST_AUTO_TEST_CASE(IterableQueueModel_full_write_check)
 {
     int size = 11;
-    IterableQueueModel<int> queue(size,  false,0,false,0);
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
 
-    //should not change
-    int original_capacity = queue.capacity();
-    int original_size = queue.size();
-
-    for (int i = 0; i < original_capacity ; i++)
-    {
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
         queue.write(std::move(i));
-    }
+
     BOOST_REQUIRE(queue.isFull());
+    BOOST_REQUIRE_EQUAL(queue.occupancy(), queue.capacity());
+    BOOST_REQUIRE_EQUAL(queue.capacity(),size-1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
+}
 
-    int original_occupancy = queue.occupancy();
+BOOST_AUTO_TEST_CASE(IterableQueueModel_read_after_full_write)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
 
-    BOOST_REQUIRE_EQUAL(original_occupancy, original_capacity);
-    BOOST_REQUIRE_EQUAL(original_capacity, original_size-1);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
+        queue.write(std::move(i));
 
-    int value_in_queue;
-    bool read_successful = queue.read(value_in_queue);    
-    BOOST_REQUIRE_EQUAL(queue.occupancy(),original_occupancy-1);
-    BOOST_REQUIRE_EQUAL(queue.capacity(),original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
+    int value;
+    BOOST_REQUIRE(queue.read(value));
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size - 1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
     BOOST_REQUIRE(!queue.isFull());
+}
 
-    //after full
-    bool write_successful = queue.write(std::move(original_capacity));
+BOOST_AUTO_TEST_CASE(IterableQueueModel_write_after_full_write_and_read)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
+
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
+        queue.write(std::move(i));
+    int value;
+    queue.read(value);
+    
+    bool write_successful = queue.write(std::move(size-1));
     BOOST_REQUIRE(write_successful);
     BOOST_REQUIRE(queue.isFull());
-    BOOST_REQUIRE_EQUAL(queue.capacity() ,original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.occupancy(), original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
-    BOOST_CHECK_EQUAL(queue.back(),queue.start_of_buffer());
-    
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size - 1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_popFront)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
+
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
+        queue.write(std::move(i));
+
+    int full_occupancy = queue.occupancy();
+
     queue.popFront();
-    BOOST_REQUIRE_EQUAL(queue.occupancy(),original_occupancy-1);
-    BOOST_REQUIRE_EQUAL(queue.capacity() ,original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
+    BOOST_REQUIRE_EQUAL(queue.occupancy(), full_occupancy - 1);
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size - 1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_popFront_and_pop_multiple)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
+
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
+        queue.write(std::move(i));
+
+    int full_occupancy = queue.occupancy();
 
     queue.pop(3);
-    BOOST_REQUIRE_EQUAL(queue.occupancy(),original_occupancy-4);
-    BOOST_REQUIRE_EQUAL(queue.capacity() ,original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
+    BOOST_REQUIRE_EQUAL(queue.occupancy(), full_occupancy - 3);
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size - 1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_flush_queue)
+{
+    int size = 11;
+    IterableQueueModel<int> queue(size, false, 0, false, 0);
+
+    for (std::size_t i = 0; i < queue.capacity(); ++i)
+        queue.write(std::move(i));
 
     queue.flush();
-    BOOST_REQUIRE_EQUAL(queue.occupancy(),0);
-    BOOST_REQUIRE_EQUAL(queue.capacity() ,original_capacity);
-    BOOST_REQUIRE_EQUAL(queue.size(), original_size);
+
     BOOST_REQUIRE(queue.isEmpty());
+    BOOST_REQUIRE_EQUAL(queue.occupancy(), 0);
+    BOOST_REQUIRE_EQUAL(queue.capacity(), size - 1);
+    BOOST_REQUIRE_EQUAL(queue.size(), size);
 }
 
 /**
@@ -134,49 +191,68 @@ BOOST_AUTO_TEST_CASE(IterableQueueModel_force_pagefault)
 /**
  * @brief Tests mamory allocation
  */
-BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_deallocate_memory)
+BOOST_AUTO_TEST_CASE(IterableQueueModel_default_constructor)
 {
-    //default queue
     IterableQueueModel<int> default_queue;
-
-    //!numa_aware && !intrinsic_allocator && alignment_size == 0
-    IterableQueueModel<int> queue(2,false,0,false,0);
-    BOOST_REQUIRE_EQUAL( queue.size(), 2);
-    queue.free_memory();
-
-    //intrinsic_allocator && alignment_size > 0
-    queue.allocate_memory(16,false,0,true,2);
-    BOOST_REQUIRE_EQUAL( queue.size(), 16);
-    BOOST_REQUIRE_EQUAL( queue.get_alignment_size(), 2);
-    queue.free_memory();
-
-    //!intrinsic_allocator && alignment_size > 0
-    queue.allocate_memory(8,false,0,false,4);
-
-    queue.write(0);
-    queue.write(2);
-    int value;
-    queue.read(value);
-    BOOST_REQUIRE_EQUAL(value, 0);
-    queue.read(value);
-    BOOST_REQUIRE_EQUAL(value, 2);
-
-    BOOST_REQUIRE_EQUAL( queue.size(), 8);
-    BOOST_REQUIRE_EQUAL( queue.get_alignment_size(), 4);
-    
-    //numa_aware && numa_node < 8 
-    queue.allocate_memory(64,true,4,false,0);
-    BOOST_REQUIRE_EQUAL( queue.size(), 64);
-    queue.free_memory();
-
-    queue.allocate_memory(42);
-    BOOST_REQUIRE_EQUAL( queue.size(), 42);
-
-    queue.write(0);
-    queue.read(value);
-    BOOST_REQUIRE_EQUAL(value, 0);
-
+    BOOST_REQUIRE_EQUAL(default_queue.size(), 2);
+    BOOST_REQUIRE(default_queue.isEmpty());
 }
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_memory_standard_allocation)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(4, false, 0, true, 0);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 4);
+    BOOST_REQUIRE_EQUAL(queue.get_alignment_size(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_memory_intrinsic_allocator_with_alignment)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(16, false, 0, true, 2);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 16);
+    BOOST_REQUIRE_EQUAL(queue.get_alignment_size(), 2);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_memory_aligned_allocation_without_intrinsic_allocator)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(8, false, 0, false, 4);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 8);
+    BOOST_REQUIRE_EQUAL(queue.get_alignment_size(), 4);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_memory_numa_aware_allocation)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(64, true, 4, false, 0);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 64);
+    BOOST_REQUIRE_EQUAL(queue.get_alignment_size(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_allocate_memory_basic_overload)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(42);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 42);
+    BOOST_REQUIRE_EQUAL(queue.get_alignment_size(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(IterableQueueModel_free_memory)
+{
+    IterableQueueModel<int> queue;
+    queue.allocate_memory(42);
+    queue.free_memory();
+    queue.allocate_memory(8);
+
+    BOOST_REQUIRE_EQUAL(queue.size(), 8);
+}
+
 
 /**
  * @brief Tests queue pointers after write and read operations

@@ -77,8 +77,6 @@ endif()
 #daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 #daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
-daq_add_application(test_to_include_to_lcov test_to_include_to_lcov_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
-
 daq_add_application(datahandlinglibs_test_to_include_to_lcov_app test_to_include_to_lcov_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
