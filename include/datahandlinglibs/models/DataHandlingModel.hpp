@@ -45,6 +45,10 @@
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "utilities/ReusableThread.hpp"
 
+#include <folly/coro/Baton.h>
+#include <folly/coro/Task.h>
+#include <folly/futures/ThreadWheelTimekeeper.h>
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -125,22 +129,25 @@ public:
   // Opmon get_info call implementation
   //void get_info(opmonlib::InfoCollector& ci, int level);
 
-  // Raw data consume callback
-  void consume_payload(RDT&& payload);
-
   // Consume callback
   std::function<void(RDT&&)> m_consume_callback;
 
 protected:
 
   // Perform processing operations on payload
-  void process_item(RDT& payload);
+  void process_item(RDT&& payload);
   
   // Raw data consumer's work function
   void run_consume();
 
   // Timesync thread's work function
   void run_timesync();
+
+  // Postprocess scheduler thread's work function
+  void run_postprocess_scheduler();
+
+  // Postprocess schedule coroutine
+  folly::coro::Task<void> postprocess_schedule();  
 
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
@@ -154,7 +161,7 @@ protected:
   // Operational monitoring
   virtual void generate_opmon_data() override;
 
-  // Constuctor params
+  // Constructor params
   std::atomic<bool>& m_run_marker;
 
   // CONFIGURATION
@@ -166,6 +173,8 @@ protected:
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
   uint64_t m_processing_delay_ticks;
+  uint64_t m_post_processing_delay_min_wait;
+  uint64_t m_post_processing_delay_max_wait;
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
@@ -175,6 +184,7 @@ protected:
   using sum_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_requests),metric_t>::type>::type;
   using rawq_timeout_count_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_data_input_timeouts),metric_t>::type>::type;
   using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
+  using num_post_processing_delay_max_waits_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_post_processing_delay_max_waits),metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
   std::atomic<sum_payload_t> m_sum_payloads{ 0 };
@@ -182,6 +192,7 @@ protected:
   std::atomic<sum_request_t> m_sum_requests{ 0 };
   std::atomic<rawq_timeout_count_t> m_rawq_timeout_count{ 0 };
   std::atomic<num_lb_insert_failures_t> m_num_lb_insert_failures{ 0 };
+  std::atomic<num_post_processing_delay_max_waits_t> m_num_post_processing_delay_max_waits{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
 
   // CONSUMER
@@ -209,6 +220,11 @@ protected:
   utilities::ReusableThread m_timesync_thread;
   std::string m_timesync_connection_name;
   uint32_t m_pid_of_current_process;
+
+  // POSTPROCESS SCHEDULER
+  utilities::ReusableThread m_postprocess_scheduler_thread;
+  folly::coro::Baton m_baton;
+  std::unique_ptr<folly::ThreadWheelTimekeeper> m_timekeeper;
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
