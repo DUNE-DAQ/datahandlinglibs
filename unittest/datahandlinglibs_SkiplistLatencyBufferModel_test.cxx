@@ -17,6 +17,7 @@
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
 
 #include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
+#include "folly/ConcurrentSkipList.h"
 
 using namespace dunedaq::datahandlinglibs;
 
@@ -160,5 +161,22 @@ BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_front_and_back_pointers)
     BOOST_REQUIRE_EQUAL(front_ptr->get_timestamp(), 0);
     BOOST_REQUIRE_EQUAL(back_ptr->get_timestamp(), 4);
 }
+
+BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_get_skiplist)
+{
+    SkipListLatencyBufferModel<unittest::FakeReadoutType> skip_list;
+    unittest::FakeReadoutType dummy_put;
+
+    for (int i = 0; i < 5; i++) {
+        dummy_put.set_timestamp(i);
+        skip_list.put(dummy_put);
+    }
+
+    const unittest::FakeReadoutType* front_ptr = skip_list.front();
+    folly::ConcurrentSkipList<unittest::FakeReadoutType>::Accessor acc(skip_list.get_skip_list());
+
+    BOOST_REQUIRE_EQUAL(skip_list.front(), acc.first());
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
