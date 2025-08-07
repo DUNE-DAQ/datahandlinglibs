@@ -44,18 +44,8 @@ int
 main(int /*argc*/, char** /*argv[]*/)
 {
     
-    BinarySearchQueueModel <types::DUMMY_FRAME_STRUCT> a;
+    BinarySearchQueueModel <types::DUMMY_FRAME_STRUCT> binary_search_queue_model;
     std::atomic<bool> flag{true};
-    /*
-    DataHandlingModel<
-    types::DUMMY_FRAME_STRUCT,         // Readout
-    DefaultSkipListRequestHandler<types::DUMMY_FRAME_STRUCT>,      // Request Handler
-    SkipListLatencyBufferModel<types::DUMMY_FRAME_STRUCT>,         // Latency Buffer
-    DummyRawDataProcessor<types::DUMMY_FRAME_STRUCT>,              // Raw Processor 
-    types::DUMMY_FRAME_STRUCT                                      // Input Type
-    > s(flag);
-    */
-
     std::atomic<bool> run_marker;
 
     auto readout_model = std::make_shared<DataHandlingModel<
@@ -65,25 +55,25 @@ main(int /*argc*/, char** /*argv[]*/)
     unittest::FakeRawDataProcessorType,
     int>>(run_marker);
 
-    DataSubscriberModel <types::DUMMY_FRAME_STRUCT> d;
+    DataSubscriberModel <types::DUMMY_FRAME_STRUCT> data_subsciber_model;
     auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
 
-    DefaultRequestHandlerModel<unittest::FakeReadoutType, unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> model(latency_buffer, error_registry);
+    DefaultRequestHandlerModel<unittest::FakeReadoutType, unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> default_request_handler_model(latency_buffer, error_registry);
 
     auto latency_buffer2 = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
     auto error_registry2 = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-    DefaultSkipListRequestHandler <unittest::FakeReadoutType> ty(latency_buffer2,error_registry2);
+    DefaultSkipListRequestHandler <unittest::FakeReadoutType> default_skiplist_request_handler(latency_buffer2,error_registry2);
     
-    EmptyFragmentRequestHandlerModel <unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>uu(latency_buffer,error_registry);
+    EmptyFragmentRequestHandlerModel <unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>empty_fragment_request_handler_model(latency_buffer,error_registry);
 
-    FixedRateQueueModel <int> q;
-    IterableQueueModel<int> w;
-    RecorderModel <types::DUMMY_FRAME_STRUCT>qw("name");
-    SkipListLatencyBufferModel <types::DUMMY_FRAME_STRUCT> gfsh;
-    SourceEmulatorPatternGenerator jghj;
-    TaskRawDataProcessorModel <unittest::FakeReadoutType> adfg(error_registry,false);
-    ZeroCopyRecordingRequestHandlerModel <unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> fgs(latency_buffer,error_registry);
+    FixedRateQueueModel <int> fixed_rate_queue_model;
+    IterableQueueModel<int> iterable_queue_model;
+    RecorderModel <types::DUMMY_FRAME_STRUCT>recorder_model("name");
+    SkipListLatencyBufferModel <types::DUMMY_FRAME_STRUCT> skiplist_latency_buffer_model;
+    SourceEmulatorPatternGenerator source_emulator_pattern_generator;
+    TaskRawDataProcessorModel <unittest::FakeReadoutType> task_rawdata_processor_model(error_registry,false);
+    ZeroCopyRecordingRequestHandlerModel <unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> zero_copy_recording_request_hander_model(latency_buffer,error_registry);
     
 
 

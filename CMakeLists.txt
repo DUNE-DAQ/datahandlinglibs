@@ -70,12 +70,12 @@ endif()
 
 ##############################################################################
 # Integration tests
-#daq_add_application(datahandlinglibs_test_ratelimiter test_ratelimiter_app.cxx TEST LINK_LIBRARIES datahandlinglibs)
-#daq_add_application(datahandlinglibs_test_lb_allocation test_lb_allocation_app.cxx TEST LINK_LIBRARIES datahandlinglibs CLI11::CLI11)
-#daq_add_application(datahandlinglibs_test_bufferedfilewriter test_bufferedfilewriter_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
-#daq_add_application(datahandlinglibs_test_bufferedfilereader test_bufferedfilereader_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
-#daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
-#daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_ratelimiter test_ratelimiter_app.cxx TEST LINK_LIBRARIES datahandlinglibs)
+daq_add_application(datahandlinglibs_test_lb_allocation test_lb_allocation_app.cxx TEST LINK_LIBRARIES datahandlinglibs CLI11::CLI11)
+daq_add_application(datahandlinglibs_test_bufferedfilewriter test_bufferedfilewriter_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_bufferedfilereader test_bufferedfilereader_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 daq_add_application(datahandlinglibs_test_to_include_to_lcov_app test_to_include_to_lcov_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 

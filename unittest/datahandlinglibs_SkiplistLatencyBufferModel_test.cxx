@@ -30,25 +30,28 @@ BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_put)
     SkipListLatencyBufferModel<unittest::FakeReadoutType> skip_list;
 
     unittest::FakeReadoutType dummy_put;
-    for (int i = 0; i < 10; i++) {
+    int size = 5;
+
+    for (int i = 0; i <size ; i++) {
         dummy_put.set_timestamp(i * i);
-        skip_list.put(dummy_put);
+        BOOST_REQUIRE(skip_list.put(dummy_put));
     }
 
-    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 10);
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), size);
 }
 
 BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_write)
 {
     SkipListLatencyBufferModel<unittest::FakeReadoutType> skip_list;
+    int size = 5;
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i <size ; i++) {
         unittest::FakeReadoutType dummy_move;
         dummy_move.set_timestamp(i * i);
-        skip_list.write(std::move(dummy_move));
+        BOOST_REQUIRE(skip_list.write(std::move(dummy_move)));
     }
 
-    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 10);
+    BOOST_REQUIRE_EQUAL(skip_list.occupancy(), size);
 }
 
 BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_pop)
@@ -77,9 +80,8 @@ BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_read)
     }
 
     unittest::FakeReadoutType dummy_read;
-    bool read = skip_list.read(dummy_read);
 
-    BOOST_REQUIRE(read);
+    BOOST_REQUIRE(skip_list.read(dummy_read));
     BOOST_CHECK_EQUAL(dummy_read.get_timestamp(), 0);
     BOOST_REQUIRE_EQUAL(skip_list.occupancy(), 10);
 }
