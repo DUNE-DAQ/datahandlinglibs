@@ -75,3 +75,12 @@ message TPGProcessorInfo {
   int64 accum = 2; // Accum value of AVXFrugalPedestalSubtractProcessor
 }
 
+message TPGProcessorReducedInfo {
+  int64 mean = 1; // across plane
+  int64 max = 2; 
+  int64 min = 3;
+  uint64 max_channel_id = 4;
+  uint64 min_channel_id = 5;
+  double standard_dev = 6;
+}
+
