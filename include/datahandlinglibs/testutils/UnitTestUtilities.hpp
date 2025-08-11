@@ -25,6 +25,16 @@ struct FakeReadoutType {
 
     bool operator<(const struct FakeReadoutType& other) const{return (this->timestamp < other.timestamp);}
     bool operator==(const struct FakeReadoutType& other) const {return timestamp == other.timestamp;}
+    FakeReadoutType operator*(const FakeReadoutType& other) const {
+        FakeReadoutType result;
+        result.timestamp = this->timestamp * other.timestamp;
+        return result;
+    }
+    FakeReadoutType operator+(int value) const {
+        FakeReadoutType result;
+        result.timestamp = this->timestamp + value;
+        return result;
+    }   
 
     uint64_t timestamp; // NOLINT(build/unsigned)
     static constexpr size_t fixed_frame_size = 1024; 
@@ -40,6 +50,10 @@ struct FakeReadoutType {
 
     
 };
+inline std::ostream& operator<<(std::ostream& os, const FakeReadoutType& obj) {
+    os << "FakeReadoutType(timestamp=" << obj.timestamp << ")";
+    return os;
+}
 
 struct FakeIterator {
     mutable FakeReadoutType dummy;
