@@ -76,11 +76,11 @@ message TPGProcessorInfo {
 }
 
 message TPGProcessorReducedInfo {
-  int64 mean = 1; // across plane
-  int64 max = 2; 
-  int64 min = 3;
-  uint64 max_channel_id = 4;
-  uint64 min_channel_id = 5;
-  double standard_dev = 6;
+  float mean = 1; // across plane
+  int32 max = 2; 
+  int32 min = 3;
+  uint32 max_channel_id = 4;
+  uint32 min_channel_id = 5;
+  float standard_dev = 6;
 }
 
