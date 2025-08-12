@@ -11,6 +11,7 @@
 
 #include "datahandlinglibs/DataHandlingIssues.hpp"
 #include "datahandlinglibs/concepts/RequestHandlerConcept.hpp"
+#include "datahandlinglibs/utils/ScopeGuard.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "utilities/ReusableThread.hpp"
 

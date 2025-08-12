@@ -215,13 +215,43 @@ void
 DefaultRequestHandlerModel<RDT, LBT>::cleanup_check()
 {
   std::unique_lock<std::mutex> lock(m_cv_mutex);
-  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested.exchange(true)) {
+
+  bool over_limit = m_latency_buffer->occupancy() > m_pop_limit_size;
+  bool can_claim  = !m_cleanup_requested.exchange(true, std::memory_order_acq_rel);
+
+  if (over_limit && can_claim) {
     m_cv.wait(lock, [&] { return m_requests_running == 0; });
+
+    // Pre std::experimental::scope_exit
+    // Create a scope guard for shared state resets and notifies on scope exit
+    ScopeGuard reset_and_notify([&] {
+      m_cleanup_requested.store(false, std::memory_order_release);
+      m_cv.notify_all();
+    });
+/*
+    // With pre std::experimental::scope_exit
+    // Use std::scope_exit to ensure flag reset and notify_all happen no matter what
+    auto reset_and_notify = std::scope_exit([&] {
+      m_cleanup_requested.store(false, std::memory_order_release);
+      m_cv.notify_all();
+    });
+*/
+
+    // Unlock before potentially long-running cleanup
+    lock.unlock();
+
+    // Do the cleanup - if ever modified to throw, exiting the scope will still run
     cleanup();
-    m_cleanup_requested = false;
-    m_cv.notify_all();
+
+    // Re-lock before exiting to keep lock discipline consistent
+    lock.lock();
+
+    // scope_exit will automatically run here on function exit,
+    // resetting the flag and notifying waiters
   }
 }
+
+
 
 template<class RDT, class LBT>
 void 
