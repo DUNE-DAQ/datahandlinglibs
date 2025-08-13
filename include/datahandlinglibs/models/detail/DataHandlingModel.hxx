@@ -105,11 +105,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
   // Register callbacks if operating in that mode.
   if (m_callback_mode) {
     // Configure and register consume callback
-    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item, this, std::placeholders::_1);
+    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback, this, std::placeholders::_1);
  
     // Register callback
     auto dmcbr = DataMoveCallbackRegistry::get();
-    dmcbr->register_callback<RDT>(m_raw_data_receiver_connection_name, m_consume_callback);
+    dmcbr->register_callback<IDT>(m_raw_data_receiver_connection_name, m_consume_callback);
   }
 
   // Configure threads:
@@ -223,6 +223,25 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
  }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::transform_and_process(IDT&& payload) {
+  if constexpr (std::is_same_v<IDT, RDT>) {
+    process_item(std::move(payload));
+  } else {
+    auto transformed = transform_payload(payload);
+    for (auto& i : transformed) {
+      process_item(std::move(i));
+    }   
+  }  
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback(IDT&& payload) {
+  transform_and_process(std::move(payload));
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 {
@@ -275,17 +294,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
     auto opt_payload = m_raw_data_receiver->try_receive(m_raw_receiver_timeout_ms);
 
     if (opt_payload) {
-
-      IDT& original = opt_payload.value();
-      
-      if constexpr (std::is_same_v<IDT, RDT>) {
-        process_item(std::move(original));
-      } else {
-        auto transformed = transform_payload(original);
-        for (auto& i : transformed) {
-          process_item(std::move(i));
-        }   
-      }
+      IDT& payload = opt_payload.value();
+      transform_and_process(std::move(payload));
     } else {
       ++m_rawq_timeout_count;
       // Protection against a zero sleep becoming a yield
