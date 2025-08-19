@@ -20,6 +20,8 @@
 #include "utilities/ReusableThread.hpp"
 #include <folly/ProducerConsumerQueue.h>
 
+#include <stdlib.h>
+
 #include <iostream>
 
 using namespace dunedaq::datahandlinglibs;
@@ -109,8 +111,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_launch_preprocess)
     TaskRawDataProcessorModel <ROType> processor (error_registry,false);
     bool pre_func_one_called = false; 
     bool pre_func_two_called = false;
-    processor.add_preprocess_task([&pre_func_one_called]([[maybe_unused]] ROType* elem) { pre_func_one_called = true;});
-    processor.add_preprocess_task([&pre_func_two_called]([[maybe_unused]] ROType* elem) { pre_func_two_called = true;});
+    processor.add_preprocess_task([&pre_func_one_called](ROType* /*elem*/) { pre_func_one_called = true;});
+    processor.add_preprocess_task([&pre_func_two_called](ROType* /*elem*/) { pre_func_two_called = true;});
     
     ROType* pre_pro_result = new ROType();
     pre_pro_result->set_timestamp(2);
@@ -151,8 +153,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_add_task)
     bool post_func_one_called = false; 
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     BOOST_REQUIRE_EQUAL(processor.get_post_threads().size(),2);
     BOOST_REQUIRE_EQUAL(processor.get_post_functions().size(),2);
 }
@@ -165,8 +167,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_queue)
     bool post_func_one_called = false;
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     
     processor.make_queues();
     BOOST_REQUIRE_EQUAL(processor.get_post_queues().size(),2);
@@ -180,8 +182,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_add_to_queue)
     bool post_func_one_called = false;
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     processor.make_queues();
 
     ROType* post_pro_elem = new ROType();
@@ -202,8 +204,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_after_que
     bool post_func_one_called = false;
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     processor.make_queues();
     ROType* post_pro_elem = new ROType();
     post_pro_elem->set_timestamp(2);
@@ -224,8 +226,8 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_before_qu
     bool post_func_one_called = false;
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     processor.make_queues();
 
     processor.run_marker_set(true); //m_run_marker.load() || queue.sizeGuess() > 0
@@ -247,14 +249,17 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_before_qu
 
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_fail_postprocess_item)
 {
+
+    setenv("DUNEDAQ_ERS_WARNING", "throw", 1);
+
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
     Test_Proscessor processor (error_registry,true);
 
     bool post_func_one_called = false;
     bool post_func_two_called = false;
 
-    processor.add_postprocess_task([&post_func_one_called]([[maybe_unused]] const ROType* elem) { post_func_one_called = true;});
-    processor.add_postprocess_task([&post_func_two_called]([[maybe_unused]] const ROType* elem) { post_func_two_called = true;});
+    processor.add_postprocess_task([&post_func_one_called](const ROType* /*elem*/) { post_func_one_called = true;});
+    processor.add_postprocess_task([&post_func_two_called](const ROType* /*elem*/) { post_func_two_called = true;});
     processor.make_queues(); //size is 2
 
     ROType* post_pro_elem = new ROType();
@@ -264,7 +269,9 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_fail_postprocess_item
     //when queue is full write fails
     ROType* fail_elem = new ROType();
     fail_elem->set_timestamp(4);
-    processor.postprocess_item(fail_elem);
+    
+
+    BOOST_CHECK_THROW(processor.postprocess_item(fail_elem), std::exception );
     
 }
 
