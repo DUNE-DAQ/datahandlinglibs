@@ -130,13 +130,19 @@ public:
   //void get_info(opmonlib::InfoCollector& ci, int level);
 
   // Consume callback
-  std::function<void(RDT&&)> m_consume_callback;
+  std::function<void(IDT&&)> m_consume_callback;
 
 protected:
 
   // Perform processing operations on payload
   void process_item(RDT&& payload);
   
+  // Transform payload if needed, then perform processing
+  void transform_and_process(IDT&& payload);
+
+  // Raw data consume callback
+  void consume_callback(IDT&& payload);
+
   // Raw data consumer's work function
   void run_consume();
 
