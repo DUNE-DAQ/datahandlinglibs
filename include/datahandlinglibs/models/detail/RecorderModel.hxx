@@ -32,7 +32,7 @@ RecorderModel<ReadoutType>::generate_opmon_data()
 
 template<class ReadoutType>
 void 
-RecorderModel<ReadoutType>::do_conf(const nlohmann::json& /* args */)
+RecorderModel<ReadoutType>::do_conf(const appfwk::DAQModule::CommandData_t& /* args */)
 {
   
   if (remove(m_output_file.c_str()) == 0) {
@@ -46,7 +46,7 @@ RecorderModel<ReadoutType>::do_conf(const nlohmann::json& /* args */)
 
 template<class ReadoutType>
 void 
-RecorderModel<ReadoutType>::do_start(const nlohmann::json& /* args */)
+RecorderModel<ReadoutType>::do_start(const appfwk::DAQModule::CommandData_t& /* args */)
 {
   m_packets_processed = 0;
   m_bytes_processed = 0;
@@ -57,7 +57,7 @@ RecorderModel<ReadoutType>::do_start(const nlohmann::json& /* args */)
 
 template<class ReadoutType>
 void 
-RecorderModel<ReadoutType>::do_stop(const nlohmann::json& /* args */)
+RecorderModel<ReadoutType>::do_stop(const appfwk::DAQModule::CommandData_t& /* args */)
 {
   m_run_marker.store(false);
   while (!m_work_thread.get_readiness()) {

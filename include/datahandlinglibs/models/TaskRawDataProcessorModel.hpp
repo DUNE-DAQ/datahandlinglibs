@@ -60,13 +60,13 @@ public:
   void conf(const appmodel::DataHandlerModule* conf) override;
 
   // Clears elements to process, pre-proc pipeline, and post-proc functions
-  void scrap(const nlohmann::json& /*cfg*/) override;
+  void scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/) override;
 
   // Starts the pre-processor pipeline and the parallel post-processor threads
-  void start(const nlohmann::json& /*args*/) override;
+  void start(const appfwk::DAQModule::CommandData_t& /*args*/) override;
 
   // Stops the pre-processor pipeline and the parallel post-processor threads
-  void stop(const nlohmann::json& /*args*/) override;
+  void stop(const appfwk::DAQModule::CommandData_t& /*args*/) override;
 
   // Resets last known/processed DAQ timestamp
   void reset_last_daq_time() { m_last_processed_daq_ts.store(0); }

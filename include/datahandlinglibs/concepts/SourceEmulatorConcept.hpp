@@ -35,9 +35,9 @@ public:
 
   virtual void set_sender(const std::string& /*sink_name*/) = 0;
   virtual void conf(const confmodel::DetectorStream* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
-  virtual void start(const nlohmann::json& /*args*/) = 0;
-  virtual void stop(const nlohmann::json& /*args*/) = 0;
-  virtual void scrap(const nlohmann::json& /*args*/) = 0;
+  virtual void start(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
+  virtual void stop(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
+  virtual void scrap(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
   virtual bool is_configured() = 0;
 
 private:

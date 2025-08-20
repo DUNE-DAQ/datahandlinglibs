@@ -131,16 +131,16 @@ public:
   void conf(const dunedaq::appmodel::DataHandlerModule*);
 
   // Default un-configure mechanism
-  void scrap(const nlohmann::json& /*args*/) override;
+  void scrap(const appfwk::DAQModule::CommandData_t& /*args*/) override;
 
   // Default start mechanism
-  void start(const nlohmann::json& /*args*/);
+  void start(const appfwk::DAQModule::CommandData_t& /*args*/);
 
   // Default stop mechanism
-  void stop(const nlohmann::json& /*args*/);
+  void stop(const appfwk::DAQModule::CommandData_t& /*args*/);
 
   // Raw data recording implementation
-  void record(const nlohmann::json& args) override;
+  void record(const appfwk::DAQModule::CommandData_t& args) override;
 
   // A function that determines if a cleanup request should be issued based on LB occupancy
   void cleanup_check() override;
