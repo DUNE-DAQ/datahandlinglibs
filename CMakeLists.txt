@@ -89,6 +89,7 @@ daq_add_unit_test(datahandlinglibs_ReadoutTypes_test LINK_LIBRARIES datahandling
 daq_add_unit_test(datahandlinglibs_IterableQueueModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_SkiplistLatencyBufferModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_TaskRawDataProcessorModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_DefaultRequestHandlerModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 
 ##############################################################################

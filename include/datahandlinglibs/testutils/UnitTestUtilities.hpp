@@ -6,6 +6,8 @@
 #include "datahandlinglibs/models/EmptyFragmentRequestHandlerModel.hpp"
 //#include "daqdataformats/Fragment.hpp"  // for FragmentType
 
+#include <deque>
+
 
 
 namespace dunedaq{
@@ -56,15 +58,30 @@ inline std::ostream& operator<<(std::ostream& os, const FakeReadoutType& obj) {
 }
 
 struct FakeIterator {
-    mutable FakeReadoutType dummy;
+    using value_type = FakeReadoutType;
 
-    FakeReadoutType& operator*() const {return dummy;}
-    FakeReadoutType* operator->() {return &dummy;}
-    FakeIterator& operator++() {return *this;}
-    friend bool operator!=([[maybe_unused]]const FakeIterator& a,[[maybe_unused]] const FakeIterator& b) {return true;}    
-    bool good() {return true;}
+    FakeIterator(FakeReadoutType* ptr = nullptr) : ptr_(ptr) {}
 
-    friend bool operator==([[maybe_unused]]const FakeIterator& lhs, [[maybe_unused]]const FakeIterator& rhs) {return true;}
+    FakeReadoutType& operator*() const { return *ptr_; }
+    FakeReadoutType* operator->() const { return ptr_; }
+
+    FakeIterator& operator++() {
+        ++ptr_;
+        return *this;
+    }
+
+    friend bool operator!=(const FakeIterator& a, const FakeIterator& b) {
+        return a.ptr_ != b.ptr_;
+    }
+
+    friend bool operator==(const FakeIterator& a, const FakeIterator& b) {
+        return a.ptr_ == b.ptr_;
+    }
+
+    bool good() const { return ptr_ != nullptr; }
+
+private:
+    FakeReadoutType* ptr_;
 };
 
 template<class T>
@@ -72,34 +89,38 @@ class FakeLatencyBufferType : public LatencyBufferConcept<T> {
 public:
     void conf([[maybe_unused]] const dunedaq::appmodel::LatencyBuffer* conf) override {}
     void scrap([[maybe_unused]] const nlohmann::json& cfg) override {}
-    std::size_t occupancy() const override {return 0;}
-    void flush() override {}
-    bool write([[maybe_unused]] T&& element) override { return true;}
-    const T* back() override {return nullptr;}
-    const T* front() override {return nullptr;}
+    std::size_t occupancy() const override {return buffer_.size();}
+    void flush() override {buffer_.clear();}
+    bool write([[maybe_unused]] T&& element) override { 
+        buffer_.push_back(std::move(element)); 
+        return true; 
+    }
+    const T* back() override {return buffer_.empty() ? nullptr : &buffer_.back();}
+    const T* front() override {return buffer_.empty() ? nullptr : &buffer_.front();}
 
-    bool read([[maybe_unused]] T& element) override {return true;};
-    void pop([[maybe_unused]] std::size_t amount) override {};
+    bool read(T& element) override {
+        if (buffer_.empty()) return false;
+        element = buffer_.front();
+        return true;
+    }
+    void pop(std::size_t amount) override {
+        while (amount-- && !buffer_.empty()) {
+            buffer_.pop_front();
+        }
+    }
     void allocate_memory([[maybe_unused]] size_t /*size*/) override {};
 
-    mutable FakeIterator dummy;
-    FakeIterator lower_bound([[maybe_unused]] T& element,[[maybe_unused]] bool with_errors=false) {return dummy;}
-    FakeIterator end(){return dummy;}
-    FakeIterator begin() const {return dummy;}
+    FakeIterator lower_bound([[maybe_unused]] T& element,[[maybe_unused]] bool with_errors=false) {return begin();}
+    FakeIterator end(){return buffer_.empty() ? FakeIterator{nullptr} : FakeIterator{&buffer_.back() + 1};}
+    FakeIterator begin() {return buffer_.empty() ? FakeIterator{nullptr} : FakeIterator{&buffer_.front()};}
 
 
-    size_t get_alignment_size() const {return 0;}
-    size_t size() const {return 0;}
-    const T* start_of_buffer() const {
-        static T dummy_buffer[1024]; // Simple static buffer for mock
-        return dummy_buffer;
-    }
-    const T* end_of_buffer() const {
-        static T dummy_buffer[1024];
-        return dummy_buffer + size();
-    }
+    size_t get_alignment_size() const {return alignof(T); }
+    size_t size() const {return buffer_.size();}
+    const T* start_of_buffer() const {return buffer_.empty() ? nullptr : &buffer_.front();}
+    const T* end_of_buffer() const {return buffer_.empty() ? nullptr : &buffer_.back() + 1;}
 
-    
+    std::deque<T> buffer_;    
     
 };
 
