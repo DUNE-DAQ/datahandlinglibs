@@ -83,7 +83,7 @@ private:
   }
 
   // Unconfigure
-  void scrap(const nlohmann::json& /*args*/) override
+  void scrap(const appfwk::DAQModule::CommandData_t& /*args*/) override
   {
     // RS -> Cross-check, we don't need to flush first?
     m_skip_list = folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height);

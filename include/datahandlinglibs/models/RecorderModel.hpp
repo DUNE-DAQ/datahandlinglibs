@@ -42,10 +42,10 @@ public:
 
   void init(const appmodel::DataRecorderModule* conf) override;
   //  void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
-  void do_conf(const nlohmann::json& /*args*/) override;
-  void do_scrap(const nlohmann::json& /*args*/) override { m_buffered_writer.close(); }
-  void do_start(const nlohmann::json& /* args */) override;
-  void do_stop(const nlohmann::json& /* args */) override;
+  void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/) override;
+  void do_scrap(const appfwk::DAQModule::CommandData_t& /*args*/) override { m_buffered_writer.close(); }
+  void do_start(const appfwk::DAQModule::CommandData_t& /* args */) override;
+  void do_stop(const appfwk::DAQModule::CommandData_t& /* args */) override;
 
 protected:
   virtual void generate_opmon_data() override;

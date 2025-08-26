@@ -25,11 +25,11 @@
 #include "appmodel/DataReaderConf.hpp"
 
 #include "appfwk/ConfigurationManager.hpp"
+#include "appfwk/DAQModule.hpp"
 
 #include "utilities/ReusableThread.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
 
-#include "nlohmann/json.hpp"
 #include "rcif/cmd/Nljs.hpp"
 
 // std
@@ -65,10 +65,10 @@ public:
   create_source_emulator(std::string qi, std::atomic<bool>& run_marker) = 0;
 
   // Commands
-  void do_conf(const nlohmann::json& /*args*/);
-  void do_scrap(const nlohmann::json& /*args*/);
-  void do_start(const nlohmann::json& /*args*/);
-  void do_stop(const nlohmann::json& /*args*/);
+  void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_scrap(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_start(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_stop(const appfwk::DAQModule::CommandData_t& /*args*/);
 
   std::string get_fcr_name() { return m_name; }
 

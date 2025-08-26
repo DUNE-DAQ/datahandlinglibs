@@ -35,7 +35,7 @@ public:
   void conf(const appmodel::DataHandlerModule* conf) override;
 
   // Special record command that writes to files from memory aligned LBs
-  void record(const nlohmann::json& args) override;
+  void record(const appfwk::DAQModule::CommandData_t& args) override;
 
 private:
   int m_fd;

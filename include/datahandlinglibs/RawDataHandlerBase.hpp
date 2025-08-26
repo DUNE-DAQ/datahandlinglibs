@@ -17,9 +17,9 @@
 #include "daqdataformats/Types.hpp"
 #include "logging/Logging.hpp"
 
-#include "nlohmann/json.hpp"
 #include "rcif/cmd/Nljs.hpp"
 
+#include "appfwk/DAQModule.hpp"
 #include "appfwk/ConfigurationManager.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 
@@ -53,11 +53,11 @@ public:
   create_readout(const appmodel::DataHandlerModule* modconf, std::atomic<bool>& run_marker) = 0;
 
   // Commands
-  void do_conf(const nlohmann::json& /*args*/);
-  void do_scrap(const nlohmann::json& /*args*/);
-  void do_start(const nlohmann::json& /*args*/);
-  void do_stop(const nlohmann::json& /*args*/);
-  void do_record(const nlohmann::json& /*args*/);
+  void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_scrap(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_start(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_stop(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void do_record(const appfwk::DAQModule::CommandData_t& /*args*/);
 
   std::string get_dlh_name() { return m_name; }
 

@@ -231,7 +231,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   void conf(const appmodel::LatencyBuffer* cfg) override;
 
   // Unconfigures the model
-  void scrap(const nlohmann::json& /*cfg*/) override;
+  void scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/) override;
 
   // Flushes the elements from the queue
   void flush() override { pop(occupancy()); }
