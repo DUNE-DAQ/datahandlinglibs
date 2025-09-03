@@ -258,8 +258,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
   if (!m_latency_buffer_impl->write(std::move(payload))) {
     //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
+    return;
   }
-  if (m_processing_delay_ticks == 0) {
+  if (m_processing_delay_ticks = 0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
     ++m_num_payloads;
     ++m_sum_payloads;
