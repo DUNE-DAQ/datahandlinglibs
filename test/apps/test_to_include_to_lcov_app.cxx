@@ -50,10 +50,10 @@ main(int /*argc*/, char** /*argv[]*/)
 
     auto readout_model = std::make_shared<DataHandlingModel<
     unittest::FakeReadoutType,
-    unittest::FakeRequestHandlerType,
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,unittest::FakeLatencyBufferType <unittest::FakeReadoutType>>,
     unittest::FakeLatencyBufferType<unittest::FakeReadoutType>,
     unittest::FakeRawDataProcessorType,
-    int>>(run_marker);
+    unittest::FakeReadoutType>>(run_marker);
 
     DataSubscriberModel <types::DUMMY_FRAME_STRUCT> data_subsciber_model;
     auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();

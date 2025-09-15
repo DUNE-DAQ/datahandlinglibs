@@ -172,7 +172,6 @@ BOOST_AUTO_TEST_CASE(SkiplistLatencyBufferModel_get_skiplist)
         skip_list.put(dummy_put);
     }
 
-    const unittest::FakeReadoutType* front_ptr = skip_list.front();
     folly::ConcurrentSkipList<unittest::FakeReadoutType>::Accessor acc(skip_list.get_skip_list());
 
     BOOST_REQUIRE_EQUAL(skip_list.front(), acc.first());

@@ -46,26 +46,6 @@ BOOST_AUTO_TEST_CASE(DataMoveCallbackRegistry_get_callback)
    */
   BOOST_CHECK_THROW(registry->get_callback<double>("id"), GenericConfigurationError);
 
-
-  /**
-   * @test callback is already registere
-   */
-  /*
-  std::ostringstream captured_output; 
-  // Save original buffer 
-  auto* old_buf = std::clog.rdbuf(); 
-  std::clog.rdbuf(captured_output.rdbuf()); 
-  // Redirect   std::clog // Call the function that may log via TLOG() 
-  registry->register_callback<int>("id", [](int&&) {});
-  // Restore original buffer 
-  std::clog.rdbuf(old_buf); 
-  // Check if expected log message appears 
-  std::string logs = captured_output.str(); 
-  BOOST_CHECK(logs.find("Callback is already registered with ID: id" ) != std::string::npos);
-  */
-
-  
-
   /**
    * @test Returned function must work
    */

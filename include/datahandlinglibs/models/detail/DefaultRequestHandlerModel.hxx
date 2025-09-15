@@ -511,7 +511,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
           }
         }
         else {
-	  //TLOG() << "Add element " << element->get_timestamp();      
+	        TLOG() << "Add element " << element->get_timestamp();      
           // We are somewhere in the middle -> the whole aggregated object (e.g.: superchunk) can be copied
           frag_pieces.emplace_back(
             std::make_pair<void*, size_t>(static_cast<void*>((*start_iter).begin()), element->get_payload_size()));

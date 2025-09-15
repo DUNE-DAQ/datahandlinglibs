@@ -80,7 +80,18 @@ main(int argc, char** argv)
   //vector of threads
   std::vector< std::thread >producers;
   int producer_num = 1;
-  if (argc > 1) producer_num = std::atoi(argv[1]);
+  if (argc > 1) {
+    try {
+        producer_num = std::stoi(argv[1]);
+        if (producer_num <= 0) {
+            std::cerr << "Error: producer_num must be positive.\n";
+            return 1;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: Invalid input for producer_num: " << argv[1] << "\n";
+        return 1;
+    }
+}
 
   for(int i = 0; i <producer_num; i++){
 

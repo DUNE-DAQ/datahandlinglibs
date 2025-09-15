@@ -22,8 +22,6 @@
 
 #include <stdlib.h>
 
-#include <iostream>
-
 using namespace dunedaq::datahandlinglibs;
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_TaskRawDataProcessorModel_test)

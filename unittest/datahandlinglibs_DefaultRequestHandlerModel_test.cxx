@@ -18,39 +18,15 @@
 
 #include "dfmessages/DataRequest.hpp"
 #include <daqdataformats/FragmentHeader.hpp>
+#include <thread>
+#include <string>
 
 using namespace dunedaq::datahandlinglibs;
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_DefaultRequestHandlerModel_test)
 
-using Base = DefaultRequestHandlerModel<unittest::FakeReadoutType, unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>;
 
-class TestHandler : public Base
-{
-public:
-    using Base::Base;
-
-    int get_m_handled_requests () {return (this->m_handled_requests).load();}
-    int get_m_response_time_acc () {return (this->m_response_time_acc).load();}
-    int get_m_response_time_min () {return (this->m_response_time_min).load();}
-    int get_m_response_time_max () {return (this->m_response_time_max).load();}
-    int get_m_num_buffer_cleanups () {return (this->m_num_buffer_cleanups).load();}
-    int get_m_pops_count () {return (this->m_pops_count).load();}
-    int get_m_occupancy () {return (this->m_occupancy).load();}
-
-    void test_start()
-    {
-        this->m_request_handler_thread_pool = std::make_unique<boost::asio::thread_pool>(1);
-        this->m_fragment_send_timeout_ms=100;
-
-        this->m_pop_limit_size=5;
-        this->m_pop_size_pct=0.5;
-    }
-
-};
-
-
-dunedaq::dfmessages::DataRequest create_request(int req_number){
+dunedaq::dfmessages::DataRequest create_request(int req_number, int difference){
     dunedaq::dfmessages::DataRequest req;
 
     req.request_number = req_number; // Unique number for this request
@@ -62,7 +38,7 @@ dunedaq::dfmessages::DataRequest create_request(int req_number){
     req.data_destination = "somewhere"; // Where to send the result
 
     req.request_information.window_begin = req_number;
-    req.request_information.window_end = req_number+1;
+    req.request_information.window_end = req_number+difference;
     return req;
 }
 
@@ -80,12 +56,12 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_timestamp_virtuals)
 //create_fragment_header,issue_request, data_request
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_empty_buffer)
 {
-    dunedaq::dfmessages::DataRequest req_1 = create_request(1);
+    dunedaq::dfmessages::DataRequest req_1 = create_request(1,1);
 
     auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
    
-    TestHandler testhandler(latency_buffer, error_registry);
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
     testhandler.test_start();
 
     testhandler.issue_request(req_1,false);
@@ -99,17 +75,17 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_empty_buffer)
 
 }
 
-BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_non_empty_buffer)
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kPartiallyOld)
 {
     auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-    TestHandler testhandler(latency_buffer, error_registry);
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,unittest::FakeLatencyBufferType<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
     testhandler.test_start();
     unittest::FakeReadoutType elem;
     elem.set_timestamp(2);
     latency_buffer->write(std::move(elem));
-    testhandler.issue_request(create_request(1));
+    testhandler.issue_request(create_request(1,1)); 
 
     auto start = std::chrono::steady_clock::now();
     while (testhandler.get_m_handled_requests() < 1) {
@@ -125,55 +101,174 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_non_empty_buffer)
 
 }
 
-BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_multiple_elem_buffer)
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kFound)
 {
-    auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-    TestHandler testhandler(latency_buffer, error_registry);
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
     testhandler.test_start();
-    unittest::FakeReadoutType elem;
-    elem.set_timestamp(1);
-    latency_buffer->write(std::move(elem));
-
-    unittest::FakeReadoutType elem2;
-    elem2.set_timestamp(2);
-    latency_buffer->write(std::move(elem2));
-    unittest::FakeReadoutType elem3;
-    elem3.set_timestamp(4);
-    latency_buffer->write(std::move(elem3));
-
-    testhandler.issue_request(create_request(2));
-
-    auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
-        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
-            BOOST_FAIL("Timeout: handler never processed the request");
-        }
-    }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
-}
-
-BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanup_check)
-{
-    auto latency_buffer = std::make_shared<unittest::FakeLatencyBufferType<unittest::FakeReadoutType>>();
-    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-    TestHandler testhandler(latency_buffer, error_registry);
-
-    testhandler.test_start();
-
-    for(int i = 0; i<6; i++)
+    for(int i = 1; i<7; i++)
     {
         unittest::FakeReadoutType elem;
         elem.set_timestamp(i);
         latency_buffer->write(std::move(elem));
     }
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),0);
     
-    testhandler.cleanup_check();
+    testhandler.issue_request(create_request(3,2));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),1);
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotFound)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.test_start();
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),0);
+    
+    testhandler.issue_request(create_request(3,2));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),1);
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotYet)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.test_start();
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),0);
+    for(int i = 1; i<7; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+
+    testhandler.issue_request(create_request(8,1));
+    
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),1);
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kTooOld)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.test_start();
+    for(int i = 3; i<7; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_old_window(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),0);
+    testhandler.issue_request(create_request(1,1));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_old_window(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),1);
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kPartial)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.test_start();
+    for(int i = 1; i<7; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),0);
+    testhandler.issue_request(create_request(6,1));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),1);
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanups)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.change_m_run_marker(true);
+    testhandler.test_start();
+
+    for(int i = 1; i<7; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+    std::thread cleanup_thread([&]() {
+        testhandler.public_periodic_cleanups();
+    });
+    
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    testhandler.change_m_run_marker(false);
+
+    cleanup_thread.join();
 
     BOOST_REQUIRE_EQUAL(testhandler.get_m_num_buffer_cleanups(),1);
     BOOST_REQUIRE_EQUAL(testhandler.get_m_occupancy(),3);
@@ -181,4 +276,131 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanup_check)
     
 }
 
+//cant change request timeout so cant enter if statement? 
+//needs 32 seconds
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_check_waiting_requests_window_end)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.change_m_run_marker(true);
+    testhandler.test_start();
+
+    for(int i = 1; i<7; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),0);
+
+    testhandler.issue_request(create_request(6,1));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),1);
+
+    for(int i = 7; i<9; i++)
+    {
+        unittest::FakeReadoutType elem;
+        elem.set_timestamp(i);
+        latency_buffer->write(std::move(elem));
+    }
+    
+    std::thread t([&]() {
+        testhandler.public_check_waiting_requests();
+    });
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    testhandler.change_m_run_marker(false);
+    t.join();
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),2); //first one is issue_request, second one is check_waiting_requests
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_public_dump_to_buffer)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    std::string data = "data to copy";
+    std::string buffer = "    ";
+
+    testhandler.public_dump_to_buffer(data.data(),4,buffer.data(),0,buffer.size());
+    BOOST_REQUIRE_EQUAL(buffer,"data");
+}
+
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_create_empty_fragment)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    auto fragment = testhandler.public_create_empty_fragment(create_request(1,1));
+    BOOST_REQUIRE_EQUAL(fragment->get_header().error_bits,1);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
+
+
+/**
+ * num_frames needs to be constexpr.
+ * In get_fragment_pieces there is a case where the result depends on it.
+ * 
+ */ 
+/*
+struct Changed_num_frames_FakeReadoutType : unittest::FakeReadoutType {
+    static constexpr size_t fixed_num_frames = 4;
+    size_t get_num_frames() const override {return fixed_num_frames;}
+    size_t get_payload_size() const override 
+    {
+    return fixed_num_frames * get_frame_size();
+    }
+
+    virtual Changed_num_frames_FakeReadoutType* begin()  override{ return reinterpret_cast<Changed_num_frames_FakeReadoutType*>(data); }
+    virtual Changed_num_frames_FakeReadoutType* end()  override { return begin() + fixed_num_frames; }
+
+    char data[fixed_payload_size];
+    static constexpr size_t fixed_payload_size = fixed_frame_size * fixed_num_frames;
+};
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kFound_num_frames_more_than_one)
+{
+    auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<Changed_num_frames_FakeReadoutType>>();
+    auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
+    unittest::FakeRequestHandlerType<Changed_num_frames_FakeReadoutType,SkipListLatencyBufferModel<Changed_num_frames_FakeReadoutType>> testhandler(latency_buffer, error_registry);
+
+    testhandler.test_start();
+    for(int i = 1; i<10; i++)
+    {
+        Changed_num_frames_FakeReadoutType elem;
+        elem.set_timestamp(i);
+        TLOG()<<elem.get_num_frames()<< " " << elem.get_timestamp();
+        latency_buffer->write(std::move(elem));
+    }
+
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),0);
+    
+    testhandler.issue_request(create_request(5,2));
+
+    auto start = std::chrono::steady_clock::now();
+    while (testhandler.get_m_handled_requests() < 1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
+            BOOST_FAIL("Timeout: handler never processed the request");
+        }
+    }
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),1);
+}
+*/
