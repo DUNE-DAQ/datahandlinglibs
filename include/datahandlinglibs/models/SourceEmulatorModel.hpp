@@ -87,19 +87,19 @@ public:
     ,m_frames_per_tick(frames_per_tick)
   {}
 
-  //void init(const nlohmann::json& /*args*/) {}
+  //void init(const appfwk::DAQModule::CommandData_t& /*args*/) {}
   void set_sender(const std::string& conn_name);
 
   void conf(const confmodel::DetectorStream* stream_conf, const appmodel::StreamEmulationParameters* emu_conf);
-  void scrap(const nlohmann::json& /*args*/)
+  void scrap(const appfwk::DAQModule::CommandData_t& /*args*/)
   {
     m_file_source.reset();
     m_is_configured = false;
   }
   bool is_configured() override { return m_is_configured; }
 
-  void start(const nlohmann::json& /*args*/);
-  void stop(const nlohmann::json& /*args*/);
+  void start(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void stop(const appfwk::DAQModule::CommandData_t& /*args*/);
   //  void get_info(opmonlib::InfoCollector& ci, int /*level*/);
 
 protected:

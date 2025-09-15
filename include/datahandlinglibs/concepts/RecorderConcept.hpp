@@ -8,6 +8,7 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RECORDERCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RECORDERCONCEPT_HPP_
 
+#include "appfwk/DAQModule.hpp"
 #include "utilities/WorkerThread.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
 //#include "datahandlinglibs/recorderconfig/Structs.hpp"
@@ -38,10 +39,10 @@ public:
   virtual void init(const appmodel::DataRecorderModule* mcfg) = 0;
   
  // Commands
-   virtual void do_conf(const nlohmann::json& args) = 0;
-  virtual void do_start(const nlohmann::json& obj) = 0;
-  virtual void do_stop(const nlohmann::json& obj) = 0;
-  virtual void do_scrap(const nlohmann::json& obj) = 0;
+  virtual void do_conf(const appfwk::DAQModule::CommandData_t& args) = 0;
+  virtual void do_start(const appfwk::DAQModule::CommandData_t& obj) = 0;
+  virtual void do_stop(const appfwk::DAQModule::CommandData_t& obj) = 0;
+  virtual void do_scrap(const appfwk::DAQModule::CommandData_t& obj) = 0;
 };
 
 } // namespace datahandlinglibs

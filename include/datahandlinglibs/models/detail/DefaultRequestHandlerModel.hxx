@@ -66,7 +66,7 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::scrap(const nlohmann::json& /*args*/)
+DefaultRequestHandlerModel<RDT, LBT>::scrap(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   if (m_buffered_writer.is_open()) {
     m_buffered_writer.close();
@@ -75,7 +75,7 @@ DefaultRequestHandlerModel<RDT, LBT>::scrap(const nlohmann::json& /*args*/)
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::start(const nlohmann::json& /*args*/)
+DefaultRequestHandlerModel<RDT, LBT>::start(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   // Reset opmon variables
   m_num_requests_found = 0;
@@ -123,7 +123,7 @@ DefaultRequestHandlerModel<RDT, LBT>::start(const nlohmann::json& /*args*/)
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::stop(const nlohmann::json& /*args*/)
+DefaultRequestHandlerModel<RDT, LBT>::stop(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   m_run_marker.store(false);
   while (!m_recording_thread.get_readiness()) {
@@ -141,7 +141,7 @@ DefaultRequestHandlerModel<RDT, LBT>::stop(const nlohmann::json& /*args*/)
 
 template<class RDT, class LBT>
 void 
-DefaultRequestHandlerModel<RDT, LBT>::record(const nlohmann::json& /*args*/)
+DefaultRequestHandlerModel<RDT, LBT>::record(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   //auto conf = args.get<readoutconfig::RecordingParams>();
   //FIXME: how do we pass the duration or recording?

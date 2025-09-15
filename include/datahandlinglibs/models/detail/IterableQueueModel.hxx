@@ -319,7 +319,7 @@ IterableQueueModel<T>::conf(const appmodel::LatencyBuffer* cfg)
 // Unconfigures the model
 template<class T>
 void 
-IterableQueueModel<T>::scrap(const nlohmann::json& /*cfg*/)
+IterableQueueModel<T>::scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/)
 {
   free_memory();
   numa_aware_ = false;

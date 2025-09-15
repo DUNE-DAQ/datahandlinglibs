@@ -100,7 +100,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   // Register callbacks if operating in that mode.
   if (m_callback_mode) {
@@ -126,7 +126,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const nlohmann::json& /*args*/)
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const appfwk::DAQModule::CommandData_t& args)
 {
   // Reset opmon variables
   m_sum_payloads = 0;
@@ -161,7 +161,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const nlohmann::json& args)
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const nlohmann::json& args)
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::CommandData_t& args)
 {
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Stoppping threads...";
 
@@ -258,6 +258,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
   if (!m_latency_buffer_impl->write(std::move(payload))) {
     //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
+    return;
   }
   if (m_processing_delay_ticks == 0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());

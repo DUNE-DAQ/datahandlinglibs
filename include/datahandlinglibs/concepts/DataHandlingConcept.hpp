@@ -9,6 +9,7 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_READOUTCONCEPT_HPP_
 
+#include "appfwk/DAQModule.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 namespace dunedaq {
@@ -26,11 +27,11 @@ public:
 
   //! Forward calls from the appfwk
   virtual void init(const appmodel::DataHandlerModule* mcfg) = 0;
-  virtual void conf(const nlohmann::json& args) = 0;
-  virtual void scrap(const nlohmann::json& args) = 0;
-  virtual void start(const nlohmann::json& args) = 0;
-  virtual void stop(const nlohmann::json& args) = 0;
-  virtual void record(const nlohmann::json& args) = 0;
+  virtual void conf(const appfwk::DAQModule::CommandData_t& args) = 0;
+  virtual void scrap(const appfwk::DAQModule::CommandData_t& args) = 0;
+  virtual void start(const appfwk::DAQModule::CommandData_t& args) = 0;
+  virtual void stop(const appfwk::DAQModule::CommandData_t& args) = 0;
+  virtual void record(const appfwk::DAQModule::CommandData_t& args) = 0;
 
   //! Function that will be run in its own thread to read the raw packets from the connection and add them to the LB
   virtual void run_consume() = 0;

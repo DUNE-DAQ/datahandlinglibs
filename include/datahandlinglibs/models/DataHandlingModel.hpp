@@ -104,10 +104,10 @@ public:
   void init(const appmodel::DataHandlerModule* modconf);
 
   // Configures the readoutmodel and its internals
-  void conf(const nlohmann::json& args);
+  void conf(const appfwk::DAQModule::CommandData_t& args);
 
   // Unconfigures readoutmodel's internals
-  void scrap(const nlohmann::json& args)
+  void scrap(const appfwk::DAQModule::CommandData_t& args)
   {
     m_request_handler_impl->scrap(args);
     m_latency_buffer_impl->scrap(args);
@@ -115,13 +115,13 @@ public:
   }
 
   // Starts readoutmodel's internals
-  void start(const nlohmann::json& args);
+  void start(const appfwk::DAQModule::CommandData_t& args);
 
   // Stops readoutmodel's internals
-  void stop(const nlohmann::json& args);
+  void stop(const appfwk::DAQModule::CommandData_t& args);
 
   // Record function: invokes request handler's record implementation
-  void record(const nlohmann::json& args) override 
+  void record(const appfwk::DAQModule::CommandData_t& args) override 
   { 
     m_request_handler_impl->record(args); 
   }

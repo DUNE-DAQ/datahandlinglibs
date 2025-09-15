@@ -97,7 +97,7 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::start(const nlohmann::json& /*args*/)
+SourceEmulatorModel<ReadoutType>::start(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   m_packet_count_tot = 0;
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Starting threads...";
@@ -109,7 +109,7 @@ SourceEmulatorModel<ReadoutType>::start(const nlohmann::json& /*args*/)
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::stop(const nlohmann::json& /*args*/)
+SourceEmulatorModel<ReadoutType>::stop(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   while (!m_producer_thread.get_readiness()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
