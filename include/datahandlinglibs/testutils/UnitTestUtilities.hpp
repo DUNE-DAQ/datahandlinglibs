@@ -171,7 +171,7 @@ template<class T>
 class FakeLatencyBufferType : public LatencyBufferConcept<T> {
 public:
     void conf([[maybe_unused]] const dunedaq::appmodel::LatencyBuffer* conf) override {}
-    void scrap([[maybe_unused]] const nlohmann::json& cfg) override {}
+    void scrap([[maybe_unused]] const appfwk::DAQModule::CommandData_t& cfg) override {}
     std::size_t occupancy() const override {return buffer_.size();}
     void flush() override {buffer_.clear();}
     bool write([[maybe_unused]] T&& element) override { 
