@@ -71,7 +71,7 @@ public:
         this->m_request_handler_supports_cutoff_timestamp = true;
         this->m_processing_delay_ticks=0;
         this->m_request_handler_impl->set_cutoff_timestamp(cutoff_timestamp);
-        this->m_raw_processor_impl->make_queues();
+        this->m_raw_processor_impl->make_queues(32);
     }
 
     void post_schedule_init (bool & pre_func_one_called, bool & post_func_one_called, int cutoff_timestamp,int min_wait)

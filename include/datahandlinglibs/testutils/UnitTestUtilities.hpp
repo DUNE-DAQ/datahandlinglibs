@@ -276,30 +276,35 @@ public:
     using Base::Base;
 
 
-    void wrap_post_processing_thread(std::function<void(const unittest::FakeReadoutType*)>& func,
+    void public_post_processing_thread(std::function<void(const unittest::FakeReadoutType*)>& func,
                                      folly::ProducerConsumerQueue<const unittest::FakeReadoutType*>& queue)
     {this->run_post_processing_thread(func, queue);}
 
-    void wrap_post_processing_threads() 
+    void public_post_processing_threads() 
     {                           
         for (size_t i = 0; i < this->m_post_process_threads.size(); ++i) {
-            this->m_post_process_threads[i]->set_work( &FakeRawDataProcessorType::wrap_post_processing_thread ,
+            this->m_post_process_threads[i]->set_work( &FakeRawDataProcessorType::public_post_processing_thread ,
             this,
             std::ref(this->m_post_process_functions[i]),
             std::ref(*this->m_items_to_postprocess_queues[i]));
         } 
     }
 
-    void make_queues ()
+    void make_queues (int size)
     {
         for (size_t i = 0; i < this->m_post_process_functions.size(); ++i) {
             this->m_items_to_postprocess_queues.push_back(
-            std::make_unique<folly::ProducerConsumerQueue<const unittest::FakeReadoutType*>>(32)); //size can be anything
+            std::make_unique<folly::ProducerConsumerQueue<const unittest::FakeReadoutType*>>(size)); //size can be anything
             this->m_post_process_threads[i]->set_name(std::to_string(i), i);
         }
     }
 
     int  get_post_queues_size(){return (this->m_items_to_postprocess_queues).size();}
+    
+    const std::vector<std::unique_ptr<dunedaq::utilities::ReusableThread>>& get_post_threads()const {return this->m_post_process_threads;}  
+    std::vector<std::function<void(const unittest::FakeReadoutType*)>>& get_post_functions(){return this->m_post_process_functions;}
+    const std::vector<std::unique_ptr<folly::ProducerConsumerQueue<const unittest::FakeReadoutType*>>> & get_post_queues()const{return this->m_items_to_postprocess_queues;}
+    void run_marker_set (bool m_set) {this->m_run_marker = m_set; }
 };
 
 
