@@ -68,10 +68,10 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_empty_buffer)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),0);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()==0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_min(),std::numeric_limits<int>::max() );
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_max(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),0);
+    BOOST_REQUIRE(testhandler.get_response_time_acc()==0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_min(),std::numeric_limits<int>::max() );
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_max(),0);
 
 }
 
@@ -88,16 +88,16 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kPartiallyOld)
     testhandler.issue_request(create_request(1,1)); 
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_max());
 
 }
 
@@ -116,22 +116,22 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kFound)
         latency_buffer->write(std::move(elem));
     }
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_found(),0);
     
     testhandler.issue_request(create_request(3,2));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_found(),1);
 }
 
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotFound)
@@ -141,22 +141,22 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotFound)
     unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
     testhandler.test_start();
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_bad(),0);
     
     testhandler.issue_request(create_request(3,2));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_bad(),1);
 }
 
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotYet)
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotYet)
     unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
     testhandler.test_start();
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_delayed(),0);
     for(int i = 1; i<7; i++)
     {
         unittest::FakeReadoutType elem;
@@ -177,15 +177,15 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kNotYet)
     testhandler.issue_request(create_request(8,1));
     
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_delayed(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_waiting_requests(),1);
 }
 
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kTooOld)
@@ -202,20 +202,20 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kTooOld)
         latency_buffer->write(std::move(elem));
     }
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_old_window(),0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_old_window(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_bad(),0);
     testhandler.issue_request(create_request(1,1));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_old_window(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_bad(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_old_window(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_bad(),1);
 }
 
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kPartial)
@@ -232,18 +232,18 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kPartial)
         latency_buffer->write(std::move(elem));
     }
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_delayed(),0);
     testhandler.issue_request(create_request(6,1));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_delayed(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_delayed(),1);
 }
 
 BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanups)
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanups)
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
     unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
-    testhandler.change_m_run_marker(true);
+    testhandler.change_run_marker(true);
     testhandler.test_start();
 
     for(int i = 1; i<7; i++)
@@ -266,13 +266,13 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_cleanups)
     });
     
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    testhandler.change_m_run_marker(false);
+    testhandler.change_run_marker(false);
 
     cleanup_thread.join();
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_buffer_cleanups(),1);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_occupancy(),3);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_pops_count(),3);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_buffer_cleanups(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_occupancy(),3);
+    BOOST_REQUIRE_EQUAL(testhandler.get_pops_count(),3);
     
 }
 
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_check_waiting_requests_window_en
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
     unittest::FakeRequestHandlerType<unittest::FakeReadoutType,SkipListLatencyBufferModel<unittest::FakeReadoutType>> testhandler(latency_buffer, error_registry);
 
-    testhandler.change_m_run_marker(true);
+    testhandler.change_run_marker(true);
     testhandler.test_start();
 
     for(int i = 1; i<7; i++)
@@ -294,18 +294,18 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_check_waiting_requests_window_en
         latency_buffer->write(std::move(elem));
     }
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_waiting_requests(),0);
 
     testhandler.issue_request(create_request(6,1));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_waiting_requests(),1);
 
     for(int i = 7; i<9; i++)
     {
@@ -318,14 +318,14 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_check_waiting_requests_window_en
         testhandler.public_check_waiting_requests();
     });
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    testhandler.change_m_run_marker(false);
+    testhandler.change_run_marker(false);
     t.join();
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_waiting_requests(),0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),2); //first one is issue_request, second one is check_waiting_requests
+    BOOST_REQUIRE_EQUAL(testhandler.get_waiting_requests(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),2); //first one is issue_request, second one is check_waiting_requests
 }
 
-BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_public_dump_to_buffer)
+BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_dump_to_buffer)
 {
     auto latency_buffer = std::make_shared<SkipListLatencyBufferModel<unittest::FakeReadoutType>>();
     auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
@@ -386,21 +386,21 @@ BOOST_AUTO_TEST_CASE(DefaultRequestHandlerModel_issue_request_kFound_num_frames_
         latency_buffer->write(std::move(elem));
     }
 
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_found(),0);
     
     testhandler.issue_request(create_request(5,2));
 
     auto start = std::chrono::steady_clock::now();
-    while (testhandler.get_m_handled_requests() < 1) {
+    while (testhandler.get_handled_requests() < 1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(6)) {
             BOOST_FAIL("Timeout: handler never processed the request");
         }
     }
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_handled_requests(),1);
-    BOOST_REQUIRE(testhandler.get_m_response_time_acc()>0);
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_min());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_response_time_acc(),testhandler.get_m_response_time_max());
-    BOOST_REQUIRE_EQUAL(testhandler.get_m_num_requests_found(),1);
+    BOOST_REQUIRE_EQUAL(testhandler.get_handled_requests(),1);
+    BOOST_REQUIRE(testhandler.get_response_time_acc()>0);
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_min());
+    BOOST_REQUIRE_EQUAL(testhandler.get_response_time_acc(),testhandler.get_response_time_max());
+    BOOST_REQUIRE_EQUAL(testhandler.get_num_requests_found(),1);
 }
 */

@@ -214,16 +214,16 @@ public:
     using DefaultRequestHandlerModel<ReadoutType, LatencyBufferType>::DefaultRequestHandlerModel;
 
 
-    int get_m_handled_requests () const {return (this->m_handled_requests).load();}
-    int get_m_response_time_acc () const {return (this->m_response_time_acc).load();}
-    int get_m_response_time_min () const {return (this->m_response_time_min).load();}
-    int get_m_response_time_max () const {return (this->m_response_time_max).load();}
-    int get_m_num_buffer_cleanups () const {return (this->m_num_buffer_cleanups).load();}
-    int get_m_waiting_requests () const {return (this->m_waiting_requests).size();}
-    int get_m_pops_count () const {return (this->m_pops_count).load();}
-    int get_m_occupancy () const {return (this->m_occupancy).load();}
-    void change_m_run_marker (bool change) { (this->m_run_marker) = change;}
-    bool get_m_run_marker () {return  (this->m_run_marker).load() ;}
+    int get_handled_requests () const {return (this->m_handled_requests).load();}
+    int get_response_time_acc () const {return (this->m_response_time_acc).load();}
+    int get_response_time_min () const {return (this->m_response_time_min).load();}
+    int get_response_time_max () const {return (this->m_response_time_max).load();}
+    int get_num_buffer_cleanups () const {return (this->m_num_buffer_cleanups).load();}
+    int get_waiting_requests () const {return (this->m_waiting_requests).size();}
+    int get_pops_count () const {return (this->m_pops_count).load();}
+    int get_occupancy () const {return (this->m_occupancy).load();}
+    void change_run_marker (bool change) { (this->m_run_marker) = change;}
+    bool get_run_marker () {return  (this->m_run_marker).load() ;}
     void public_dump_to_buffer(const void* data, std::size_t size,
                                 void* buffer, uint32_t buffer_pos,  // NOLINT(build/unsigned)
                                 const std::size_t& buffer_size) 
@@ -263,10 +263,10 @@ public:
         this->m_bytes_written = 0;
     }
 
-    int get_m_num_requests_found() { return this->m_num_requests_found.load();}
-    int get_m_num_requests_delayed() { return this->m_num_requests_delayed.load();}
-    int get_m_num_requests_old_window() { return this->m_num_requests_old_window.load();}
-    int get_m_num_requests_bad() { return this->m_num_requests_bad.load();}
+    int get_num_requests_found() { return this->m_num_requests_found.load();}
+    int get_num_requests_delayed() { return this->m_num_requests_delayed.load();}
+    int get_num_requests_old_window() { return this->m_num_requests_old_window.load();}
+    int get_num_requests_bad() { return this->m_num_requests_bad.load();}
   
 };
 
