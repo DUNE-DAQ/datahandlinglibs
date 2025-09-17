@@ -196,9 +196,9 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NonZeroLatencyBufferInsertFailures,
-                  "There were " << fail_count << " failures to insert data into the latency buffer out of " <<
+                  "SourceID[" << sourceid << "] There were " << fail_count << " failures to insert data into the latency buffer out of " <<
                   total_count << " attempts in the latest monitoring interval.",
-                  ((int64_t)fail_count)((int64_t)total_count))
+                  ((daqdataformats::SourceID)sourceid)((int64_t)fail_count)((int64_t)total_count))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NewErrorRegistered,
