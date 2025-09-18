@@ -255,24 +255,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
                                             (static_cast<double>(diff1)/62500.0)));
     }
   }
-
-  RDT payload_to_find = payload;
   if (!m_latency_buffer_impl->write(std::move(payload))) {
-    auto start_iter = m_latency_buffer_impl->lower_bound(payload_to_find, false);
-    TLOG() << "TS to insert: " << payload_to_find.get_timestamp() << " lower bound element's TS to that is: " << start_iter->get_timestamp();
+    // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
     return;
   }
-//   if (!m_latency_buffer_impl->write(std::move(payload))) {
-//     // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
-//     m_num_lb_insert_failures++;
-//     return;
-//   }
-
-  //   if (m_sourceid.id == 32 || m_sourceid.id == 22)
-//   {
-//     TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp,channel=" << payload.get_timestamp() << " , " << payload.get_channel() << ")";
-//   }
 
   if (m_processing_delay_ticks == 0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
