@@ -109,9 +109,7 @@ main(int argc, char** argv)
         }
         ts +=25;
         rl.limit();
-        //std::this_thread::sleep_for(std::chrono::milliseconds(5));
       }
-      TLOG() << "Producer joins...";
     });
 
     producers.push_back(std::move(producer));
@@ -133,8 +131,7 @@ main(int argc, char** argv)
         auto headptr = reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(head); // NOLINT
         auto tailts = tailptr->get_timestamp();
         auto headts = headptr->get_timestamp();
-        if (tailts - headts   > max_time_diff) { // ts differnce exceeds maximum
-          TLOG() << "needs cleaning. differnece: " << tailts - headts << std::endl;
+        if (tailts - headts   > max_time_diff) { 
           uint64_t timediff = max_time_diff;   // NOLINT(build/unsigned)
           auto removed_ctr = 0;
           while (timediff >= max_time_diff) {
@@ -151,13 +148,9 @@ main(int argc, char** argv)
           }
           TLOG() << tname << ": Cleared " << removed_ctr << " elements.";
         }
-        else{
-          TLOG()  << "doesn't need cleaning. difference: " << tailts - headts<< std::endl;
-        }
       } else {
         TLOG() << tname << ": Didn't manage to get SKL head and tail!";
       }
-      std::cout << "out of if" << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     TLOG() << "Cleaner joins...";

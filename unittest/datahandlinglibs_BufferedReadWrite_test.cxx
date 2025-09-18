@@ -13,9 +13,9 @@
 
 #include "boost/test/unit_test.hpp"
 
-#include "logging/Logging.hpp"
 #include "datahandlinglibs/utils/BufferedFileReader.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
+#include "logging/Logging.hpp"
 
 #include <cstdio>
 #include <string>
@@ -45,7 +45,7 @@ test_read_write(BufferedFileWriter<>& writer, BufferedFileReader<int>& reader, u
   bool read_successful = false;
   for (uint i = 0; i < numbers.size(); ++i) {
     read_successful = reader.read(read_value);
-    if (!read_successful){
+    if (!read_successful) {
       TLOG() << i << std::endl;
       BOOST_FAIL("Failed to read file at index " + std::to_string(i));
     }

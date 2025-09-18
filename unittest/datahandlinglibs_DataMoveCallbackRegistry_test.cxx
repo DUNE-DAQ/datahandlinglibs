@@ -50,12 +50,10 @@ BOOST_AUTO_TEST_CASE(DataMoveCallbackRegistry_get_callback)
    * @test Returned function must work
    */
   int check;
-  registry->register_callback<int>("cout", [&check](int&& num) {check = num;});
+  registry->register_callback<int>("cout", [&check](int&& num) { check = num; });
   std::shared_ptr<std::function<void(int&&)>> returned_func = registry->get_callback<int>("cout");
   (*returned_func)(42);
   BOOST_CHECK_EQUAL(check, 42);
-
-  
 }
 
 BOOST_AUTO_TEST_SUITE_END()
