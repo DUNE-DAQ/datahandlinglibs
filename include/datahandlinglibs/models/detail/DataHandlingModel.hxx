@@ -250,7 +250,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
     int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
       //m_request_handler_impl->increment_tardy_tp_count();
-      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_sourceid, m_run_number, payload.get_timestamp(),
                                             m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                             (static_cast<double>(diff1)/62500.0)));
     }

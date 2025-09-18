@@ -189,10 +189,10 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   DataPacketArrivedTooLate,
-                  "Received a late data packet in run " << run << ", payload first timestamp = " << ts1 <<
+                  "SourceID[" << sourceid << "] Received a late data packet in run " << run << ", payload first timestamp = " << ts1 <<
                   ", request_handler cutoff timestamp = " << ts2 << ", difference = " << tick_diff <<
                   " ticks, " << msec_diff << " msec.",
-                  ((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
+                  ((daqdataformats::SourceID)sourceid)((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NonZeroLatencyBufferInsertFailures,
