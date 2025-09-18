@@ -209,7 +209,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
    // 08-May-2025, KAB: added a message to warn users when latency buffer inserts are failing.
    int local_num_lb_insert_failures = m_num_lb_insert_failures.exchange(0);
    if (local_num_lb_insert_failures != 0) {
-     ers::warning(NonZeroLatencyBufferInsertFailures(ERS_HERE, local_num_lb_insert_failures, ri.num_payloads()));
+     ers::warning(NonZeroLatencyBufferInsertFailures(ERS_HERE, m_sourceid, local_num_lb_insert_failures, ri.num_payloads()));
    }
 
    ri.set_rate_payloads_consumed(new_packets / seconds / 1000.);
@@ -250,16 +250,17 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
     int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
       //m_request_handler_impl->increment_tardy_tp_count();
-      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_run_number, payload.get_timestamp(),
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_sourceid, m_run_number, payload.get_timestamp(),
                                             m_request_handler_impl->get_cutoff_timestamp(), diff1,
                                             (static_cast<double>(diff1)/62500.0)));
     }
   }
   if (!m_latency_buffer_impl->write(std::move(payload))) {
-    //TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+    // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
     return;
   }
+
   if (m_processing_delay_ticks == 0) {
     m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
     ++m_num_payloads;
