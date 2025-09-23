@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(datahandlinglibs VERSION 3.1.7)
+project(datahandlinglibs VERSION 3.1.8)
 
 find_package(daq-cmake REQUIRED)
 
