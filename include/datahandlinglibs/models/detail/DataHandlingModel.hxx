@@ -397,7 +397,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
         prev_timestamp = timesyncmsg.daq_time;
         timesyncmsg.run_number = m_run_number;
         timesyncmsg.sequence_number = ++msg_seqno;
-        timesyncmsg.source_id = m_sourceid;
+        timesyncmsg.source_id = m_sourceid.id;
         TLOG_DEBUG(TLVL_TIME_SYNCS) << "New timesync: daq=" << timesyncmsg.daq_time
           << " wall=" << timesyncmsg.system_time << " run=" << timesyncmsg.run_number
           << " seqno=" << timesyncmsg.sequence_number << " source_id=" << timesyncmsg.source_id;

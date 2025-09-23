@@ -95,7 +95,6 @@ public:
     , m_latency_buffer_impl(nullptr)
     , m_raw_processor_impl(nullptr)
   {
-    m_pid_of_current_process = getpid();
   }
 
   virtual ~DataHandlingModel() = default;
@@ -225,7 +224,6 @@ protected:
   std::shared_ptr<timesync_sender_ct> m_timesync_sender;
   utilities::ReusableThread m_timesync_thread;
   std::string m_timesync_connection_name;
-  uint32_t m_pid_of_current_process;
 
   // POSTPROCESS SCHEDULER
   utilities::ReusableThread m_postprocess_scheduler_thread;
