@@ -463,8 +463,10 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   }
   else {
     RDT request_element = RDT();
-    request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-    //request_element.set_timestamp(start_win_ts);
+    auto start_timestamp = start_win_ts - (request_element.get_num_frames() * RDT::expected_tick_difference);
+    if (start_timestamp < last_ts)
+      start_timestamp = last_ts;
+    request_element.set_timestamp(start_timestamp);
 
     auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
@@ -490,7 +492,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
 
       RDT* element = &(*start_iter);
    
-      while (start_iter.good() && element->get_timestamp() < end_win_ts) {
+      while (start_iter.good() && element->get_timestamp() <= end_win_ts) {
         if ( element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
         //TLOG() << "skip processing for current element " << element->get_timestamp() << ", out of readout window.";
         } 
