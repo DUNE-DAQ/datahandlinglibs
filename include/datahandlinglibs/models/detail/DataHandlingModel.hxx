@@ -398,10 +398,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
         prev_timestamp = timesyncmsg.daq_time;
         timesyncmsg.run_number = m_run_number;
         timesyncmsg.sequence_number = ++msg_seqno;
-        timesyncmsg.source_pid = m_pid_of_current_process;
+        timesyncmsg.source_id = m_sourceid.id;
         TLOG_DEBUG(TLVL_TIME_SYNCS) << "New timesync: daq=" << timesyncmsg.daq_time
           << " wall=" << timesyncmsg.system_time << " run=" << timesyncmsg.run_number
-          << " seqno=" << timesyncmsg.sequence_number << " pid=" << timesyncmsg.source_pid;
+          << " seqno=" << timesyncmsg.sequence_number << " source_id=" << timesyncmsg.source_id;
         try {
             dfmessages::TimeSync timesyncmsg_copy(timesyncmsg);
           m_timesync_sender->send(std::move(timesyncmsg_copy), std::chrono::milliseconds(500));
