@@ -157,6 +157,12 @@ public:
   virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() {return 0;}
   virtual bool supports_cutoff_timestamp() {return false;}
 
+  // Resets last known/processed DAQ timestamp
+  void reset_oldest_time() { m_oldest_timestamp.store(0); }
+
+  // Returns last processed ReadoutTyped element's DAQ timestamp
+  std::uint64_t get_oldest_time() override { return m_oldest_timestamp.load(); } // NOLINT(build/unsigned)
+
 protected:
   // An inline helper function that creates a fragment header based on a data request
   inline 
@@ -294,7 +300,8 @@ protected:
   std::atomic<int> m_bytes_written{ 0 };
   std::atomic<uint64_t> m_num_periodic_sent{ 0 };  // NOLINT(build/unsigned)
   std::atomic<uint64_t> m_num_periodic_send_failed{ 0 }; // NOLINT(build/unsigned)
-	
+  std::atomic<uint64_t> m_oldest_timestamp{ 0 }; // NOLINT(build/unsigned)
+
   // std::atomic<int> m_avg_req_count{ 0 }; // for opmon, later
   // std::atomic<int> m_avg_resp_time{ 0 };
   // Request response time log (kept for debugging if needed)
