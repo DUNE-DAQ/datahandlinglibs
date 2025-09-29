@@ -61,7 +61,8 @@ ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::conf(const
 // Special record command that writes to files from memory aligned LBs
 template<class ReadoutType, class LatencyBufferType>
 void 
-ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(const nlohmann::json& cmdargs)
+ZeroCopyRecordingRequestHandlerModel<ReadoutType, LatencyBufferType>::record(
+  const appfwk::DAQModule::CommandData_t& cmdargs)
 {
   if (inherited::m_recording.load()) {
     ers::error(

@@ -40,7 +40,7 @@ FakeCardReaderBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)
 }
 
 void
-FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
+FakeCardReaderBase::do_conf(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_conf() method";
 
@@ -86,7 +86,7 @@ FakeCardReaderBase::do_conf(const nlohmann::json& /*args*/)
 }
 
 void
-FakeCardReaderBase::do_scrap(const nlohmann::json& args)
+FakeCardReaderBase::do_scrap(const appfwk::DAQModule::CommandData_t& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_scrap() method";
 
@@ -99,7 +99,7 @@ FakeCardReaderBase::do_scrap(const nlohmann::json& args)
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting do_scrap() method";
 }
 void
-FakeCardReaderBase::do_start(const nlohmann::json& args)
+FakeCardReaderBase::do_start(const appfwk::DAQModule::CommandData_t& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_start() method";
 
@@ -113,7 +113,7 @@ FakeCardReaderBase::do_start(const nlohmann::json& args)
 }
 
 void
-FakeCardReaderBase::do_stop(const nlohmann::json& args)
+FakeCardReaderBase::do_stop(const appfwk::DAQModule::CommandData_t& args)
 {
   TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_stop() method";
 

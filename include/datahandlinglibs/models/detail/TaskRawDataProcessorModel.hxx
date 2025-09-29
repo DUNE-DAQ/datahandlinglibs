@@ -21,7 +21,7 @@ TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::DataHandlerModule* 
 
 template<class ReadoutType>
 void 
-TaskRawDataProcessorModel<ReadoutType>::scrap(const nlohmann::json& /*cfg*/)
+TaskRawDataProcessorModel<ReadoutType>::scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/)
 {
   m_items_to_postprocess_queues.clear();
   m_post_process_threads.clear();
@@ -31,7 +31,7 @@ TaskRawDataProcessorModel<ReadoutType>::scrap(const nlohmann::json& /*cfg*/)
 
 template<class ReadoutType>
 void 
-TaskRawDataProcessorModel<ReadoutType>::start(const nlohmann::json& /*args*/)
+TaskRawDataProcessorModel<ReadoutType>::start(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   // m_last_processed_daq_ts =
   // std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -46,7 +46,7 @@ TaskRawDataProcessorModel<ReadoutType>::start(const nlohmann::json& /*args*/)
 
 template<class ReadoutType>
 void 
-TaskRawDataProcessorModel<ReadoutType>::stop(const nlohmann::json& /*args*/)
+TaskRawDataProcessorModel<ReadoutType>::stop(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   m_run_marker.store(false);
   for (auto& thread : m_post_process_threads) {

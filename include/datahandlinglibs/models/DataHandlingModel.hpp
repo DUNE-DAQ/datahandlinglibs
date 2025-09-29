@@ -95,7 +95,6 @@ public:
     , m_latency_buffer_impl(nullptr)
     , m_raw_processor_impl(nullptr)
   {
-    m_pid_of_current_process = getpid();
   }
 
   virtual ~DataHandlingModel() = default;
@@ -104,10 +103,10 @@ public:
   void init(const appmodel::DataHandlerModule* modconf);
 
   // Configures the readoutmodel and its internals
-  void conf(const nlohmann::json& args);
+  void conf(const appfwk::DAQModule::CommandData_t& args);
 
   // Unconfigures readoutmodel's internals
-  void scrap(const nlohmann::json& args)
+  void scrap(const appfwk::DAQModule::CommandData_t& args)
   {
     m_request_handler_impl->scrap(args);
     m_latency_buffer_impl->scrap(args);
@@ -115,13 +114,13 @@ public:
   }
 
   // Starts readoutmodel's internals
-  void start(const nlohmann::json& args);
+  void start(const appfwk::DAQModule::CommandData_t& args);
 
   // Stops readoutmodel's internals
-  void stop(const nlohmann::json& args);
+  void stop(const appfwk::DAQModule::CommandData_t& args);
 
   // Record function: invokes request handler's record implementation
-  void record(const nlohmann::json& args) override 
+  void record(const appfwk::DAQModule::CommandData_t& args) override 
   { 
     m_request_handler_impl->record(args); 
   }
@@ -225,7 +224,6 @@ protected:
   std::shared_ptr<timesync_sender_ct> m_timesync_sender;
   utilities::ReusableThread m_timesync_thread;
   std::string m_timesync_connection_name;
-  uint32_t m_pid_of_current_process;
 
   // POSTPROCESS SCHEDULER
   utilities::ReusableThread m_postprocess_scheduler_thread;
