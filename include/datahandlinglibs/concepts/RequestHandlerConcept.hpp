@@ -54,7 +54,8 @@ public:
   //! Issue a data request to the request handler
   virtual void issue_request(dfmessages::DataRequest /*dr*/, bool /*is_retry*/) = 0;
 
-
+  //! Get oldest timestamp in the buffer
+  virtual std::uint64_t get_oldest_time() = 0; // NOLINT(build/unsigned)
 protected:
   // Result code of requests
   enum ResultCode

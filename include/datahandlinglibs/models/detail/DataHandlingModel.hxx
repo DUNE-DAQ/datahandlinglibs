@@ -218,6 +218,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
    ri.set_num_requests(m_num_requests.exchange(0));
    ri.set_num_post_processing_delay_max_waits(m_num_post_processing_delay_max_waits.exchange(0));
    ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
+   ri.set_newest_timestamp(m_raw_processor_impl->get_last_daq_time());
+   ri.set_oldest_timestamp(m_request_handler_impl->get_oldest_time());
 
    this->publish(std::move(ri));
  }
