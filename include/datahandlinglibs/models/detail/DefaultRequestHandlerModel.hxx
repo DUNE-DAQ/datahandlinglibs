@@ -389,6 +389,8 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
     m_pops_count += popped;
     m_error_registry->remove_errors_until(m_latency_buffer->front()->get_timestamp());
   }
+  // Update hte oldest timestamp monitorable
+  m_oldest_timestamp = m_latency_buffer->front()->get_timestamp();
   m_num_buffer_cleanups++;
 }
 

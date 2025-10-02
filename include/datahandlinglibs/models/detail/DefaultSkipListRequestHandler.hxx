@@ -35,6 +35,9 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
           timediff = tailts - headts;
         }
         inherited::m_pops_count += removed_ctr;
+    
+        // Update hte oldest timestamp monitorable
+        inherited::m_oldest_timestamp = headts;
       }
     } else {
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Didn't manage to get SKL head and tail!";
