@@ -163,6 +163,12 @@ protected:
     return { reinterpret_cast<RDT&>(original) };
   }
 
+  // Actions postprocess scheduler takes if no data arrives in a configured time
+  virtual void invoke_postprocess_schedule_timeout_policy() const
+  {
+    return; // No-op for this class
+  }    
+
   // Operational monitoring
   virtual void generate_opmon_data() override;
 
