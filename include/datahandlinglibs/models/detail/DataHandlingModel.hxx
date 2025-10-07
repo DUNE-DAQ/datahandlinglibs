@@ -322,10 +322,15 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
   auto now = last_post_proc_time;
   std::chrono::milliseconds milliseconds;
   RDT processed_element;
+  int consecutive_timeouts = 0;
+  const timestamp_t max_wait_in_ticks = m_post_processing_delay_max_wait * 62500;  
 
   // Deferral of the post processing, to allow elements being reordered in the LB
   // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value  
   while (m_run_marker.load()) {
+    bool timeout = false;
+    bool postprocess = false;
+
     try {
       co_await folly::coro::timeout(
         m_baton.operator co_await(),
@@ -333,21 +338,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
         m_timekeeper.get());
       m_baton.reset();
     } catch (const folly::FutureTimeout&) {
-      ++m_num_post_processing_delay_max_waits;
+      timeout = true;
     }
 
     if (m_latency_buffer_impl->occupancy() == 0) {
       continue;
     }
-
-    now = std::chrono::system_clock::now();
-    milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
-
-    if (milliseconds.count() <= m_post_processing_delay_min_wait) {
-      continue;
-    }
-
-    last_post_proc_time = now;
 
     // Get the LB boundaries
     auto tail = m_latency_buffer_impl->back();
@@ -360,8 +356,26 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
       TLOG() << "***** First pass post processing *****";
     }
 
-    if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
-      end_win_ts = newest_ts - m_processing_delay_ticks;
+    now = std::chrono::system_clock::now();
+
+    if (timeout) {      
+      ++m_num_post_processing_delay_max_waits;
+      ++consecutive_timeouts;
+      const timestamp_t timeout_accumulated = consecutive_timeouts * max_wait_in_ticks;      
+      end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
+      postprocess = true;
+    } else {
+      consecutive_timeouts = 0;
+      milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
+      if (milliseconds.count() > m_post_processing_delay_min_wait) {
+        if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
+          end_win_ts = newest_ts - m_processing_delay_ticks;
+          postprocess = true;
+        }
+      }
+    }
+
+    if (postprocess) {
       auto start_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
       processed_element.set_timestamp(end_win_ts);
       auto end_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
@@ -371,6 +385,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
         ++m_num_payloads;
         ++m_sum_payloads;
         ++m_stats_packet_count;
+      }
+
+      last_post_proc_time = now;
+
+      if (timeout) {
+        invoke_postprocess_schedule_timeout_policy();
       }
     }
   }
