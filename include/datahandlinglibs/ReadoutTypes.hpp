@@ -8,6 +8,8 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_READOUTTYPES_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_READOUTTYPES_HPP_
 
+#include "daqdataformats/FragmentHeader.hpp"
+
 #include <cstdint> // uint_t types
 #include <memory>  // unique_ptr
 #include <tuple>   // std::tie
@@ -43,6 +45,12 @@ struct DUMMY_FRAME_STRUCT
     return timestamp;
   }
 
+  size_t get_num_frames() const { return frames_per_element; }
+
+  size_t get_frame_size() const { return frame_size; }
+
+  size_t get_payload_size() const { return get_num_frames() * get_frame_size(); }
+
   void set_another_key(uint64_t compkey)
   {
     another_key = compkey; 
@@ -65,6 +73,11 @@ struct DUMMY_FRAME_STRUCT
   static const constexpr size_t frame_size = DUMMY_FRAME_SIZE;
   static const constexpr uint8_t frames_per_element = 1; // NOLINT(build/unsigned)
   static const constexpr size_t element_size = DUMMY_FRAME_SIZE;
+  static const constexpr dunedaq::daqdataformats::SourceID::Subsystem subsystem =
+    dunedaq::daqdataformats::SourceID::Subsystem::kUnknown;
+  static const constexpr dunedaq::daqdataformats::FragmentType fragment_type =
+    dunedaq::daqdataformats::FragmentType::kUnknown;
+  static const constexpr uint64_t expected_tick_difference = 1;
 };
 
 } // namespace types
