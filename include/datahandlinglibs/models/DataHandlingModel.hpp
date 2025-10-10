@@ -132,6 +132,102 @@ public:
   std::function<void(IDT&&)> m_consume_callback;
 
 protected:
+  class PostprocessManager {
+  public:
+    PostprocessManager(
+      LatencyBufferType& latency_buffer_impl, RawDataProcessorType& raw_processor_impl,
+      uint64_t processing_delay_ticks, uint64_t post_processing_delay_min_wait, uint64_t post_processing_delay_max_wait) : 
+      m_latency_buffer_impl{latency_buffer_impl},
+      m_raw_processor_impl{raw_processor_impl},
+      m_processing_delay_ticks{processing_delay_ticks},
+      m_post_processing_delay_min_wait{post_processing_delay_min_wait},
+      m_post_processing_delay_max_wait{post_processing_delay_max_wait},
+      m_first_cycle{true},
+      m_last_post_proc_time{std::chrono::system_clock::now()},
+      m_consecutive_timeouts{0},
+      m_max_wait_in_ticks{post_processing_delay_max_wait * 62500}
+    {
+    }
+
+    // Deferral of the post processing, to allow elements being reordered in the LB
+    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value      
+    int perform_postprocessing(bool timeout) {
+      if (m_latency_buffer_impl.occupancy() == 0) {
+        return 0;
+      }
+
+      if (m_first_cycle) {
+        auto head = m_latency_buffer_impl.front();
+        m_unprocessed_element.set_timestamp(head->get_timestamp());
+        m_first_cycle = false;
+        TLOG() << "***** First pass post processing *****";
+      }
+
+      // Get the LB boundaries
+      auto tail = m_latency_buffer_impl.back();
+      auto newest_ts = tail->get_timestamp();
+          
+      timestamp_t end_win_ts = 0;
+      std::chrono::time_point<std::chrono::system_clock> now;
+
+      if (timeout) {      
+        ++m_consecutive_timeouts;
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+
+        // Cap to prevent end_win_ts from becoming unnecessarily large
+        timestamp_t timeout_cap = newest_ts + 1;
+        timeout_accumulated = std::min(timeout_accumulated, timeout_cap);  
+
+        end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
+
+      } else {
+        m_consecutive_timeouts = 0;
+        now = std::chrono::system_clock::now();
+        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
+
+        if (milliseconds.count() > m_post_processing_delay_min_wait) {
+          if (newest_ts - m_unprocessed_element.get_timestamp() > m_processing_delay_ticks) {
+            end_win_ts = newest_ts - m_processing_delay_ticks;
+          }
+        }
+      }
+
+      if (end_win_ts == 0) {
+        return 0;
+      }
+
+      auto start_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
+      m_unprocessed_element.set_timestamp(end_win_ts);
+      auto end_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
+
+      if (start_iter == end_iter) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess";
+        return 0;
+      }
+
+      int processed = 0;
+      for (auto it = start_iter; it != end_iter; ++it) {
+        m_raw_processor_impl.postprocess_item(&(*it));
+        ++processed;
+      }
+
+      m_last_post_proc_time = now;
+
+      return processed;
+    }  
+
+  private:
+    LatencyBufferType& m_latency_buffer_impl;
+    RawDataProcessorType& m_raw_processor_impl;
+    const uint64_t m_processing_delay_ticks;
+    const uint64_t m_post_processing_delay_min_wait;
+    const uint64_t m_post_processing_delay_max_wait;  
+    bool m_first_cycle;
+    RDT m_unprocessed_element;
+    int m_consecutive_timeouts;
+    const timestamp_t m_max_wait_in_ticks;  
+    std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
+  };
 
   // Perform processing operations on payload
   void process_item(RDT&& payload);
