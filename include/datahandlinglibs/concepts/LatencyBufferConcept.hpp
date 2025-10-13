@@ -1,5 +1,5 @@
 /**
- * @file LatencyBufferBase.hpp Latency buffer interface class
+ * @file LatencyBufferConcept.hpp Latency buffer interface class
  *
  * This is part of the DUNE DAQ , copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have
@@ -12,16 +12,13 @@
 #include "appmodel/LatencyBuffer.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
-#include <cstddef>
-
 namespace dunedaq {
 namespace datahandlinglibs {
 
 /**
  * Concept of a LatencyBuffer.
  *
- * @tparam RawType the type of contained elements
- * @tparam KeyType the type of key for searchability
+ * @tparam T the type of contained elements
  */
 template<class T>
 class LatencyBufferConcept : public opmonlib::MonitorableObject
@@ -31,7 +28,7 @@ public:
   LatencyBufferConcept() {}
 
   virtual ~LatencyBufferConcept() {}
-  
+
   LatencyBufferConcept(const LatencyBufferConcept&) = delete; ///< LatencyBufferConcept is not copy-constructible
   LatencyBufferConcept& operator=(const LatencyBufferConcept&) =
     delete;                                                         ///< LatencyBufferConcept is not copy-assginable
@@ -48,13 +45,10 @@ public:
   virtual std::size_t occupancy() const = 0;
 
   //! Move referenced object into LB
-  virtual bool write(T&& element) = 0;
+  virtual std::pair<const T*, bool> write(T&& element) = 0;
 
   //! Move object from LB to referenced
   virtual bool read(T& element) = 0;
-
-  //! Write referenced object into LB without moving it
-  // virtual bool put(T& element) = 0;
 
   //! Get pointer to the front of the LB
   virtual const T* front() = 0;
@@ -68,7 +62,7 @@ public:
   //! Flush all elements from the latency buffer
   virtual void flush() = 0;
 
-  //! Whether or not the buffer is allocatable. false by default
+  //! Allocate memory for LB
   virtual void allocate_memory(size_t /*size*/) = 0;
 };
 

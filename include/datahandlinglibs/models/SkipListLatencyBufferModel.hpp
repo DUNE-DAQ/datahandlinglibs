@@ -95,7 +95,7 @@ private:
   // Override interface implementations
   size_t occupancy() const override;
   void flush() override { pop(occupancy()); }
-  bool write(T&& new_element) override;
+  std::pair<const T*, bool> write(T&& new_element) override;
   bool put(T& new_element); // override
   bool read(T& element) override;
 

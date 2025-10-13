@@ -84,6 +84,8 @@ daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.c
 #daq_add_unit_test(datahandlinglibs_VariableSizeElementQueue_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_DataMoveCallbackRegistry_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_DataHandlingModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_SkiplistLatencyBufferModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_IterableQueueModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Installation

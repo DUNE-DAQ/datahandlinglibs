@@ -257,14 +257,15 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
                                             (static_cast<double>(diff1)/62500.0)));
     }
   }
-  if (!m_latency_buffer_impl->write(std::move(payload))) {
+  const auto [written, result] = m_latency_buffer_impl->write(std::move(payload));
+  if (!result) {
     // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
     return;
   }
 
   if (m_processing_delay_ticks == 0) {
-    m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
+    m_raw_processor_impl->postprocess_item(written);
     ++m_num_payloads;
     ++m_sum_payloads;
     ++m_stats_packet_count;
