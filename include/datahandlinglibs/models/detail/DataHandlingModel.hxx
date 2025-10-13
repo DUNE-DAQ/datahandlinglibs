@@ -310,19 +310,23 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 folly::coro::Task<void>
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {  
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
+{
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
-  PostprocessScheduleAlgorithm sched_algo{
-    *m_latency_buffer_impl, *m_raw_processor_impl, m_processing_delay_ticks, m_post_processing_delay_min_wait, m_post_processing_delay_max_wait};
+  PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
+                                           *m_raw_processor_impl,
+                                           m_processing_delay_ticks,
+                                           m_post_processing_delay_min_wait,
+                                           m_post_processing_delay_max_wait };
 
   while (m_run_marker.load()) {
     bool timeout = false;
 
-     try {
+    try {
       co_await folly::coro::timeout(
         m_baton.operator co_await(),
-        std::chrono::milliseconds{m_post_processing_delay_max_wait},
+        std::chrono::milliseconds{ m_post_processing_delay_max_wait },
         m_timekeeper.get());
       m_baton.reset();
     } catch (const folly::FutureTimeout&) {
