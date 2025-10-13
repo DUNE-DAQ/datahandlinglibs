@@ -313,7 +313,7 @@ folly::coro::Task<void>
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {  
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
-  PostprocessScheduleAlgorithm algorithm{
+  PostprocessScheduleAlgorithm sched_algo{
     *m_latency_buffer_impl, *m_raw_processor_impl, m_processing_delay_ticks, m_post_processing_delay_min_wait, m_post_processing_delay_max_wait};
 
   while (m_run_marker.load()) {
@@ -330,7 +330,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {
       ++m_num_post_processing_delay_max_waits;
     }
 
-    if (auto processed = algorithm.run(timeout); processed > 0) {
+    if (auto processed = sched_algo.run(timeout); processed > 0) {
       m_num_payloads += processed;
       m_sum_payloads += processed;
       m_stats_packet_count += processed;
