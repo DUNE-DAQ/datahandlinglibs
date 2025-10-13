@@ -48,22 +48,30 @@ BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBuffe
   const uint64_t delay_min_wait = 1;
   const uint64_t delay_max_wait = 2;
   
-  typename decltype(model)::PostprocessManager manager{
+  typename decltype(model)::PostprocessScheduleAlgorithm algorithm{
     *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait};     
     
   // First pass
   bool timeout = false;
-  int processed_count = manager.perform_postprocessing(timeout);
+  int processed_count = algorithm.run(timeout);
+  // Buffer = {1, 2, 3, 4, 5} delay_ticks = 4
+  // 5 - 1 > 4 is false => no postprocessing
   BOOST_REQUIRE_EQUAL(processed_count, 0);
 
   timeout = true;
-  processed_count += manager.perform_postprocessing(timeout);
+  // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
+  // end_win_ts = 5 - 4 + 2 => postprocess until 3 {1, 2}
+  processed_count += algorithm.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 2);
 
-  processed_count += manager.perform_postprocessing(timeout);
+  // 2nd timeout => timeout_accumulated = 2 * 2
+  // end_win_ts = 5 - 4 + 4 => postprocess until 5 {3, 4}  
+  processed_count += algorithm.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 4);
   
-  processed_count += manager.perform_postprocessing(timeout);
+  // 3rd timeout => timeout_accumulated = 3 * 2
+  // end_win_ts = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}    
+  processed_count += algorithm.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 5);
 }
 
