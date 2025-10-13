@@ -77,7 +77,7 @@ struct DUMMY_FRAME_STRUCT
     dunedaq::daqdataformats::SourceID::Subsystem::kUnknown;
   static const constexpr dunedaq::daqdataformats::FragmentType fragment_type =
     dunedaq::daqdataformats::FragmentType::kUnknown;
-  static const constexpr uint64_t expected_tick_difference = 1;
+  static const constexpr uint64_t expected_tick_difference = 1; // NOLINT(build/unsigned)
 };
 
 } // namespace types

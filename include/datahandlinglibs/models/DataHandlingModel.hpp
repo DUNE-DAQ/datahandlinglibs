@@ -49,6 +49,7 @@
 #include <folly/coro/Task.h>
 #include <folly/futures/ThreadWheelTimekeeper.h>
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -132,26 +133,30 @@ public:
   std::function<void(IDT&&)> m_consume_callback;
 
 protected:
-  class PostprocessScheduleAlgorithm {
+  class PostprocessScheduleAlgorithm
+  {
   public:
-    PostprocessScheduleAlgorithm(
-      LatencyBufferType& latency_buffer_impl, RawDataProcessorType& raw_processor_impl,
-      uint64_t processing_delay_ticks, uint64_t post_processing_delay_min_wait, uint64_t post_processing_delay_max_wait) : 
-      m_latency_buffer_impl{latency_buffer_impl},
-      m_raw_processor_impl{raw_processor_impl},
-      m_processing_delay_ticks{processing_delay_ticks},
-      m_post_processing_delay_min_wait{post_processing_delay_min_wait},
-      m_post_processing_delay_max_wait{post_processing_delay_max_wait},
-      m_first_cycle{true},
-      m_last_post_proc_time{std::chrono::system_clock::now()},
-      m_consecutive_timeouts{0},
-      m_max_wait_in_ticks{post_processing_delay_max_wait * 62500}
+    PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
+                                 RawDataProcessorType& raw_processor_impl,
+                                 uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
+      : m_latency_buffer_impl{ latency_buffer_impl }
+      , m_raw_processor_impl{ raw_processor_impl }
+      , m_processing_delay_ticks{ processing_delay_ticks }
+      , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
+      , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
+      , m_first_cycle{ true }
+      , m_last_post_proc_time{ std::chrono::system_clock::now() }
+      , m_consecutive_timeouts{ 0 }
+      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 }
     {
     }
 
     // Deferral of the post processing, to allow elements being reordered in the LB
-    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value      
-    int run(bool timeout) {
+    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
+    int run(bool timeout)
+    {
       if (m_latency_buffer_impl.occupancy() == 0) {
         TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
         return 0;
@@ -217,9 +222,9 @@ protected:
   private:
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
-    const uint64_t m_processing_delay_ticks;
-    const uint64_t m_post_processing_delay_min_wait;
-    const uint64_t m_post_processing_delay_max_wait;  
+    const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
     bool m_first_cycle;
     RDT m_unprocessed_element;
     int m_consecutive_timeouts;
@@ -277,9 +282,9 @@ protected:
   int m_current_fake_trigger_id;
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
-  uint64_t m_processing_delay_ticks;
-  uint64_t m_post_processing_delay_min_wait;
-  uint64_t m_post_processing_delay_max_wait;
+  uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;

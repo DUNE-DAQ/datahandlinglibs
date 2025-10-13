@@ -10,9 +10,12 @@
 
 #include "boost/test/unit_test.hpp"
 
-#include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
+#include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
+
+#include <memory>
+#include <utility>
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_DataHandlingModel_test)
 
@@ -24,11 +27,11 @@ BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBuffe
 {
   std::atomic<bool> run_marker = true;
 
-  auto model = unittest::MockDataHandlingModel<
-    ReadoutType,
-    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
-    SkipListLatencyBufferModel<ReadoutType>,
-    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+  auto model =
+    unittest::MockDataHandlingModel<ReadoutType,
+                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
+                                    SkipListLatencyBufferModel<ReadoutType>,
+                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
 
   auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
 
@@ -40,17 +43,18 @@ BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBuffe
 
   const bool post_processing_enabled = true;
   auto error_registry = std::make_unique<FrameErrorRegistry>();
-  
-  auto raw_processor = 
+
+  auto raw_processor =
     std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
 
-  const uint64_t delay_ticks = 4 * 62500;
-  const uint64_t delay_min_wait = 1;
-  const uint64_t delay_max_wait = 2;
-  
+  const uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
+  const uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
+  const uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait};     
-    
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
+  };
+
   // First pass
   bool timeout = false;
   int processed_count = sched_algo.run(timeout);
@@ -65,12 +69,12 @@ BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBuffe
   BOOST_REQUIRE_EQUAL(processed_count, 2);
 
   // 2nd timeout => timeout_accumulated = 2 * 2
-  // end_win_ts = 5 - 4 + 4 => postprocess until 5 {3, 4}  
+  // end_win_ts = 5 - 4 + 4 => postprocess until 5 {3, 4}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 4);
-  
+
   // 3rd timeout => timeout_accumulated = 3 * 2
-  // end_win_ts = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}    
+  // end_win_ts = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 5);
 }
