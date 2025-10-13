@@ -1,5 +1,7 @@
 // Declarations for SkipListLatencyBufferModel
 
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
+
 namespace dunedaq {
 namespace datahandlinglibs {
 
