@@ -147,6 +147,7 @@ protected:
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
       , m_first_cycle{ true }
+      , m_unprocessed_element{}
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
       , m_consecutive_timeouts{ 0 }
       , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 }
@@ -174,29 +175,29 @@ protected:
       auto newest_ts = tail->get_timestamp();
           
       timestamp_t end_win_ts = 0;
-      std::chrono::time_point<std::chrono::system_clock> now;
+      std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
 
       if (timeout) {      
         ++m_consecutive_timeouts;
         timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
 
         end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
-        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large
+        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
       } else {
         m_consecutive_timeouts = 0;
-        now = std::chrono::system_clock::now();
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
 
         if (milliseconds.count() > m_post_processing_delay_min_wait) {
           if (newest_ts - m_unprocessed_element.get_timestamp() > m_processing_delay_ticks) {
             end_win_ts = newest_ts - m_processing_delay_ticks;
+          } else {
+            TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
+            return 0;
           }
+        } else {
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
+          return 0;
         }
-      }
-
-      if (end_win_ts == 0) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (end_win_ts == 0)";
-        return 0;
       }
 
       auto start_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
