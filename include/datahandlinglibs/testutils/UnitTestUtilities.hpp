@@ -22,7 +22,7 @@ public:
   using Base = 
     DataHandlingModel<ReadoutType, RequestHandlerType, LatencyBufferType, RawDataProcessorType, InputDataType>;
   using Base::Base;
-  using Base::PostprocessManager;
+  using Base::PostprocessScheduleAlgorithm;
 };
 
 }
