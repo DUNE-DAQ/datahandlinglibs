@@ -23,7 +23,7 @@ using namespace dunedaq::datahandlinglibs;
 
 using ReadoutType = types::DUMMY_FRAME_STRUCT;
 
-BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBufferModel)
+BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgorithm_timeout)
 {
   std::atomic<bool> run_marker = true;
 
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBuffe
   auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
 
   for (int i = 1; i < 6; i++) {
-    ReadoutType frame;
+    ReadoutType frame{};
     frame.timestamp = i * 62500;
     buffer->write(std::move(frame));
   }
