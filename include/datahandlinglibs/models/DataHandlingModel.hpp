@@ -133,9 +133,9 @@ public:
   std::function<void(IDT&&)> m_consume_callback;
 
 protected:
-  class PostprocessManager {
+  class PostprocessScheduleAlgorithm {
   public:
-    PostprocessManager(
+    PostprocessScheduleAlgorithm(
       LatencyBufferType& latency_buffer_impl, RawDataProcessorType& raw_processor_impl,
       uint64_t processing_delay_ticks, uint64_t post_processing_delay_min_wait, uint64_t post_processing_delay_max_wait) : 
       m_latency_buffer_impl{latency_buffer_impl},
@@ -152,8 +152,9 @@ protected:
 
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value      
-    int perform_postprocessing(bool timeout) {
+    int run(bool timeout) {
       if (m_latency_buffer_impl.occupancy() == 0) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
         return 0;
       }
 
@@ -175,12 +176,8 @@ protected:
         ++m_consecutive_timeouts;
         timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
 
-        // Cap to prevent end_win_ts from becoming unnecessarily large
-        timestamp_t timeout_cap = newest_ts + 1;
-        timeout_accumulated = std::min(timeout_accumulated, timeout_cap);  
-
         end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
-
+        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large
       } else {
         m_consecutive_timeouts = 0;
         now = std::chrono::system_clock::now();
@@ -194,6 +191,7 @@ protected:
       }
 
       if (end_win_ts == 0) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (end_win_ts == 0)";
         return 0;
       }
 
@@ -202,7 +200,7 @@ protected:
       auto end_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
 
       if (start_iter == end_iter) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess";
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
         return 0;
       }
 
