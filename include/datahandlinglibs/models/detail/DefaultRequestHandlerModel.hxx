@@ -480,7 +480,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
     else {
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " 
 	      << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
-      if (end_win_ts > newest_ts) {
+      if (end_win_ts >= newest_ts) {
          rres.result_code = ResultCode::kPartial;
       }
       else if (start_win_ts < last_ts) {
@@ -494,7 +494,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
 
       RDT* element = &(*start_iter);
    
-      while (start_iter.good() && element->get_timestamp() <= end_win_ts) {
+      while (start_iter.good() && element->get_timestamp() < end_win_ts) {
         if ( element->get_timestamp() + element->get_num_frames() * RDT::expected_tick_difference <= start_win_ts) {
         //TLOG() << "skip processing for current element " << element->get_timestamp() << ", out of readout window.";
         } 
