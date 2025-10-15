@@ -85,6 +85,13 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
   m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
   
+  if (m_processing_delay_ticks) {
+    if constexpr (!SupportsDelayedPostprocessing<LBT>) {
+      ers::error(ConfigurationError(ERS_HERE, m_sourceid,
+        "Delayed postprocessing (post_processing_delay_ticks > 0) requires a sorted buffer (SkipList). "
+        "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use post_processing_delay_ticks = 0."));
+    }
+  }
 
   // Configure implementations:
   m_raw_processor_impl->conf(mcfg);
