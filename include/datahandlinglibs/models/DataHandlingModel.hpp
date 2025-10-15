@@ -147,7 +147,7 @@ protected:
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
       , m_first_cycle{ true }
-      , m_unprocessed_element{}
+      , m_processed_up_to{}
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
       , m_consecutive_timeouts{ 0 }
       , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 }
@@ -165,7 +165,7 @@ protected:
 
       if (m_first_cycle) {
         auto head = m_latency_buffer_impl.front();
-        m_unprocessed_element.set_timestamp(head->get_timestamp());
+        m_processed_up_to.set_timestamp(head->get_timestamp());
         m_first_cycle = false;
         TLOG() << "***** First pass post processing *****";
       }
@@ -178,6 +178,11 @@ protected:
       std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
 
       if (timeout) {      
+        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
+          return 0;
+        }        
+
         ++m_consecutive_timeouts;
         timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
 
@@ -188,7 +193,7 @@ protected:
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
 
         if (milliseconds.count() > m_post_processing_delay_min_wait) {
-          if (newest_ts - m_unprocessed_element.get_timestamp() > m_processing_delay_ticks) {
+          if (newest_ts - m_processed_up_to.get_timestamp() > m_processing_delay_ticks) {
             end_win_ts = newest_ts - m_processing_delay_ticks;
           } else {
             TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
@@ -200,9 +205,9 @@ protected:
         }
       }
 
-      auto start_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
-      m_unprocessed_element.set_timestamp(end_win_ts);
-      auto end_iter = m_latency_buffer_impl.lower_bound(m_unprocessed_element, false);
+      auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+      m_processed_up_to.set_timestamp(end_win_ts);
+      auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
 
       if (start_iter == end_iter) {
         TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
@@ -227,7 +232,7 @@ protected:
     const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
     bool m_first_cycle;
-    RDT m_unprocessed_element;
+    RDT m_processed_up_to;
     int m_consecutive_timeouts;
     const timestamp_t m_max_wait_in_ticks;  
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
