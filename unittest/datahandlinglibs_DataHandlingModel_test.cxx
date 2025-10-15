@@ -77,6 +77,11 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   // end_win_ts = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 5);
+
+  // 4th timeout
+  // m_processed_up_to.timestamp = newest_ts + 1 => nothing to postprocess (at cap)
+  processed_count += sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 5);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
