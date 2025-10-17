@@ -344,16 +344,21 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
   while (m_run_marker.load()) {
     bool timeout = false;
 
-    try {
-      co_await folly::coro::timeout(
-        wait_data(),
-        std::chrono::milliseconds{ m_post_processing_delay_max_wait },
-        m_timekeeper.get());
+    if ( m_post_processing_delay_max_wait > 0 ) {
+      try {
+        co_await folly::coro::timeout(
+          wait_data(),
+          std::chrono::milliseconds{ m_post_processing_delay_max_wait },
+          m_timekeeper.get());
 
-    } catch (const folly::FutureTimeout&) {
-      timeout = true;
-      ++m_num_post_processing_delay_max_waits;
+      } catch (const folly::FutureTimeout&) {
+        timeout = true;
+        ++m_num_post_processing_delay_max_waits;
+      }
+    } else {
+      co_await m_baton;
     }
+
     m_baton.reset();
 
     if (auto processed = sched_algo.run(timeout); processed > 0) {
