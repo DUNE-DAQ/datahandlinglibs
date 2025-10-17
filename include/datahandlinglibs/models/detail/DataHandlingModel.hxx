@@ -2,6 +2,9 @@
 
 #include <folly/coro/BlockingWait.h>
 #include <folly/coro/Timeout.h>
+#include <folly/futures/ThreadWheelTimekeeper.h>
+#include <folly/coro/CurrentExecutor.h>
+#include <folly/CancellationToken.h>
 
 #include <typeinfo>
 
@@ -323,25 +326,35 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
+
   PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
                                            *m_raw_processor_impl,
                                            m_processing_delay_ticks,
                                            m_post_processing_delay_min_wait,
                                            m_post_processing_delay_max_wait };
+                                           
+  const auto wait_data = [this]() -> folly::coro::Task<void> {
+    // folly::coro::timeout cancels the task on timeout.
+    // Baton is not cancellable, so we attach a callback to resume the coroutine.
+    auto token = co_await folly::coro::co_current_cancellation_token;
+    folly::CancellationCallback cb(token, [this] { m_baton.post(); });
+    co_await m_baton; // Wait data
+  };
 
   while (m_run_marker.load()) {
     bool timeout = false;
 
     try {
       co_await folly::coro::timeout(
-        m_baton.operator co_await(),
+        wait_data(),
         std::chrono::milliseconds{ m_post_processing_delay_max_wait },
         m_timekeeper.get());
-      m_baton.reset();
+
     } catch (const folly::FutureTimeout&) {
       timeout = true;
       ++m_num_post_processing_delay_max_waits;
     }
+    m_baton.reset();
 
     if (auto processed = sched_algo.run(timeout); processed > 0) {
       m_num_payloads += processed;
