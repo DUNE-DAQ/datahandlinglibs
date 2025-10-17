@@ -47,7 +47,7 @@
 
 #include <folly/coro/Baton.h>
 #include <folly/coro/Task.h>
-#include <folly/futures/ThreadWheelTimekeeper.h>
+#include <folly/futures/Future.h>
 
 #include <algorithm>
 #include <functional>
@@ -336,7 +336,7 @@ protected:
   // POSTPROCESS SCHEDULER
   utilities::ReusableThread m_postprocess_scheduler_thread;
   folly::coro::Baton m_baton;
-  std::unique_ptr<folly::ThreadWheelTimekeeper> m_timekeeper;
+  std::unique_ptr<folly::Timekeeper> m_timekeeper;
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
