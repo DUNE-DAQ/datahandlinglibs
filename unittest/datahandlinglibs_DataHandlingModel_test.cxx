@@ -14,6 +14,8 @@
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
 #include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
 
+#include <folly/futures/ManualTimekeeper.h>
+
 #include <memory>
 #include <utility>
 
@@ -22,6 +24,48 @@ BOOST_AUTO_TEST_SUITE(datahandlinglibs_DataHandlingModel_test)
 using namespace dunedaq::datahandlinglibs;
 
 using ReadoutType = types::DUMMY_FRAME_STRUCT;
+
+BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_run_postprocess_scheduler_timeout)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model =
+    unittest::MockDataHandlingModel<ReadoutType,
+                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
+                                    SkipListLatencyBufferModel<ReadoutType>,
+                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>(); // Empty buffer
+
+  constexpr bool post_processing_enabled = true;
+  auto error_registry = std::make_unique<FrameErrorRegistry>();
+
+  auto raw_processor =
+    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+
+  auto timekeeper = std::make_unique<folly::ManualTimekeeper>();
+  auto* timekeeper_ptr = timekeeper.get();
+
+  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+
+  std::thread coro_thread([&]() {
+    model.test_run_postprocess_scheduler(buffer, raw_processor, std::move(timekeeper), delay_max_wait);
+  });
+
+  // Wait for coroutine to start then timeout to get registered
+  while (timekeeper_ptr->numScheduled() == 0) {
+    std::this_thread::sleep_for(1ms);
+  }
+  // Safe-guard for the delay between timeout registration and coroutine suspension  
+  // If the test is failing, consider a longer sleep or a better way to synchronize
+  std::this_thread::sleep_for(1ms);
+  timekeeper_ptr->advance(std::chrono::milliseconds{ delay_max_wait }); // Trigger a timeout
+
+  model.set_run_marker(false); // Let coroutine end
+  coro_thread.join(); // The test will stuck here if timeout is not triggered (because of folly::coro::blockingWait)
+
+  BOOST_REQUIRE_EQUAL(model.get_num_post_processing_delay_max_waits(), 1);
+}
 
 BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgorithm_timeout)
 {
@@ -41,15 +85,15 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     buffer->write(std::move(frame));
   }
 
-  const bool post_processing_enabled = true;
+  constexpr bool post_processing_enabled = true;
   auto error_registry = std::make_unique<FrameErrorRegistry>();
 
   auto raw_processor =
     std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
 
-  const uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
-  const uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
-  const uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
     *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
