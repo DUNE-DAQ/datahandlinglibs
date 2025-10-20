@@ -324,6 +324,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
+  TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait << " *****";
+
 
   PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
                                            *m_raw_processor_impl,
