@@ -35,10 +35,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
           words.push_back(conn_name.substr(start, end - start));
         }
 
-	TLOG_DEBUG(TLVL_WORK_STEPS) << "Initialize connection based on uid: " 
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Initialize connection based on uid: " 
           << m_raw_data_receiver_connection_name << " front word: " << words.front();
 
-	std::string cb_prefix("cb");
+        std::string cb_prefix("cb");
         if (words.front() == cb_prefix) {
           m_callback_mode = true;
         }
@@ -343,23 +343,50 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
     co_await m_baton; // Wait data
   };
 
+
+  folly::CancellationSource src_2g;
+
+  const auto wait_data_2g = [this]() -> folly::coro::Task<void> {
+    // folly::coro::timeout cancels the task on timeout.
+    // Baton is not cancellable, so we attach a callback to resume the coroutine.
+    // auto token = co_await folly::coro::co_current_cancellation_token;
+    // folly::CancellationCallback cb(token, [this] { m_baton.post(); });
+    co_await m_baton; // Wait data
+  };
+
+  folly::CancellationCallback cb(src_2g.getToken(), [this] { m_baton.post(); });
+
+  auto wait_data_with_can_2g = folly::coro::co_withCancellation(src_2g.getToken(), std::move(wait_data_2g));
+
+
   while (m_run_marker.load()) {
     bool timeout = false;
 
-    if ( m_post_processing_delay_max_wait > 0 ) {
-      try {
-        co_await folly::coro::timeout(
-          wait_data(),
-          std::chrono::milliseconds{ m_post_processing_delay_max_wait },
-          m_timekeeper.get());
+    // if ( m_post_processing_delay_max_wait > 0) {
+    //   try {
+    //     co_await folly::coro::timeout(
+    //       wait_data(),
+    //       std::chrono::milliseconds{ m_post_processing_delay_max_wait },
+    //       m_timekeeper.get());
 
-      } catch (const folly::FutureTimeout&) {
-        timeout = true;
-        ++m_num_post_processing_delay_max_waits;
-      }
-    } else {
-      co_await m_baton;
+    //   } catch (const folly::FutureTimeout&) {
+    //     timeout = true;
+    //     ++m_num_post_processing_delay_max_waits;
+    //   }
+    // } else {
+    //   co_await m_baton;
+    // }
+
+    try {
+      co_await folly::coro::timeout(
+        wait_data_with_can_2g(),
+        std::chrono::milliseconds{ m_post_processing_delay_max_wait },
+        m_timekeeper.get());
+    } catch (const folly::FutureTimeout&) {
+      timeout = true;
+      ++m_num_post_processing_delay_max_waits;
     }
+
 
     m_baton.reset();
 

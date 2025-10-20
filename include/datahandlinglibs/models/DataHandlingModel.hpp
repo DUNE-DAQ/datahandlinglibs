@@ -168,6 +168,7 @@ protected:
         m_processed_up_to.set_timestamp(head->get_timestamp());
         m_first_cycle = false;
         TLOG() << "***** First pass post processing *****";
+        TLOG() << "***** postproc max wait " << m_post_processing_delay_max_wait << " *****";
       }
 
       // Get the LB boundaries
