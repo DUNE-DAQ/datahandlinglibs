@@ -49,7 +49,6 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
     ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Auto-pop percentage out of range."));
   } else {
     m_pop_limit_size = m_pop_limit_pct * m_buffer_capacity;
-    m_max_requested_elements = m_pop_limit_size - m_pop_limit_size * m_pop_size_pct;
   }
 
   m_recording_thread.set_name("recording", m_sourceid.id);
@@ -59,8 +58,7 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   std::ostringstream oss;
   oss << "RequestHandler configured. " << std::fixed << std::setprecision(2)
       << "auto-pop limit: " << m_pop_limit_pct * 100.0f << "% "
-      << "auto-pop size: " << m_pop_size_pct * 100.0f << "% "
-      << "max requested elements: " << m_max_requested_elements;
+      << "auto-pop size: " << m_pop_size_pct * 100.0f << "% ";
   TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
 }
 
