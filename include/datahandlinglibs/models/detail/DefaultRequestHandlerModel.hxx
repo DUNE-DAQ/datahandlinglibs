@@ -58,7 +58,7 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   std::ostringstream oss;
   oss << "RequestHandler configured. " << std::fixed << std::setprecision(2)
       << "auto-pop limit: " << m_pop_limit_pct * 100.0f << "% "
-      << "auto-pop size: " << m_pop_size_pct * 100.0f << "% ";
+      << "auto-pop size: " << m_pop_size_pct * 100.0f << "%";
   TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
 }
 
