@@ -241,7 +241,6 @@ protected:
   std::map<dfmessages::DataRequest, int> m_request_counter;
 
   // Requests
-  std::size_t m_max_requested_elements;
   std::mutex m_cv_mutex;
   std::condition_variable m_cv;
   std::atomic<bool> m_cleanup_requested = false;
