@@ -12,8 +12,8 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   m_sourceid.id = conf->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
   m_detid = conf->get_detector_id();
-  m_pop_limit_pct = reqh_conf->get_pop_limit_pct();
-  m_pop_size_pct = reqh_conf->get_pop_size_pct();
+  m_cleanup_min_occupancy_ratio = reqh_conf->get_cleanup_min_occupancy_ratio();
+  m_cleanup_ratio = reqh_conf->get_cleanup_ratio();
 
   m_buffer_capacity = conf->get_module_configuration()->get_latency_buffer()->get_size();
   m_num_request_handling_threads = reqh_conf->get_handler_threads();
@@ -45,10 +45,10 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   m_warn_about_empty_buffer = reqh_conf->get_warn_on_empty_buffer();
   m_periodic_data_transmission_ms = reqh_conf->get_periodic_data_transmission_ms();
   
-  if (m_pop_limit_pct < 0.0f || m_pop_limit_pct > 1.0f || m_pop_size_pct < 0.0f || m_pop_size_pct > 1.0f) {
-    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Auto-pop percentage out of range."));
+  if (m_cleanup_min_occupancy_ratio < 0.0f || m_cleanup_min_occupancy_ratio > 1.0f || m_cleanup_ratio < 0.0f || m_cleanup_ratio > 1.0f) {
+    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Cleanup ratio out of range."));
   } else {
-    m_pop_limit_size = m_pop_limit_pct * m_buffer_capacity;
+    m_cleanup_min_occupancy = m_cleanup_min_occupancy_ratio * m_buffer_capacity;
   }
 
   m_recording_thread.set_name("recording", m_sourceid.id);
@@ -57,8 +57,8 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
 
   std::ostringstream oss;
   oss << "RequestHandler configured. " << std::fixed << std::setprecision(2)
-      << "auto-pop limit: " << m_pop_limit_pct * 100.0f << "% "
-      << "auto-pop size: " << m_pop_size_pct * 100.0f << "%";
+      << "Minimum buffer occupancy ratio required to allow cleanup: " << m_cleanup_min_occupancy_ratio * 100.0f << "% "
+      << "Buffer ratio to cleanup: " << m_cleanup_ratio * 100.0f << "%";
   TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
 }
 
@@ -213,7 +213,7 @@ void
 DefaultRequestHandlerModel<RDT, LBT>::cleanup_check()
 {
   std::unique_lock<std::mutex> lock(m_cv_mutex);
-  if (m_latency_buffer->occupancy() > m_pop_limit_size && !m_cleanup_requested.exchange(true)) {
+  if (m_latency_buffer->occupancy() > m_cleanup_min_occupancy && !m_cleanup_requested.exchange(true)) {
     m_cv.wait(lock, [&] { return m_requests_running == 0; });
     cleanup();
     m_cleanup_requested = false;
@@ -370,9 +370,9 @@ void
 DefaultRequestHandlerModel<RDT, LBT>::cleanup()
 {
   auto size_guess = m_latency_buffer->occupancy();
-  if (size_guess > m_pop_limit_size) {
+  if (size_guess > m_cleanup_min_occupancy) {
     ++m_pop_reqs;
-    unsigned to_pop = m_pop_size_pct * m_latency_buffer->occupancy();
+    unsigned to_pop = m_cleanup_ratio * m_latency_buffer->occupancy();
 
     unsigned popped = 0;
     for (size_t i = 0; i < to_pop; ++i) {
