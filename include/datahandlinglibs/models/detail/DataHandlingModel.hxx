@@ -12,6 +12,7 @@ template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModule* mcfg)
 {
+  m_configs = mcfg;
   // Setup request queues
   //setup_request_queues(mcfg);
   try {
@@ -85,23 +86,23 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
   m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
   
-
-  // Configure implementations:
-  m_raw_processor_impl->conf(mcfg);
-  // Configure the latency buffer before the request handler so the request handler can check for alignment
-  // restrictions
-  try {
-    m_latency_buffer_impl->conf(mcfg->get_module_configuration()->get_latency_buffer());
-  } catch (const std::bad_alloc& be) {
-    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Latency Buffer can't be allocated with size!"));
-  }
-  m_request_handler_impl->conf(mcfg);
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void 
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
+  // Configure implementations:
+  m_raw_processor_impl->conf(m_configs);
+  // Configure the latency buffer before the request handler so the request handler can check for alignment
+  // restrictions
+  try {
+    m_latency_buffer_impl->conf(m_configs->get_module_configuration()->get_latency_buffer());
+  } catch (const std::bad_alloc& be) {
+    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Latency Buffer can't be allocated with size!"));
+  }
+  m_request_handler_impl->conf(m_configs);
+
   // Register callbacks if operating in that mode.
   if (m_callback_mode) {
     // Configure and register consume callback

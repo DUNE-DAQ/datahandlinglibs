@@ -171,6 +171,7 @@ protected:
 
   // CONFIGURATION
   //appfwk::app::ModInit m_queue_config;
+  const appmodel::DataHandlerModule* m_configs;
   bool m_callback_mode;
   bool m_fake_trigger;
   bool m_generate_timesync = false;
