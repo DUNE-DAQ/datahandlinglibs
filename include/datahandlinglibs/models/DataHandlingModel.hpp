@@ -220,7 +220,7 @@ protected:
           return 0;
         }
       }
-      auto old_process_up_to = m_processed_up_to;
+
       auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
       m_processed_up_to.set_timestamp(end_win_ts);
       auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
