@@ -368,9 +368,6 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
       m_sum_payloads += processed;
       m_stats_packet_count += processed;
 
-      if (timeout) {
-        invoke_postprocess_schedule_timeout_policy();
-      }      
     }
   }
 }
