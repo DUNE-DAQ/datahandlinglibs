@@ -151,13 +151,27 @@ protected:
       , m_processed_up_to{}
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
       , m_consecutive_timeouts{ 0 }
-      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 }
+      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
     {
     }
 
+    // High-level interface
+    // Schedule deferred post-processing and notify timeout expiration to the processor
+    int run(bool timeout) {
+      int processed = this->do_run(timeout);
+
+      if (timeout) {
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+        m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
+      }
+
+      return processed;
+    }
+
+
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    int run(bool timeout)
+    int do_run(bool timeout)
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
         TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
@@ -170,7 +184,7 @@ protected:
         m_first_cycle = false;
         TLOG() << "***** First pass post processing *****";
       }
-
+      
       // Get the LB boundaries
       auto tail = m_latency_buffer_impl.back();
       auto newest_ts = tail->get_timestamp();
@@ -178,7 +192,9 @@ protected:
       timestamp_t end_win_ts = 0;
       std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
 
-      if (timeout) {      
+      if (timeout) {
+        // Return if the last processed timestamp is greater than the newest timestamp
+        // This condition occurs after a timeout
         if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
           return 0;
@@ -205,7 +221,7 @@ protected:
           return 0;
         }
       }
-
+      auto old_process_up_to = m_processed_up_to;
       auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
       m_processed_up_to.set_timestamp(end_win_ts);
       auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
