@@ -2,6 +2,9 @@
 
 #include <folly/coro/BlockingWait.h>
 #include <folly/coro/Timeout.h>
+#include <folly/futures/ThreadWheelTimekeeper.h>
+#include <folly/coro/CurrentExecutor.h>
+#include <folly/CancellationToken.h>
 
 #include <typeinfo>
 
@@ -85,6 +88,13 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
   m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
   
+  if (m_processing_delay_ticks) {
+    if constexpr (!SupportsDelayedPostprocessing<LBT>) {
+      ers::error(ConfigurationError(ERS_HERE, m_sourceid,
+        "Delayed postprocessing (post_processing_delay_ticks > 0) requires a sorted buffer (SkipList). "
+        "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use post_processing_delay_ticks = 0."));
+    }
+  }
 
   // Configure implementations:
   m_raw_processor_impl->conf(mcfg);
@@ -310,66 +320,52 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 folly::coro::Task<void>
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule() {  
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
+{
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
-  timestamp_t newest_ts = 0;
-  timestamp_t end_win_ts = 0;
-  bool first_cycle = true;
-  auto last_post_proc_time = std::chrono::system_clock::now();
-  auto now = last_post_proc_time;
-  std::chrono::milliseconds milliseconds;
-  RDT processed_element;
+  TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait << " *****";
 
-  // Deferral of the post processing, to allow elements being reordered in the LB
-  // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value  
+
+  PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
+                                           *m_raw_processor_impl,
+                                           m_processing_delay_ticks,
+                                           m_post_processing_delay_min_wait,
+                                           m_post_processing_delay_max_wait };
+                                           
+  const auto wait_data = [this]() -> folly::coro::Task<void> {
+    // folly::coro::timeout cancels the task on timeout.
+    // Baton is not cancellable, so we attach a callback to resume the coroutine.
+    auto token = co_await folly::coro::co_current_cancellation_token;
+    folly::CancellationCallback cb(token, [this] { m_baton.post(); });
+    co_await m_baton; // Wait data
+  };
+
   while (m_run_marker.load()) {
-    try {
-      co_await folly::coro::timeout(
-        m_baton.operator co_await(),
-        std::chrono::milliseconds{m_post_processing_delay_max_wait},
-        m_timekeeper.get());
-      m_baton.reset();
-    } catch (const folly::FutureTimeout&) {
-      ++m_num_post_processing_delay_max_waits;
-    }
+    bool timeout = false;
 
-    if (m_latency_buffer_impl->occupancy() == 0) {
-      continue;
-    }
+    if ( m_post_processing_delay_max_wait > 0 ) {
+      try {
+        co_await folly::coro::timeout(
+          wait_data(),
+          std::chrono::milliseconds{ m_post_processing_delay_max_wait },
+          m_timekeeper.get());
 
-    now = std::chrono::system_clock::now();
-    milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post_proc_time);
-
-    if (milliseconds.count() <= m_post_processing_delay_min_wait) {
-      continue;
-    }
-
-    last_post_proc_time = now;
-
-    // Get the LB boundaries
-    auto tail = m_latency_buffer_impl->back();
-    newest_ts = tail->get_timestamp();
-
-    if (first_cycle) {
-      auto head = m_latency_buffer_impl->front();
-      processed_element.set_timestamp(head->get_timestamp());
-      first_cycle = false;
-      TLOG() << "***** First pass post processing *****";
-    }
-
-    if (newest_ts - processed_element.get_timestamp() > m_processing_delay_ticks) {
-      end_win_ts = newest_ts - m_processing_delay_ticks;
-      auto start_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
-      processed_element.set_timestamp(end_win_ts);
-      auto end_iter = m_latency_buffer_impl->lower_bound(processed_element, false);
-
-      for (auto it = start_iter; it != end_iter; ++it) {
-        m_raw_processor_impl->postprocess_item(&(*it));
-        ++m_num_payloads;
-        ++m_sum_payloads;
-        ++m_stats_packet_count;
+      } catch (const folly::FutureTimeout&) {
+        timeout = true;
+        ++m_num_post_processing_delay_max_waits;
       }
+    } else {
+      co_await m_baton;
+    }
+
+    m_baton.reset();
+
+    if (auto processed = sched_algo.run(timeout); processed > 0) {
+      m_num_payloads += processed;
+      m_sum_payloads += processed;
+      m_stats_packet_count += processed;
+
     }
   }
 }

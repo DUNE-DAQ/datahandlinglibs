@@ -80,6 +80,9 @@ public:
   // Registers ReadoutType item pointer to to the post-processing queue
   void postprocess_item(const ReadoutType* item) override;
 
+  // Handle a timeout event 
+  void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumilated_timeout_ticks) override {}
+
   // Registers a pre-processing task to the pre-processor pipeline
   template<typename Task>
   void add_preprocess_task(Task&& task);
