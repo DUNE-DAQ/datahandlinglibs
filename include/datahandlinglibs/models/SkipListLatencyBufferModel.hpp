@@ -35,6 +35,8 @@ public:
   using SkipListTAcc = typename folly::ConcurrentSkipList<T>::Accessor; // SKL Accessor
   using SkipListTSkip = typename folly::ConcurrentSkipList<T>::Skipper; // Skipper accessor
 
+  static constexpr bool supports_delayed_postprocessing = true;
+
   // Constructor
   SkipListLatencyBufferModel()
     : m_skip_list(folly::ConcurrentSkipList<T>::createInstance(unconfigured_head_height))

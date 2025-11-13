@@ -47,8 +47,9 @@
 
 #include <folly/coro/Baton.h>
 #include <folly/coro/Task.h>
-#include <folly/futures/ThreadWheelTimekeeper.h>
+#include <folly/futures/Future.h>
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
@@ -132,6 +133,126 @@ public:
   std::function<void(IDT&&)> m_consume_callback;
 
 protected:
+  class PostprocessScheduleAlgorithm
+  {
+  public:
+    PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
+                                 RawDataProcessorType& raw_processor_impl,
+                                 uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
+      : m_latency_buffer_impl{ latency_buffer_impl }
+      , m_raw_processor_impl{ raw_processor_impl }
+      , m_processing_delay_ticks{ processing_delay_ticks }
+      , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
+      , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
+      , m_first_cycle{ true }
+      , m_processed_up_to{}
+      , m_last_post_proc_time{ std::chrono::system_clock::now() }
+      , m_consecutive_timeouts{ 0 }
+      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
+    {
+    }
+
+    // High-level interface
+    // Schedule deferred post-processing and notify timeout expiration to the processor
+    int run(bool timeout) {
+      int processed = this->do_run(timeout);
+
+      if (timeout) {
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+        m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
+      }
+
+      return processed;
+    }
+
+
+    // Deferral of the post processing, to allow elements being reordered in the LB
+    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
+    int do_run(bool timeout)
+    {
+      if (m_latency_buffer_impl.occupancy() == 0) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
+        return 0;
+      }
+
+      if (m_first_cycle) {
+        auto head = m_latency_buffer_impl.front();
+        m_processed_up_to.set_timestamp(head->get_timestamp());
+        m_first_cycle = false;
+        TLOG() << "***** First pass post processing *****";
+      }
+      
+      // Get the LB boundaries
+      auto tail = m_latency_buffer_impl.back();
+      auto newest_ts = tail->get_timestamp();
+          
+      timestamp_t end_win_ts = 0;
+      std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
+
+      if (timeout) {
+        // Return if the last processed timestamp is greater than the newest timestamp
+        // This condition occurs after a timeout
+        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
+          return 0;
+        }        
+
+        ++m_consecutive_timeouts;
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+
+        end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
+        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
+      } else {
+        m_consecutive_timeouts = 0;
+        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
+
+        if (milliseconds.count() > m_post_processing_delay_min_wait) {
+          if (newest_ts - m_processed_up_to.get_timestamp() > m_processing_delay_ticks) {
+            end_win_ts = newest_ts - m_processing_delay_ticks;
+          } else {
+            TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
+            return 0;
+          }
+        } else {
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
+          return 0;
+        }
+      }
+
+      auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+      m_processed_up_to.set_timestamp(end_win_ts);
+      auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+
+      if (start_iter == end_iter) {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
+        return 0;
+      }
+
+      int processed = 0;
+      for (auto it = start_iter; it != end_iter; ++it) {
+        m_raw_processor_impl.postprocess_item(&(*it));
+        ++processed;
+      }
+
+      m_last_post_proc_time = now;
+
+      return processed;
+    }  
+
+  private:
+    LatencyBufferType& m_latency_buffer_impl;
+    RawDataProcessorType& m_raw_processor_impl;
+    const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
+    bool m_first_cycle;
+    RDT m_processed_up_to;
+    int m_consecutive_timeouts;
+    const timestamp_t m_max_wait_in_ticks;  
+    std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
+  };
 
   // Perform processing operations on payload
   void process_item(RDT&& payload);
@@ -163,6 +284,12 @@ protected:
     return { reinterpret_cast<RDT&>(original) };
   }
 
+  // Actions postprocess scheduler takes if no data arrives in a configured time
+  virtual void invoke_postprocess_schedule_timeout_policy() const
+  {
+    return; // No-op for this class
+  }    
+
   // Operational monitoring
   virtual void generate_opmon_data() override;
 
@@ -177,9 +304,9 @@ protected:
   int m_current_fake_trigger_id;
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
-  uint64_t m_processing_delay_ticks;
-  uint64_t m_post_processing_delay_min_wait;
-  uint64_t m_post_processing_delay_max_wait;
+  uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
@@ -228,7 +355,7 @@ protected:
   // POSTPROCESS SCHEDULER
   utilities::ReusableThread m_postprocess_scheduler_thread;
   folly::coro::Baton m_baton;
-  std::unique_ptr<folly::ThreadWheelTimekeeper> m_timekeeper;
+  std::unique_ptr<folly::Timekeeper> m_timekeeper;
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
