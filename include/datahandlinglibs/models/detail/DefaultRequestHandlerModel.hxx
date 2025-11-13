@@ -463,8 +463,10 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   }
   else {
     RDT request_element = RDT();
-    request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-    //request_element.set_timestamp(start_win_ts);
+    auto start_timestamp = start_win_ts - (request_element.get_num_frames() * RDT::expected_tick_difference);
+    if (start_timestamp < last_ts)
+      start_timestamp = last_ts;
+    request_element.set_timestamp(start_timestamp);
 
     auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
@@ -476,7 +478,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
     else {
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " 
 	      << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
-      if (end_win_ts > newest_ts) {
+      if (end_win_ts >= newest_ts) {
          rres.result_code = ResultCode::kPartial;
       }
       else if (start_win_ts < last_ts) {
