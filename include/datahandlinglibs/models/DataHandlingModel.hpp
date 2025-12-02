@@ -206,6 +206,12 @@ protected:
         end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
       } else {
         m_consecutive_timeouts = 0;
+
+        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (data arrived too late, will be ignored)";
+          return 0;
+        }
+
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
 
         if (milliseconds.count() > m_post_processing_delay_min_wait) {
