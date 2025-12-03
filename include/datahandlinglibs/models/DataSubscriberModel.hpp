@@ -65,7 +65,7 @@ public:
     m_data_receiver->remove_callback();
   }
 
-  bool handle_payload(PayloadType&  message) // NOLINT(build/unsigned)
+  bool handle_payload(PayloadType&&  message) // NOLINT(build/unsigned)
   {
     ++m_packets;
     ++m_sum_packets;
