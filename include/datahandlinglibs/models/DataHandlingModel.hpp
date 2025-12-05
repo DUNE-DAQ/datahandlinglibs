@@ -235,7 +235,7 @@ protected:
       // The current algorithm does not support composite keys
       // Our search item `m_processed_up_to` will have its other keys set to their defaults
       // E.g., for TriggerPrimitive, channel = INVALID_TP_CHANNEL
-      // Even if an entry with the same ts exists in the buffer, its channel will be a valid value,
+      // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
       // so `lower_bound` will not be able to find it
       // We should verify that this is the only scenario in which we end up here
       if (!start_iter.good()) { 
@@ -254,7 +254,7 @@ protected:
         // We should understand why we end up here
         if (!it.good()) { 
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Invalid iterator in postprocessing loop";
-          return 0;
+          break;
         }        
         m_raw_processor_impl.postprocess_item(&(*it));
         ++processed;
