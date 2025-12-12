@@ -6,8 +6,8 @@
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
-#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
-#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
+#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_
+#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
@@ -33,7 +33,6 @@
 
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
-#include "appmodel/DataHandlerModule.hpp"
 
 #include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
@@ -100,13 +99,13 @@ public:
 
   virtual ~DataHandlingModel() = default;
 
-  // Initializes the readoutmodel and its internals
+  // Initializes the DataHandlingModel and its internals
   void init(const appmodel::DataHandlerModule* modconf);
 
-  // Configures the readoutmodel and its internals
+  // Configures the DataHandlingModel and its internals
   void conf(const appfwk::DAQModule::CommandData_t& args);
 
-  // Unconfigures readoutmodel's internals
+  // Unconfigures DataHandlingModel's internals
   void scrap(const appfwk::DAQModule::CommandData_t& args)
   {
     m_request_handler_impl->scrap(args);
@@ -114,10 +113,10 @@ public:
     m_raw_processor_impl->scrap(args);
   }
 
-  // Starts readoutmodel's internals
+  // Starts DataHandlingModel's internals
   void start(const appfwk::DAQModule::CommandData_t& args);
 
-  // Stops readoutmodel's internals
+  // Stops DataHandlingModel's internals
   void stop(const appfwk::DAQModule::CommandData_t& args);
 
   // Record function: invokes request handler's record implementation
@@ -315,7 +314,7 @@ protected:
   // Transform input data type to readout
   virtual std::vector<RDT> transform_payload(IDT& original) const
   {
-    return { reinterpret_cast<RDT&>(original) };
+    return { reinterpret_cast<RDT&>(original) }; // NOLINT (runtime/castint)
   }
 
   // Actions postprocess scheduler takes if no data arrives in a configured time
@@ -325,7 +324,7 @@ protected:
   }    
 
   // Operational monitoring
-  virtual void generate_opmon_data() override;
+  void generate_opmon_data() override;
 
   // Constructor params
   std::atomic<bool>& m_run_marker;
@@ -414,4 +413,4 @@ protected:
 // Declarations
 #include "detail/DataHandlingModel.hxx"
 
-#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
+#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_
