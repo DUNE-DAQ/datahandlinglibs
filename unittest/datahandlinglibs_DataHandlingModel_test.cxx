@@ -128,4 +128,65 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   BOOST_REQUIRE_EQUAL(processed_count, 5);
 }
 
+BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgorithm_data_arrives_after_fully_processed_with_timeout)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model =
+    unittest::MockDataHandlingModel<ReadoutType,
+                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
+                                    SkipListLatencyBufferModel<ReadoutType>,
+                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
+
+  for (int i = 1; i < 3; i++) {
+    ReadoutType frame{};
+    frame.timestamp = i * 62500;
+    buffer->write(std::move(frame));
+  }
+
+  {
+    ReadoutType frame{};
+    frame.timestamp = 4 * 62500;
+    buffer->write(std::move(frame));  
+  }
+
+  constexpr bool post_processing_enabled = true;
+  auto error_registry = std::make_unique<FrameErrorRegistry>();
+
+  auto raw_processor =
+    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+
+  constexpr uint64_t delay_ticks = 1 * 62500; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+
+  typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
+  };
+
+  bool timeout = true;
+  int processed_count = sched_algo.run(timeout);
+  // Buffer = {1, 2, 4} delay_ticks = 1
+  // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
+  // end_win_ts = 4 - 1 + 2 => postprocess until 5 {1, 2, 4}
+  BOOST_REQUIRE_EQUAL(processed_count, 3);
+
+  {
+    ReadoutType frame{};
+    frame.timestamp = 3 * 62500;
+    buffer->write(std::move(frame));  
+  }
+  // Buffer = {1, 2, 3, 4}
+
+  // To not trigger the "too fast" case
+  std::this_thread::sleep_for(std::chrono::milliseconds(delay_min_wait + 1));
+
+  timeout = false;
+  // m_processed_up_to.timestamp = newest_ts + 1 => nothing to postprocess (data arrived too late)  
+  processed_count += sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 3);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
