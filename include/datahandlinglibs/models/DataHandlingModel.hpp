@@ -150,6 +150,8 @@ protected:
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
     int do_run(bool timeout);
 
+    void dummy_print(bool timeout, timestamp_t timeout_accumulated, timestamp_t newest_ts, timestamp_t end_win_ts);
+
   private:
     LBT& m_latency_buffer_impl;
     RPT& m_raw_processor_impl;
@@ -160,6 +162,8 @@ protected:
     bool m_first_cycle; 
     int m_consecutive_timeouts;
     RDT m_processed_up_to;
+    RDT m_processed_up_to_before_update;
+    RDT m_last_processed;
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
   };
 
