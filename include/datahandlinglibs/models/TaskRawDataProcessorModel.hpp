@@ -81,7 +81,7 @@ public:
   void postprocess_item(const ReadoutType* item) override;
 
   // Handle a timeout event 
-  void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumilated_timeout_ticks) override {}
+  void invoke_postprocess_schedule_timeout_policy([[maybe_unused]] std::uint64_t accumilated_timeout_ticks) override {}
 
   // Registers a pre-processing task to the pre-processor pipeline
   template<typename Task>

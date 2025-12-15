@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_run_postprocess_schedule
   auto timekeeper = std::make_unique<folly::ManualTimekeeper>();
   auto* timekeeper_ptr = timekeeper.get();
 
-  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+  constexpr auto delay_max_wait = 2ms;
 
   std::thread coro_thread([&]() {
     model.test_run_postprocess_scheduler(buffer, raw_processor, std::move(timekeeper), delay_max_wait);
@@ -92,8 +92,8 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
 
   constexpr uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
-  constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
-  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+  constexpr auto delay_min_wait = 1ms; 
+  constexpr auto delay_max_wait = 2ms; 
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
     *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
@@ -159,8 +159,8 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
 
   constexpr uint64_t delay_ticks = 1 * 62500; // NOLINT(build/unsigned)
-  constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
-  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+  constexpr auto delay_min_wait = 1ms;
+  constexpr auto delay_max_wait = 2ms;
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
     *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   // Buffer = {1, 2, 3, 4}
 
   // To not trigger the "too fast" case
-  std::this_thread::sleep_for(std::chrono::milliseconds(delay_min_wait + 1));
+  std::this_thread::sleep_for(std::chrono::milliseconds(delay_min_wait + 1ms));
 
   timeout = false;
   // m_processed_up_to.timestamp = newest_ts + 1 => nothing to postprocess (data arrived too late)  

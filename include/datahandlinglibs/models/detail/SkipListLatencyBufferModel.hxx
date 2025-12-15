@@ -65,7 +65,7 @@ SkipListLatencyBufferModel<T>::begin()
 {
   SkipListTAcc acc = SkipListTAcc(m_skip_list);
   SkipListTIter iter = acc.begin();
-  return std::move(SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter));
+  return SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter);
 }
 
 template<class T>
@@ -74,7 +74,7 @@ SkipListLatencyBufferModel<T>::end()
 {
   SkipListTAcc acc = SkipListTAcc(m_skip_list);
   SkipListTIter iter = acc.end();
-  return std::move(SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter));
+  return SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter);
 }
 
 template<class T>
@@ -83,7 +83,7 @@ SkipListLatencyBufferModel<T>::lower_bound(T& element, bool /*with_errors=false*
 {
   SkipListTAcc acc = SkipListTAcc(m_skip_list);
   SkipListTIter iter = acc.lower_bound(element);
-  return std::move(SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter));
+  return SkipListLatencyBufferModel<T>::Iterator(std::move(acc), iter);
 }
 
 template<class T>

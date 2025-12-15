@@ -135,155 +135,31 @@ protected:
   class PostprocessScheduleAlgorithm
   {
   public:
-    PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
-                                 RawDataProcessorType& raw_processor_impl,
+    PostprocessScheduleAlgorithm(LBT& latency_buffer_impl,
+                                 RPT& raw_processor_impl,
                                  uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
-                                 uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
-                                 uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
-      : m_latency_buffer_impl{ latency_buffer_impl }
-      , m_raw_processor_impl{ raw_processor_impl }
-      , m_processing_delay_ticks{ processing_delay_ticks }
-      , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
-      , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
-      , m_first_cycle{ true }
-      , m_processed_up_to{}
-      , m_last_post_proc_time{ std::chrono::system_clock::now() }
-      , m_consecutive_timeouts{ 0 }
-      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
-    {
-    }
+                                 std::chrono::milliseconds post_processing_delay_min_wait, 
+                                 std::chrono::milliseconds post_processing_delay_max_wait);
 
     // High-level interface
     // Schedule deferred post-processing and notify timeout expiration to the processor
-    int run(bool timeout) {
-      int processed = this->do_run(timeout);
-
-      if (timeout) {
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
-        m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
-      }
-
-      return processed;
-    }
+    int run(bool timeout);
 
 
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    int do_run(bool timeout)
-    {
-      if (m_latency_buffer_impl.occupancy() == 0) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
-        return 0;
-      }
-
-      if (m_first_cycle) {
-        auto head = m_latency_buffer_impl.front();
-        m_processed_up_to.set_timestamp(head->get_timestamp());
-        m_first_cycle = false;
-        TLOG() << "***** First pass post processing *****";
-      }
-      
-      // Get the LB boundaries
-      auto tail = m_latency_buffer_impl.back();
-      auto newest_ts = tail->get_timestamp();
-          
-      timestamp_t end_win_ts = 0;
-      std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
-
-      if (timeout) {
-        // Return if the last processed timestamp is greater than the newest timestamp
-        // This condition occurs after a timeout
-        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
-          return 0;
-        }        
-
-        ++m_consecutive_timeouts;
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
-
-        end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
-        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
-      } else {
-        m_consecutive_timeouts = 0;
-
-        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (data arrived too late, will be ignored)";
-          return 0;
-        }
-
-        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
-
-        if (milliseconds.count() > m_post_processing_delay_min_wait) {
-          if (newest_ts - m_processed_up_to.get_timestamp() > m_processing_delay_ticks) {
-            end_win_ts = newest_ts - m_processing_delay_ticks;
-          } else {
-            TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
-            return 0;
-          }
-        } else {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
-          return 0;
-        }
-      }
-
-      if (end_win_ts < m_processed_up_to.get_timestamp()) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (not ready)";
-        return 0;        
-      }
-
-      auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
-      m_processed_up_to.set_timestamp(end_win_ts);
-      auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
-
-      if (start_iter == end_iter) {
-        if (start_iter == m_latency_buffer_impl.end()) {
-          // This likely happens when RDT uses a composite key
-          // The current algorithm does not support composite keys
-          // Our search item `m_processed_up_to` will have its other keys set to their defaults
-          // E.g., for TriggerPrimitive, channel = INVALID_TP_CHANNEL
-          // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
-          // so `lower_bound` will not be able to find it
-          // We should verify that this is the only scenario in which we end up here          
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Composite keys are not supported in delayed postprocessing (start_iter == m_latency_buffer_impl.end())";
-        } else {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
-        }
-        return 0;
-      }
-
-      // This likely happens when RDT uses a composite key (See the other comment)
-      if (!start_iter.good()) { 
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Composite keys are not supported in delayed postprocessing (!start_iter.good())";
-        return 0;
-      }
-
-      int processed = 0;
-      for (auto it = start_iter; it != end_iter; ++it) {
-        // Just to be completely safe
-        // We should understand why we end up here
-        if (!it.good()) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Invalid iterator in postprocessing loop";
-          break;
-        }        
-        m_raw_processor_impl.postprocess_item(&(*it));
-        ++processed;
-      }
-
-      m_last_post_proc_time = now;
-      
-      return processed;
-    }  
+    int do_run(bool timeout);
 
   private:
-    LatencyBufferType& m_latency_buffer_impl;
-    RawDataProcessorType& m_raw_processor_impl;
+    LBT& m_latency_buffer_impl;
+    RPT& m_raw_processor_impl;
     const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
-    const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
-    const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
-    bool m_first_cycle;
-    RDT m_processed_up_to;
-    int m_consecutive_timeouts;
+    const std::chrono::milliseconds m_post_processing_delay_min_wait;
+    const std::chrono::milliseconds m_post_processing_delay_max_wait;
     const timestamp_t m_max_wait_in_ticks;  
+    bool m_first_cycle; 
+    int m_consecutive_timeouts;
+    RDT m_processed_up_to;
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
   };
 
@@ -338,8 +214,8 @@ protected:
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
   uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
-  uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
-  uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
+  std::chrono::milliseconds m_post_processing_delay_min_wait;
+  std::chrono::milliseconds m_post_processing_delay_max_wait;
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
@@ -366,7 +242,7 @@ protected:
   // RAW RECEIVER
   std::chrono::milliseconds m_raw_receiver_timeout_ms;
   std::chrono::microseconds m_raw_receiver_sleep_us;
-  using raw_receiver_ct = iomanager::ReceiverConcept<InputDataType>;
+  using raw_receiver_ct = iomanager::ReceiverConcept<IDT>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
   std::string m_raw_data_receiver_connection_name;
 
@@ -391,13 +267,13 @@ protected:
   std::unique_ptr<folly::Timekeeper> m_timekeeper;
 
   // LATENCY BUFFER
-  std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;
+  std::shared_ptr<LBT> m_latency_buffer_impl;
 
   // RAW PROCESSING
-  std::shared_ptr<RawDataProcessorType> m_raw_processor_impl;
+  std::shared_ptr<RPT> m_raw_processor_impl;
 
   // REQUEST HANDLER
-  std::shared_ptr<RequestHandlerType> m_request_handler_impl;
+  std::shared_ptr<RHT> m_request_handler_impl;
   bool m_request_handler_supports_cutoff_timestamp;
 
   // ERROR REGISTRY

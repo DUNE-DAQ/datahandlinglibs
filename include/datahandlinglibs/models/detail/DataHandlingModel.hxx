@@ -85,8 +85,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
-  m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
-  m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
+  m_post_processing_delay_min_wait = std::chrono::milliseconds(mcfg->get_module_configuration()->get_post_processing_delay_min_wait());
+  m_post_processing_delay_max_wait = std::chrono::milliseconds(mcfg->get_module_configuration()->get_post_processing_delay_max_wait());
   
   if (m_processing_delay_ticks) {
     if constexpr (!SupportsDelayedPostprocessing<LBT>) {
@@ -326,7 +326,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
-  TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait << " *****";
+  TLOG() << "***** Starting post-process coroutine with timeout " << m_post_processing_delay_max_wait << " *****";
 
 
   PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
@@ -346,11 +346,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
   while (m_run_marker.load()) {
     bool timeout = false;
 
-    if ( m_post_processing_delay_max_wait > 0 ) {
+    if (m_post_processing_delay_max_wait.count() > 0) {
       try {
         co_await folly::coro::timeout(
           wait_data(),
-          std::chrono::milliseconds{ m_post_processing_delay_max_wait },
+          m_post_processing_delay_max_wait,
           m_timekeeper.get());
 
       } catch (const folly::FutureTimeout&) {
@@ -473,6 +473,146 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests(dfmessages::DataRe
   ++m_num_requests;
   ++m_sum_requests;
 }
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::PostprocessScheduleAlgorithm::PostprocessScheduleAlgorithm(
+  LBT& latency_buffer_impl,
+  RPT& raw_processor_impl,
+  uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
+  std::chrono::milliseconds post_processing_delay_min_wait,
+  std::chrono::milliseconds post_processing_delay_max_wait)
+  : m_latency_buffer_impl{ latency_buffer_impl }
+  , m_raw_processor_impl{ raw_processor_impl }
+  , m_processing_delay_ticks{ processing_delay_ticks }
+  , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
+  , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
+  , m_max_wait_in_ticks{ static_cast<timestamp_t>(post_processing_delay_max_wait.count() * 62500) } // FIXME: hardcoded clock frequency
+  , m_first_cycle{ true }
+  , m_consecutive_timeouts{ 0 }
+  , m_processed_up_to{}
+  , m_last_post_proc_time{ std::chrono::system_clock::now() }
+{
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+int
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::PostprocessScheduleAlgorithm::run(bool timeout) {
+  int processed = this->do_run(timeout);
+
+  if (timeout) {
+    timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+    m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
+  }
+
+  return processed;
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+int
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::PostprocessScheduleAlgorithm::do_run(bool timeout)
+{
+  if (m_latency_buffer_impl.occupancy() == 0) {
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
+    return 0;
+  }
+
+  if (m_first_cycle) {
+    auto head = m_latency_buffer_impl.front();
+    m_processed_up_to.set_timestamp(head->get_timestamp());
+    m_first_cycle = false;
+    TLOG() << "***** First pass post processing *****";
+  }
+  
+  // Get the LB boundaries
+  auto tail = m_latency_buffer_impl.back();
+  auto newest_ts = tail->get_timestamp();
+      
+  timestamp_t end_win_ts = 0;
+  std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
+
+  if (timeout) {
+    // Return if the last processed timestamp is greater than the newest timestamp
+    // This condition occurs after a timeout
+    if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
+      return 0;
+    }        
+
+    ++m_consecutive_timeouts;
+    timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+
+    end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
+    end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
+  } else {
+    m_consecutive_timeouts = 0;
+
+    if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (data arrived too late, will be ignored)";
+      return 0;
+    }
+
+    auto time_since_last_proc = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
+
+    if (time_since_last_proc > m_post_processing_delay_min_wait) {
+      if (newest_ts - m_processed_up_to.get_timestamp() > m_processing_delay_ticks) {
+        end_win_ts = newest_ts - m_processing_delay_ticks;
+      } else {
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
+        return 0;
+      }
+    } else {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
+      return 0;
+    }
+  }
+
+  if (end_win_ts < m_processed_up_to.get_timestamp()) {
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (not ready)";
+    return 0;        
+  }
+
+  auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+  m_processed_up_to.set_timestamp(end_win_ts);
+  auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+
+  if (start_iter == end_iter) {
+    if (start_iter == m_latency_buffer_impl.end()) {
+      // This likely happens when RDT uses a composite key
+      // The current algorithm does not support composite keys
+      // Our search item `m_processed_up_to` will have its other keys set to their defaults
+      // E.g., for TriggerPrimitive, channel = INVALID_TP_CHANNEL
+      // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
+      // so `lower_bound` will not be able to find it
+      // We should verify that this is the only scenario in which we end up here          
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Composite keys are not supported in delayed postprocessing (start_iter == m_latency_buffer_impl.end())";
+    } else {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
+    }
+    return 0;
+  }
+
+  // This likely happens when RDT uses a composite key (See the other comment)
+  if (!start_iter.good()) { 
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "Composite keys are not supported in delayed postprocessing (!start_iter.good())";
+    return 0;
+  }
+
+  int processed = 0;
+  for (auto it = start_iter; it != end_iter; ++it) {
+    // Just to be completely safe
+    // We should understand why we end up here
+    if (!it.good()) {
+      TLOG_DEBUG(TLVL_WORK_STEPS) << "Invalid iterator in postprocessing loop";
+      break;
+    }        
+    m_raw_processor_impl.postprocess_item(&(*it));
+    ++processed;
+  }
+
+  m_last_post_proc_time = now;
+  
+  return processed;
+}  
 
 } // namespace datahandlinglibs
 } // namespace dunedaq
