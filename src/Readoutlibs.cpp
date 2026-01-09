@@ -1,4 +1,3 @@
-#include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/concepts/LatencyBufferConcept.hpp"
 #include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
