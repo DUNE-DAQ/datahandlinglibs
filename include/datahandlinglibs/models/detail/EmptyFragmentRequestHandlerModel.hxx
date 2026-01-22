@@ -11,7 +11,7 @@ EmptyFragmentRequestHandlerModel<ReadoutType, LatencyBufferType>::issue_request(
   dfmessages::DataRequest datarequest, bool is_retry)
 {
   auto frag_header = inherited::create_fragment_header(datarequest);
-  frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
+  frag_header.status_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
   auto fragment = std::make_unique<daqdataformats::Fragment>(std::vector<std::pair<void*, size_t>>());
   fragment->set_header_fields(frag_header);
 
