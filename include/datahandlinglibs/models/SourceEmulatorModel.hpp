@@ -161,9 +161,8 @@ private:
   // Pattern generator configs
   bool m_generate_periodic_adc_pattern;
   SourceEmulatorPatternGenerator m_pattern_generator;
-  uint64_t m_pattern_generator_previous_ts;  
-  // Adding a hit every 9768 gives a TP rate of approx 100 Hz/wire using WIBEthernet
-  uint32_t m_time_to_wait = 9768; 
+  // Adding a hit every 9766 gives a TP rate of approx 100 Hz/wire using WIBEthernet
+  uint32_t m_time_to_wait = 9766;
 };
 
 } // namespace datahandlinglibs

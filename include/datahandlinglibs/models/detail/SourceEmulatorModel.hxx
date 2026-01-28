@@ -84,7 +84,7 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
       if (emu_params->get_TP_rate_per_channel() != 0) {
        TLOG() << "TP rate per channel multiplier (base of 100 Hz/ch): " << emu_params->get_TP_rate_per_channel();
        // Define time to wait when adding an ADC above threshold
-       // Adding a hit every 9768 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
+       // Adding a hit every 9766 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
         m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();       
       }  
     }
@@ -161,6 +161,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
   TLOG_DEBUG(TLVL_BOOKKEEPING) << "Using first timestamp: " << ts_0;
   uint64_t timestamp = ts_0; // NOLINT(build/unsigned)
   int dropout_index = 0;
+  uint64_t number_pattern_hits_generated = 0;
 
   while (m_run_marker.load()) {
     // TLOG() << "Generating " << m_frames_per_tick << " for TS " << timestamp;
@@ -192,9 +193,11 @@ SourceEmulatorModel<ReadoutType>::run_produce()
         }
         payload.fake_frame_errors(&frame_errs);
 
-        if (m_generate_periodic_adc_pattern) { 
-          if (timestamp - m_pattern_generator_previous_ts > m_time_to_wait) {
-      
+        if (m_generate_periodic_adc_pattern) {
+          uint64_t number_pattern_hits_expected = (timestamp - ts_0) / m_time_to_wait;
+          while (number_pattern_hits_generated < number_pattern_hits_expected) {
+            ++number_pattern_hits_generated;
+
             /* Reset the pattern from the beginning if it reaches the maximum
             m_pattern_index++;
             if (m_pattern_index == m_pattern_generator.get_total_size()) {
@@ -211,10 +214,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
             
             //TLOG() << "Lift channel " << channel;
             
-            // Update the previous timestamp of the pattern generator
-            m_pattern_generator_previous_ts = timestamp;      
-            
-          } // timestamp difference
+          } // (number_pattern_hits_expected - number_pattern_hits_generated) difference
         }
 
         // send it
