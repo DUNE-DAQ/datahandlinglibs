@@ -1,10 +1,10 @@
 // Declarations for DataHandlingModel
 
+#include <folly/CancellationToken.h>
 #include <folly/coro/BlockingWait.h>
+#include <folly/coro/CurrentExecutor.h>
 #include <folly/coro/Timeout.h>
 #include <folly/futures/ThreadWheelTimekeeper.h>
-#include <folly/coro/CurrentExecutor.h>
-#include <folly/CancellationToken.h>
 
 #include <typeinfo>
 
@@ -12,38 +12,26 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModule* mcfg)
 {
-  // Setup request queues
-  //setup_request_queues(mcfg);
+  // Check if a callback is defined (TPs use IOManager Queues instead)
+  m_raw_data_callback_conf = mcfg->get_raw_data_callback();
+  if (m_raw_data_callback_conf != nullptr) {
+    m_raw_data_callback_conf = mcfg->get_raw_data_callback();
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "DataHandlingModel operating in callback mode.";
+  } else {
+    TLOG_DEBUG(TLVL_WORK_STEPS) << "DataHandlingModel operating in message polling mode.";
+  }
+
   try {
     for (auto input : mcfg->get_inputs()) {
       if (input->get_data_type() == "DataRequest") {
-        m_data_request_receiver = get_iom_receiver<dfmessages::DataRequest>(input->UID()) ;
-      }
-      else {
+        m_data_request_receiver = get_iom_receiver<dfmessages::DataRequest>(input->UID());
+      } else {
         m_raw_data_receiver_connection_name = input->UID();
-        // Parse for prefix
-        std::string conn_name = input->UID(); 
-        const char delim = '_';
-        std::vector<std::string> words;
-        std::size_t start;
-        std::size_t end = 0;
-        while ((start = conn_name.find_first_not_of(delim, end)) != std::string::npos) {
-          end = conn_name.find(delim, start);
-          words.push_back(conn_name.substr(start, end - start));
-        }
 
-	TLOG_DEBUG(TLVL_WORK_STEPS) << "Initialize connection based on uid: " 
-          << m_raw_data_receiver_connection_name << " front word: " << words.front();
-
-	std::string cb_prefix("cb");
-        if (words.front() == cb_prefix) {
-          m_callback_mode = true;
-        }
-
-        if (!m_callback_mode) {
+        if (m_raw_data_callback_conf == nullptr) {
           m_raw_data_receiver = get_iom_receiver<IDT>(m_raw_data_receiver_connection_name);
           m_raw_receiver_timeout_ms = std::chrono::milliseconds(input->get_recv_timeout_ms());
         }
@@ -52,7 +40,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
     for (auto output : mcfg->get_outputs()) {
       if (output->get_data_type() == "TimeSync") {
         m_generate_timesync = true;
-        m_timesync_sender = get_iom_sender<dfmessages::TimeSync>(output->UID()) ;
+        m_timesync_sender = get_iom_sender<dfmessages::TimeSync>(output->UID());
         m_timesync_connection_name = output->UID();
         break;
       }
@@ -62,8 +50,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   }
 
   // Raw input connection sensibility check
-  if (!m_callback_mode && m_raw_data_receiver == nullptr) {
-    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Non callback mode, and receiver is unset!"));
+  if (m_raw_data_callback_conf == nullptr && m_raw_data_receiver == nullptr) {
+    ers::error(ConfigurationError(ERS_HERE, m_sourceid, "No callback configuration, and receiver is unset!"));
   }
 
   // Instantiate functionalities
@@ -77,8 +65,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   register_node(mcfg->get_module_configuration()->get_data_processor()->UID(), m_raw_processor_impl);
   register_node(mcfg->get_module_configuration()->get_request_handler()->UID(), m_request_handler_impl);
 
-  //m_request_handler_impl->init(args);
-  //m_raw_processor_impl->init(args);
+  // m_request_handler_impl->init(args);
+  // m_raw_processor_impl->init(args);
   m_request_handler_supports_cutoff_timestamp = m_request_handler_impl->supports_cutoff_timestamp();
   m_fake_trigger = false;
   m_raw_receiver_sleep_us = std::chrono::microseconds::zero();
@@ -87,12 +75,15 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
   m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
   m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
-  
+
   if (m_processing_delay_ticks) {
     if constexpr (!SupportsDelayedPostprocessing<LBT>) {
-      ers::error(ConfigurationError(ERS_HERE, m_sourceid,
+      ers::error(ConfigurationError(
+        ERS_HERE,
+        m_sourceid,
         "Delayed postprocessing (post_processing_delay_ticks > 0) requires a sorted buffer (SkipList). "
-        "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use post_processing_delay_ticks = 0."));
+        "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use "
+        "post_processing_delay_ticks = 0."));
     }
   }
 
@@ -109,17 +100,18 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   // Register callbacks if operating in that mode.
-  if (m_callback_mode) {
+  if (m_raw_data_callback_conf != nullptr) {
     // Configure and register consume callback
-    m_consume_callback = std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback, this, std::placeholders::_1);
- 
+    m_consume_callback =
+      std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback, this, std::placeholders::_1);
+
     // Register callback
     auto dmcbr = DataMoveCallbackRegistry::get();
-    dmcbr->register_callback<IDT>(m_raw_data_receiver_connection_name, m_consume_callback);
+    dmcbr->register_callback<IDT>(m_raw_data_callback_conf, m_consume_callback);
   }
 
   // Configure threads:
@@ -130,12 +122,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::conf(const appfwk::DAQModule::Comman
   if (m_processing_delay_ticks) {
     m_postprocess_scheduler_thread.set_name("pprocsched", m_sourceid.id);
     m_timekeeper = std::make_unique<folly::ThreadWheelTimekeeper>();
-  }  
+  }
 }
 
-
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const appfwk::DAQModule::CommandData_t& args)
 {
   // Reset opmon variables
@@ -155,22 +146,23 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const appfwk::DAQModule::Comma
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Starting threads...";
   m_raw_processor_impl->start(args);
   m_request_handler_impl->start(args);
-  if (!m_callback_mode) {
+  if (m_raw_data_callback_conf == nullptr) {
     m_consumer_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume, this);
   }
   if (m_generate_timesync) {
     m_timesync_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync, this);
   }
   if (m_processing_delay_ticks) {
-    m_postprocess_scheduler_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_postprocess_scheduler, this);
-  }  
+    m_postprocess_scheduler_thread.set_work(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_postprocess_scheduler,
+                                            this);
+  }
   // Register callback to receive and dispatch data requests
   m_data_request_receiver->add_callback(
     std::bind(&DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests, this, std::placeholders::_1));
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::CommandData_t& args)
 {
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Stoppping threads...";
@@ -184,7 +176,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::Comman
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
-  if (!m_callback_mode) {
+  if (m_raw_data_callback_conf == nullptr) {
     while (!m_consumer_thread.get_readiness()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -193,8 +185,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::Comman
     m_baton.post(); // In case the coroutine is still waiting when the consumer has stopped
     while (!m_postprocess_scheduler_thread.get_readiness()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }  
-  }  
+    }
+  }
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Flushing latency buffer with occupancy: " << m_latency_buffer_impl->occupancy();
   m_latency_buffer_impl->flush();
   m_raw_processor_impl->stop(args);
@@ -202,73 +194,81 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::Comman
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
- {
-   opmon::DataHandlerInfo ri;
-   ri.set_sum_payloads(m_sum_payloads.load());
-   ri.set_num_payloads(m_num_payloads.exchange(0));
+{
+  opmon::DataHandlerInfo ri;
+  ri.set_sum_payloads(m_sum_payloads.load());
+  ri.set_num_payloads(m_num_payloads.exchange(0));
 
-   ri.set_num_data_input_timeouts(m_rawq_timeout_count.exchange(0));
+  ri.set_num_data_input_timeouts(m_rawq_timeout_count.exchange(0));
 
-   auto now = std::chrono::high_resolution_clock::now();
-   int new_packets = m_stats_packet_count.exchange(0);
-   double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
-   m_t0 = now;
+  auto now = std::chrono::high_resolution_clock::now();
+  int new_packets = m_stats_packet_count.exchange(0);
+  double seconds = std::chrono::duration_cast<std::chrono::microseconds>(now - m_t0).count() / 1000000.;
+  m_t0 = now;
 
-   // 08-May-2025, KAB: added a message to warn users when latency buffer inserts are failing.
-   int local_num_lb_insert_failures = m_num_lb_insert_failures.exchange(0);
-   if (local_num_lb_insert_failures != 0) {
-     ers::warning(NonZeroLatencyBufferInsertFailures(ERS_HERE, m_sourceid, local_num_lb_insert_failures, ri.num_payloads()));
-   }
+  // 08-May-2025, KAB: added a message to warn users when latency buffer inserts are failing.
+  int local_num_lb_insert_failures = m_num_lb_insert_failures.exchange(0);
+  if (local_num_lb_insert_failures != 0) {
+    ers::warning(
+      NonZeroLatencyBufferInsertFailures(ERS_HERE, m_sourceid, local_num_lb_insert_failures, ri.num_payloads()));
+  }
 
-   ri.set_rate_payloads_consumed(new_packets / seconds / 1000.);
-   ri.set_num_lb_insert_failures(local_num_lb_insert_failures);
-   ri.set_sum_requests(m_sum_requests.load());
-   ri.set_num_requests(m_num_requests.exchange(0));
-   ri.set_num_post_processing_delay_max_waits(m_num_post_processing_delay_max_waits.exchange(0));
-   ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
-   ri.set_newest_timestamp(m_raw_processor_impl->get_last_daq_time());
-   ri.set_oldest_timestamp(m_request_handler_impl->get_oldest_time());
+  ri.set_rate_payloads_consumed(new_packets / seconds / 1000.);
+  ri.set_num_lb_insert_failures(local_num_lb_insert_failures);
+  ri.set_sum_requests(m_sum_requests.load());
+  ri.set_num_requests(m_num_requests.exchange(0));
+  ri.set_num_post_processing_delay_max_waits(m_num_post_processing_delay_max_waits.exchange(0));
+  ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
+  ri.set_newest_timestamp(m_raw_processor_impl->get_last_daq_time());
+  ri.set_oldest_timestamp(m_request_handler_impl->get_oldest_time());
 
-   this->publish(std::move(ri));
- }
+  this->publish(std::move(ri));
+}
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::transform_and_process(IDT&& payload) {
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::transform_and_process(IDT&& payload)
+{
   if constexpr (std::is_same_v<IDT, RDT>) {
     process_item(std::move(payload));
   } else {
     auto transformed = transform_payload(payload);
     for (auto& i : transformed) {
       process_item(std::move(i));
-    }   
-  }  
+    }
+  }
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void
-DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback(IDT&& payload) {
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback(IDT&& payload)
+{
   transform_and_process(std::move(payload));
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 {
   m_raw_processor_impl->preprocess_item(&payload);
   if (m_request_handler_supports_cutoff_timestamp) {
     int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
-      //m_request_handler_impl->increment_tardy_tp_count();
-      ers::warning(DataPacketArrivedTooLate(ERS_HERE, m_sourceid, m_run_number, payload.get_timestamp(),
-                                            m_request_handler_impl->get_cutoff_timestamp(), diff1,
-                                            (static_cast<double>(diff1)/62500.0)));
+      // m_request_handler_impl->increment_tardy_tp_count();
+      ers::warning(DataPacketArrivedTooLate(ERS_HERE,
+                                            m_sourceid,
+                                            m_run_number,
+                                            payload.get_timestamp(),
+                                            m_request_handler_impl->get_cutoff_timestamp(),
+                                            diff1,
+                                            (static_cast<double>(diff1) / 62500.0)));
     }
   }
   if (!m_latency_buffer_impl->write(std::move(payload))) {
-    // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+    // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" <<
+    // payload.get_timestamp() << ")";
     m_num_lb_insert_failures++;
     return;
   }
@@ -284,14 +284,14 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_postprocess_scheduler()
 {
   folly::coro::blockingWait(postprocess_schedule());
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
 {
 
@@ -313,7 +313,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
     } else {
       ++m_rawq_timeout_count;
       // Protection against a zero sleep becoming a yield
-      if ( m_raw_receiver_sleep_us != std::chrono::microseconds::zero())
+      if (m_raw_receiver_sleep_us != std::chrono::microseconds::zero())
         std::this_thread::sleep_for(m_raw_receiver_sleep_us);
     }
   }
@@ -328,13 +328,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
   TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait << " *****";
 
-
   PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
                                            *m_raw_processor_impl,
                                            m_processing_delay_ticks,
                                            m_post_processing_delay_min_wait,
                                            m_post_processing_delay_max_wait };
-                                           
+
   const auto wait_data = [this]() -> folly::coro::Task<void> {
     // folly::coro::timeout cancels the task on timeout.
     // Baton is not cancellable, so we attach a callback to resume the coroutine.
@@ -346,12 +345,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
   while (m_run_marker.load()) {
     bool timeout = false;
 
-    if ( m_post_processing_delay_max_wait > 0 ) {
+    if (m_post_processing_delay_max_wait > 0) {
       try {
         co_await folly::coro::timeout(
-          wait_data(),
-          std::chrono::milliseconds{ m_post_processing_delay_max_wait },
-          m_timekeeper.get());
+          wait_data(), std::chrono::milliseconds{ m_post_processing_delay_max_wait }, m_timekeeper.get());
 
       } catch (const folly::FutureTimeout&) {
         timeout = true;
@@ -367,13 +364,12 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
       m_num_payloads += processed;
       m_sum_payloads += processed;
       m_stats_packet_count += processed;
-
     }
   }
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
 {
   TLOG_DEBUG(TLVL_WORK_STEPS) << "TimeSync thread started...";
@@ -398,16 +394,16 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
         timesyncmsg.sequence_number = ++msg_seqno;
         timesyncmsg.source_id = m_sourceid.id;
         TLOG_DEBUG(TLVL_TIME_SYNCS) << "New timesync: daq=" << timesyncmsg.daq_time
-          << " wall=" << timesyncmsg.system_time << " run=" << timesyncmsg.run_number
-          << " seqno=" << timesyncmsg.sequence_number << " source_id=" << timesyncmsg.source_id;
+                                    << " wall=" << timesyncmsg.system_time << " run=" << timesyncmsg.run_number
+                                    << " seqno=" << timesyncmsg.sequence_number
+                                    << " source_id=" << timesyncmsg.source_id;
         try {
-            dfmessages::TimeSync timesyncmsg_copy(timesyncmsg);
+          dfmessages::TimeSync timesyncmsg_copy(timesyncmsg);
           m_timesync_sender->send(std::move(timesyncmsg_copy), std::chrono::milliseconds(500));
         } catch (ers::Issue& excpt) {
-          ers::warning(
-            TimeSyncTransmissionFailed(ERS_HERE, m_sourceid, m_timesync_connection_name, excpt));
+          ers::warning(TimeSyncTransmissionFailed(ERS_HERE, m_sourceid, m_timesync_connection_name, excpt));
         }
-          
+
         if (m_fake_trigger) {
           dfmessages::DataRequest dr;
           ++m_current_fake_trigger_id;
@@ -420,17 +416,21 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
           dr.request_information.component = m_sourceid;
           dr.data_destination = "data_fragments_q";
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Issuing fake trigger based on timesync. "
-            << " ts=" << dr.trigger_timestamp 
-            << " window_begin=" << dr.request_information.window_begin
-            << " window_end=" << dr.request_information.window_end;
+                                      << " ts=" << dr.trigger_timestamp
+                                      << " window_begin=" << dr.request_information.window_begin
+                                      << " window_end=" << dr.request_information.window_end;
           m_request_handler_impl->issue_request(dr);
 
           ++m_num_requests;
           ++m_sum_requests;
         }
       } else {
-        if (timesyncmsg.daq_time == 0) {++zero_timestamp_count;}
-        if (timesyncmsg.daq_time == prev_timestamp) {++duplicate_timestamp_count;}
+        if (timesyncmsg.daq_time == 0) {
+          ++zero_timestamp_count;
+        }
+        if (timesyncmsg.daq_time == prev_timestamp) {
+          ++duplicate_timestamp_count;
+        }
         if (once_per_run) {
           TLOG() << "Timesync with DAQ time 0 won't be sent out as it's an invalid sync.";
           once_per_run = false;
@@ -440,7 +440,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
       // ++m_timesyncqueue_timeout;
     }
     // Split up the 100ms sleep into 10 sleeps of 10ms, so we respond to "stop" quicker
-    for (size_t i=0; i<10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       if (!m_run_marker.load()) {
         break;
@@ -454,21 +454,21 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_timesync()
 }
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
-void 
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::dispatch_requests(dfmessages::DataRequest& data_request)
 {
   if (data_request.request_information.component != m_sourceid) {
-     ers::error(RequestSourceIDMismatch(ERS_HERE, m_sourceid, data_request.request_information.component));
-     return;
+    ers::error(RequestSourceIDMismatch(ERS_HERE, m_sourceid, data_request.request_information.component));
+    return;
   }
-  TLOG_DEBUG(TLVL_QUEUE_POP) << "Received DataRequest" 
-    << " for trig/seq_number " << data_request.trigger_number << "." << data_request.sequence_number
-    << ", runno " << data_request.run_number
-    << ", trig timestamp " << data_request.trigger_timestamp
-    << ", SourceID: " << data_request.request_information.component
-    << ", window begin/end " << data_request.request_information.window_begin
-    << "/" << data_request.request_information.window_end
-    << ", dest: " << data_request.data_destination;
+  TLOG_DEBUG(TLVL_QUEUE_POP) << "Received DataRequest"
+                             << " for trig/seq_number " << data_request.trigger_number << "."
+                             << data_request.sequence_number << ", runno " << data_request.run_number
+                             << ", trig timestamp " << data_request.trigger_timestamp
+                             << ", SourceID: " << data_request.request_information.component << ", window begin/end "
+                             << data_request.request_information.window_begin << "/"
+                             << data_request.request_information.window_end
+                             << ", dest: " << data_request.data_destination;
   m_request_handler_impl->issue_request(data_request);
   ++m_num_requests;
   ++m_sum_requests;

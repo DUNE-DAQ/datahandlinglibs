@@ -12,6 +12,7 @@
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "confmodel/DetectorStream.hpp"
 #include "appmodel/StreamEmulationParameters.hpp"
+#include "appmodel/RawDataCallbackConf.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
 #include <map>
@@ -33,7 +34,7 @@ public:
   SourceEmulatorConcept(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-constructible
   SourceEmulatorConcept& operator=(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-assignable
 
-  virtual void set_sender(const std::string& /*sink_name*/) = 0;
+  virtual void set_sender(const appmodel::RawDataCallbackConf* /*sink*/) = 0;
   virtual void conf(const confmodel::DetectorStream* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
   virtual void start(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
   virtual void stop(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
