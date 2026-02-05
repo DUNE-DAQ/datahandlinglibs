@@ -10,7 +10,7 @@
 
 #include "logging/Logging.hpp"
 
-#include "appmodel/RawDataCallbackConf.hpp"
+#include "appmodel/DataMoveCallbackConf.hpp"
 
 #include <functional>
 #include <memory>
@@ -70,7 +70,7 @@ public:
    * @param callback The callback function to register
    */
   template<typename DataType>
-  void register_callback(const appmodel::RawDataCallbackConf* conf, std::function<void(DataType&&)> callback);
+  void register_callback(const appmodel::DataMoveCallbackConf* conf, std::function<void(DataType&&)> callback);
 
   /**
    * @brief Gets the callback function registered with the given configuration
@@ -81,7 +81,7 @@ public:
    * @throw GenericConfigurationError if the registered callback function's parameter type does not match `DataType`
    */
   template<typename DataType>
-  std::shared_ptr<std::function<void(DataType&&)>> get_callback(const appmodel::RawDataCallbackConf* conf);
+  std::shared_ptr<std::function<void(DataType&&)>> get_callback(const appmodel::DataMoveCallbackConf* conf);
 
 private:
   DataMoveCallbackRegistry() {}

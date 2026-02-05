@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_SUITE(datahandlinglibs_DataMoveCallbackRegistry_test)
 BOOST_AUTO_TEST_CASE(DataMoveCallbackRegistry_get_callback)
 {
   auto confdb = std::make_shared<dunedaq::conffwk::Configuration>("oksconflibs:test/config/datahandlinglibs_DataMoveCallbackRegistry_test.data.xml");
-  auto conf = confdb->get<dunedaq::appmodel::RawDataCallbackConf>("id");
+  auto conf = confdb->get<dunedaq::appmodel::DataMoveCallbackConf>("id");
 
   auto registry = DataMoveCallbackRegistry::get();
 

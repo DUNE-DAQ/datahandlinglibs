@@ -73,7 +73,7 @@
 		<comment creation-time="20240327T161636" created-by="eflumerf" created-on="ironvirt9.mshome.net" author="eflumerf" text="Reformat"/>
 	</comments>
 
-	<obj class="RawDataCallbackConf" id="id">
+	<obj class="DataMoveCallbackConf" id="id">
 		<attr name="data_type" type="string" val="int"/>
 		<attr name="source_id" type="u32" val="1"/>
 	</obj>

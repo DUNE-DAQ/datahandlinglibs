@@ -20,7 +20,7 @@ SourceEmulatorPatternGenerator::generate(int source_id, int size)
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::set_sender(const appmodel::RawDataCallbackConf* conf)
+SourceEmulatorModel<ReadoutType>::set_sender(const appmodel::DataMoveCallbackConf* conf)
 {
   if (!m_sender_is_set) {
     m_raw_data_callback = datahandlinglibs::DataMoveCallbackRegistry::get()->get_callback<ReadoutType>(conf);

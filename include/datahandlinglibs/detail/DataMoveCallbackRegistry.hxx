@@ -8,7 +8,7 @@ namespace datahandlinglibs {
 
 template<typename DataType>
 inline void
-DataMoveCallbackRegistry::register_callback(const appmodel::RawDataCallbackConf* conf, std::function<void(DataType&&)> callback)
+DataMoveCallbackRegistry::register_callback(const appmodel::DataMoveCallbackConf* conf, std::function<void(DataType&&)> callback)
 {
   std::lock_guard<std::mutex> guard(m_mutex);
   std::string id = conf->UID();
@@ -22,7 +22,7 @@ DataMoveCallbackRegistry::register_callback(const appmodel::RawDataCallbackConf*
 
 template<typename DataType>
 inline std::shared_ptr<std::function<void(DataType&&)>>
-DataMoveCallbackRegistry::get_callback(const appmodel::RawDataCallbackConf* conf)
+DataMoveCallbackRegistry::get_callback(const appmodel::DataMoveCallbackConf* conf)
 {
   std::lock_guard<std::mutex> guard(m_mutex);
   std::string id = conf->UID();

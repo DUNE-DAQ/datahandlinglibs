@@ -12,7 +12,7 @@
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
-#include "appmodel/RawDataCallbackConf.hpp"
+#include "appmodel/DataMoveCallbackConf.hpp"
 #include "appmodel/DataHandlerConf.hpp"
 #include "appmodel/RequestHandler.hpp"
 #include "appmodel/LatencyBuffer.hpp"
@@ -359,7 +359,7 @@ protected:
   using raw_receiver_ct = iomanager::ReceiverConcept<InputDataType>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
   std::string m_raw_data_receiver_connection_name;
-  const appmodel::RawDataCallbackConf* m_raw_data_callback_conf;
+  const appmodel::DataMoveCallbackConf* m_raw_data_callback_conf;
 
   // REQUEST RECEIVERS
   using request_receiver_ct = iomanager::ReceiverConcept<dfmessages::DataRequest>;
