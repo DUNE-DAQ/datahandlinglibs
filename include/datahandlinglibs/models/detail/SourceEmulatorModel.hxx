@@ -195,35 +195,26 @@ SourceEmulatorModel<ReadoutType>::run_produce()
 
         if (m_generate_periodic_adc_pattern) {
           uint64_t number_pattern_hits_expected = (timestamp - ts_0) / m_time_to_wait;
+          while (number_pattern_hits_generated < number_pattern_hits_expected) {
+            ++number_pattern_hits_generated;
 
-          // Calculate how many TPs to generate in this frame
-          uint64_t tps_this_frame = 0;
-          if (number_pattern_hits_expected > number_pattern_hits_generated) {
-            tps_this_frame = number_pattern_hits_expected - number_pattern_hits_generated;
-          }
-
-          // Cap at maximum TPs per frame: 64 channels x 32 even time samples = 2048
-          // Each TP needs alternating ADC values (high/low), so only even time samples are used
-          const uint64_t max_tps_per_frame = 64 * 32;
-          if (tps_this_frame > max_tps_per_frame) {
-            tps_this_frame = max_tps_per_frame;
-          }
-
-          // Distribute TPs across channels and time samples sequentially
-          // Channels cycle 0-63, time samples use even indices (0, 2, 4, ..., 62)
-          // This creates the alternating high/low ADC pattern needed for TP detection
-          for (uint64_t tp_idx = 0; tp_idx < tps_this_frame; ++tp_idx) {
-            int channel = tp_idx % 64;
-            int time_sample = (tp_idx / 64) * 2;
-
-            try {
-              payload.fake_adc_pattern(channel, time_sample);
-            } catch (std::exception& ex) {
-              // FIXME: should not happen
+            /* Reset the pattern from the beginning if it reaches the maximum
+            m_pattern_index++;
+            if (m_pattern_index == m_pattern_generator.get_total_size()) {
+              m_pattern_index = 0;
             }
-          }
-
-          number_pattern_hits_generated += tps_this_frame;
+            */
+            // Set the ADC to the uint16 maximum value
+            try {
+              payload.fake_adc_pattern(m_pattern_generator.get_channel_number());
+            }
+            catch (std::exception & ex) {
+              //FIXME: should not happen
+            }
+            
+            //TLOG() << "Lift channel " << channel;
+            
+          } // (number_pattern_hits_expected - number_pattern_hits_generated) difference
         }
 
         // send it
