@@ -12,6 +12,7 @@
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
 #include "appmodel/DataHandlerModule.hpp"
+#include "appmodel/DataMoveCallbackConf.hpp"
 #include "appmodel/DataHandlerConf.hpp"
 #include "appmodel/RequestHandler.hpp"
 #include "appmodel/LatencyBuffer.hpp"
@@ -85,7 +86,6 @@ public:
   // Explicit constructor with run marker pass-through
   explicit DataHandlingModel(std::atomic<bool>& run_marker)
     : m_run_marker(run_marker)
-    , m_callback_mode(false)
     , m_fake_trigger(false)
     , m_current_fake_trigger_id(0)
     , m_consumer_thread(0)
@@ -121,9 +121,9 @@ public:
   void stop(const appfwk::DAQModule::CommandData_t& args);
 
   // Record function: invokes request handler's record implementation
-  void record(const appfwk::DAQModule::CommandData_t& args) override 
-  { 
-    m_request_handler_impl->record(args); 
+  void record(const appfwk::DAQModule::CommandData_t& args) override
+  {
+    m_request_handler_impl->record(args);
   }
 
   // Opmon get_info call implementation
@@ -160,7 +160,7 @@ protected:
       int processed = this->do_run(timeout);
 
       if (timeout) {
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
         m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
       }
 
@@ -183,11 +183,11 @@ protected:
         m_first_cycle = false;
         TLOG() << "***** First pass post processing *****";
       }
-      
+
       // Get the LB boundaries
       auto tail = m_latency_buffer_impl.back();
       auto newest_ts = tail->get_timestamp();
-          
+
       timestamp_t end_win_ts = 0;
       std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
 
@@ -197,13 +197,13 @@ protected:
         if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
           return 0;
-        }        
+        }
 
         ++m_consecutive_timeouts;
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;  
+        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
 
         end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
-        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large 
+        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large
       } else {
         m_consecutive_timeouts = 0;
 
@@ -238,7 +238,7 @@ protected:
       // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
       // so `lower_bound` will not be able to find it
       // We should verify that this is the only scenario in which we end up here
-      if (!start_iter.good()) { 
+      if (!start_iter.good()) {
         TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (!start_iter.good())";
         return 0;
       }
@@ -252,10 +252,10 @@ protected:
       for (auto it = start_iter; it != end_iter; ++it) {
         // Just to be completely safe
         // We should understand why we end up here
-        if (!it.good()) { 
+        if (!it.good()) {
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Invalid iterator in postprocessing loop";
           break;
-        }        
+        }
         m_raw_processor_impl.postprocess_item(&(*it));
         ++processed;
       }
@@ -263,7 +263,7 @@ protected:
       m_last_post_proc_time = now;
 
       return processed;
-    }  
+    }
 
   private:
     LatencyBufferType& m_latency_buffer_impl;
@@ -274,13 +274,13 @@ protected:
     bool m_first_cycle;
     RDT m_processed_up_to;
     int m_consecutive_timeouts;
-    const timestamp_t m_max_wait_in_ticks;  
+    const timestamp_t m_max_wait_in_ticks;
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
   };
 
   // Perform processing operations on payload
   void process_item(RDT&& payload);
-  
+
   // Transform payload if needed, then perform processing
   void transform_and_process(IDT&& payload);
 
@@ -297,11 +297,11 @@ protected:
   void run_postprocess_scheduler();
 
   // Postprocess schedule coroutine
-  folly::coro::Task<void> postprocess_schedule();  
+  folly::coro::Task<void> postprocess_schedule();
 
   // Dispatch data request
   void dispatch_requests(dfmessages::DataRequest& data_request);
-  
+
   // Transform input data type to readout
   virtual std::vector<RDT> transform_payload(IDT& original) const
   {
@@ -312,7 +312,7 @@ protected:
   virtual void invoke_postprocess_schedule_timeout_policy() const
   {
     return; // No-op for this class
-  }    
+  }
 
   // Operational monitoring
   virtual void generate_opmon_data() override;
@@ -322,7 +322,6 @@ protected:
 
   // CONFIGURATION
   //appfwk::app::ModInit m_queue_config;
-  bool m_callback_mode;
   bool m_fake_trigger;
   bool m_generate_timesync = false;
   int m_current_fake_trigger_id;
@@ -360,6 +359,7 @@ protected:
   using raw_receiver_ct = iomanager::ReceiverConcept<InputDataType>;
   std::shared_ptr<raw_receiver_ct> m_raw_data_receiver;
   std::string m_raw_data_receiver_connection_name;
+  const appmodel::DataMoveCallbackConf* m_raw_data_callback_conf;
 
   // REQUEST RECEIVERS
   using request_receiver_ct = iomanager::ReceiverConcept<dfmessages::DataRequest>;

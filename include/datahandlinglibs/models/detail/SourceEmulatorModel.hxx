@@ -20,10 +20,10 @@ SourceEmulatorPatternGenerator::generate(int source_id, int size)
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::set_sender(const std::string& conn_name)
+SourceEmulatorModel<ReadoutType>::set_sender(const appmodel::DataMoveCallbackConf* conf)
 {
   if (!m_sender_is_set) {
-    m_raw_data_sender = get_iom_sender<ReadoutType>(conn_name);
+    m_raw_data_callback = datahandlinglibs::DataMoveCallbackRegistry::get()->get_callback<ReadoutType>(conf);
     m_sender_is_set = true;
   } else {
     // ers::error();
@@ -39,7 +39,6 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
   } else {
     //m_conf = args.get<module_conf_t>();
     //m_link_conf = link_conf.get<link_conf_t>();
-    m_raw_sender_timeout_ms = std::chrono::milliseconds(1);
 
     std::mt19937 mt(rand()); // NOLINT(runtime/threadsafe_fn)
     std::uniform_real_distribution<double> dis(0.0, 1.0);
@@ -85,8 +84,8 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
        TLOG() << "TP rate per channel multiplier (base of 100 Hz/ch): " << emu_params->get_TP_rate_per_channel();
        // Define time to wait when adding an ADC above threshold
        // Adding a hit every 9768 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
-        m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();       
-      }  
+        m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();
+      }
     }
 
     m_is_configured = true;
@@ -192,9 +191,9 @@ SourceEmulatorModel<ReadoutType>::run_produce()
         }
         payload.fake_frame_errors(&frame_errs);
 
-        if (m_generate_periodic_adc_pattern) { 
+        if (m_generate_periodic_adc_pattern) {
           if (timestamp - m_pattern_generator_previous_ts > m_time_to_wait) {
-      
+
             /* Reset the pattern from the beginning if it reaches the maximum
             m_pattern_index++;
             if (m_pattern_index == m_pattern_generator.get_total_size()) {
@@ -208,18 +207,18 @@ SourceEmulatorModel<ReadoutType>::run_produce()
             catch (std::exception & ex) {
               //FIXME: should not happen
             }
-            
+
             //TLOG() << "Lift channel " << channel;
-            
+
             // Update the previous timestamp of the pattern generator
-            m_pattern_generator_previous_ts = timestamp;      
-            
+            m_pattern_generator_previous_ts = timestamp;
+
           } // timestamp difference
         }
 
         // send it
         try {
-          m_raw_data_sender->send(std::move(payload), m_raw_sender_timeout_ms);
+          (*m_raw_data_callback)(std::move(payload));
         } catch (ers::Issue& excpt) {
           ers::warning(CannotWriteToQueue(ERS_HERE, m_sourceid, "raw data input queue", excpt));
           // std::runtime_error("Queue timed out...");

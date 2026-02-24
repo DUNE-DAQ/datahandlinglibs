@@ -62,7 +62,7 @@ public:
 
   // To be implemented by final module
   virtual std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>
-  create_source_emulator(std::string qi, std::atomic<bool>& run_marker) = 0;
+  create_source_emulator(const appmodel::DataMoveCallbackConf* cb, std::atomic<bool>& run_marker) = 0;
 
   // Commands
   void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/);
