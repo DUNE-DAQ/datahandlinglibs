@@ -208,12 +208,14 @@ SourceEmulatorModel<ReadoutType>::run_produce()
             tps_this_frame = max_tps_per_frame;
           }
 
-          // Distribute TPs across channels and time samples sequentially
-          // Channels cycle 0-63, time samples use even indices (0, 2, 4, ..., 62)
-          // This creates the alternating high/low ADC pattern needed for TP detection
+          // Distribute TPs across channels (via pattern generator) and time samples
+          // Channels are pseudo-random 0-63, time samples use even indices (0, 2, 4, ..., 62)
+          // tp_call_counter resets per frame; time_sample advances every 64 TPs within a frame
+          uint64_t tp_call_counter = 0;
           for (uint64_t tp_idx = 0; tp_idx < tps_this_frame; ++tp_idx) {
-            int channel = tp_idx % 64;
-            int time_sample = (tp_idx / 64) * 2;
+            int channel = m_pattern_generator.get_channel_number();
+            int time_sample = ((tp_call_counter / 64) % 32) * 2;
+            ++tp_call_counter;
 
             try {
               payload.fake_adc_pattern(channel, time_sample);
