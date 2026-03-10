@@ -15,7 +15,6 @@ EmptyFragmentRequestHandlerModel<ReadoutType, LatencyBufferType>::issue_request(
   auto fragment = std::make_unique<daqdataformats::Fragment>(std::vector<std::pair<void*, size_t>>());
   fragment->set_header_fields(frag_header);
 
-  // ers::warning(dunedaq::datahandlinglibs::TrmWithEmptyFragment(ERS_HERE, "DLH is configured to send empty fragment"));
   TLOG_DEBUG(TLVL_WORK_STEPS) << "DLH is configured to send empty fragment";
 
   try { // Push to Fragment queue

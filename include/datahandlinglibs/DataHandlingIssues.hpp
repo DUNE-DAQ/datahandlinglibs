@@ -116,12 +116,6 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "SourceID[" << sourceid << "] Got request for SourceID: " << request_sourceid,
                   ((daqdataformats::SourceID)sourceid)((daqdataformats::SourceID)request_sourceid))
 
-
-ERS_DECLARE_ISSUE(datahandlinglibs,
-                  TrmWithEmptyFragment,
-                  "SourceID[" << sourceid << "] Trigger Matching result with empty fragment: " << trmdetails,
-                  ((daqdataformats::SourceID)sourceid)((std::string)trmdetails))
-
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   RequestOnEmptyBuffer,
                   "SourceID[" << sourceid << "] Request on empty buffer: " << trmdetails,
