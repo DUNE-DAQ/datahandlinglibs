@@ -137,7 +137,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const appfwk::DAQModule::Comma
   m_num_lb_insert_failures = 0;
   m_stats_packet_count = 0;
   m_rawq_timeout_count = 0;
-  m_num_post_processing_delay_max_waits = 0;
+  m_num_postprocess_schedule_timeouts = 0;
+  m_num_postprocess_late_arrivals = 0;
+  m_postprocess_lateness_from_last_processed = 0;
+  m_postprocess_lateness_from_newest = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
 
@@ -219,7 +222,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
   ri.set_num_lb_insert_failures(local_num_lb_insert_failures);
   ri.set_sum_requests(m_sum_requests.load());
   ri.set_num_requests(m_num_requests.exchange(0));
-  ri.set_num_post_processing_delay_max_waits(m_num_post_processing_delay_max_waits.exchange(0));
+  ri.set_num_postprocess_schedule_timeouts(m_num_postprocess_schedule_timeouts.exchange(0));
+  ri.set_num_postprocess_late_arrivals(m_num_postprocess_late_arrivals.load());
+  ri.set_postprocess_lateness_from_last_processed(m_postprocess_lateness_from_last_processed.load());
+  ri.set_postprocess_lateness_from_newest(m_postprocess_lateness_from_newest.load());
   ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
   ri.set_newest_timestamp(m_raw_processor_impl->get_last_daq_time());
   ri.set_oldest_timestamp(m_request_handler_impl->get_oldest_time());
@@ -253,22 +259,43 @@ void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 {
   m_raw_processor_impl->preprocess_item(&payload);
+
+  auto payload_ts = payload.get_timestamp();
+
   if (m_request_handler_supports_cutoff_timestamp) {
-    int64_t diff1 = payload.get_timestamp() - m_request_handler_impl->get_cutoff_timestamp();
+    int64_t diff1 = payload_ts - m_request_handler_impl->get_cutoff_timestamp();
     if (diff1 <= 0) {
       // m_request_handler_impl->increment_tardy_tp_count();
       ers::warning(DataPacketArrivedTooLate(ERS_HERE,
                                             m_sourceid,
                                             m_run_number,
-                                            payload.get_timestamp(),
+                                            payload_ts,
                                             m_request_handler_impl->get_cutoff_timestamp(),
                                             diff1,
                                             (static_cast<double>(diff1) / 62500.0)));
     }
   }
+
+  if (m_processing_delay_ticks > 0) {
+    timestamp_t next_window_start_ts;
+    timestamp_t last_processed_ts;
+
+    {
+      std::lock_guard<std::mutex> lock(m_postprocess_state_mutex);
+      next_window_start_ts = m_postprocess_state.next_window_start_ts;
+      last_processed_ts = m_postprocess_state.last_processed_ts;
+    }
+
+    if (payload_ts < next_window_start_ts) {
+      ++m_num_postprocess_late_arrivals;
+      m_postprocess_lateness_from_last_processed.store(last_processed_ts - payload_ts);
+      m_postprocess_lateness_from_newest.store(m_latency_buffer_impl->back()->get_timestamp() - payload_ts);
+    }
+  }
+
   if (!m_latency_buffer_impl->write(std::move(payload))) {
     // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" <<
-    // payload.get_timestamp() << ")";
+    // payload_ts << ")";
     m_num_lb_insert_failures++;
     return;
   }
@@ -300,7 +327,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
   m_num_payloads = 0;
   m_sum_payloads = 0;
   m_stats_packet_count = 0;
-  m_num_post_processing_delay_max_waits = 0;
+  m_num_postprocess_schedule_timeouts = 0;
+  m_num_postprocess_late_arrivals = 0;
+  m_postprocess_lateness_from_last_processed = 0;
+  m_postprocess_lateness_from_newest = 0;  
 
   while (m_run_marker.load()) {
     // Try to acquire data
@@ -332,7 +362,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
                                            *m_raw_processor_impl,
                                            m_processing_delay_ticks,
                                            m_post_processing_delay_min_wait,
-                                           m_post_processing_delay_max_wait };
+                                           m_post_processing_delay_max_wait,
+                                           m_postprocess_state,
+                                           m_postprocess_state_mutex };
 
   const auto wait_data = [this]() -> folly::coro::Task<void> {
     // folly::coro::timeout cancels the task on timeout.
@@ -352,7 +384,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
 
       } catch (const folly::FutureTimeout&) {
         timeout = true;
-        ++m_num_post_processing_delay_max_waits;
+        ++m_num_postprocess_schedule_timeouts;
       }
     } else {
       co_await m_baton;

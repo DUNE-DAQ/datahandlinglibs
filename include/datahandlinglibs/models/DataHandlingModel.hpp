@@ -136,146 +136,214 @@ protected:
   class PostprocessScheduleAlgorithm
   {
   public:
+    struct PostprocessState {
+      timestamp_t next_window_start_ts{ 0 };
+      timestamp_t last_processed_ts{ 0 };
+    };
+
     PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
                                  RawDataProcessorType& raw_processor_impl,
                                  uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
                                  uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
-                                 uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_max_wait, // NOLINT(build/unsigned)
+                                 PostprocessState& state,
+                                 std::mutex& state_mutex) 
       : m_latency_buffer_impl{ latency_buffer_impl }
       , m_raw_processor_impl{ raw_processor_impl }
       , m_processing_delay_ticks{ processing_delay_ticks }
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
       , m_first_cycle{ true }
-      , m_processed_up_to{}
+      , m_next_window_start{}
+      , m_state{ state }
+      , m_state_mutex{ state_mutex }
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
-      , m_consecutive_timeouts{ 0 }
       , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
     {
-    }
+    }   
 
     // High-level interface
     // Schedule deferred post-processing and notify timeout expiration to the processor
     int run(bool timeout) {
       int processed = this->do_run(timeout);
 
-      if (timeout) {
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
-        m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
-      }
+      // if (timeout) {
+      //   timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
+      //   m_raw_processor_impl.invoke_postprocess_schedule_timeout_policy(timeout_accumulated);
+      // }
 
       return processed;
     }
-
 
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
     int do_run(bool timeout)
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
+        TLOG() << "Nothing to postprocess (empty buffer)";
         return 0;
       }
 
       if (m_first_cycle) {
+        m_timeout_counts.push_back(0);
+
         auto head = m_latency_buffer_impl.front();
-        m_processed_up_to.set_timestamp(head->get_timestamp());
+
+        m_next_window_start.set_timestamp(head->get_timestamp());
+        set_postprocessing_state(m_next_window_start.get_timestamp(), 0);
+
         m_first_cycle = false;
+
         TLOG() << "***** First pass post processing *****";
+        return 0;
       }
 
       // Get the LB boundaries
       auto tail = m_latency_buffer_impl.back();
       auto newest_ts = tail->get_timestamp();
-
-      timestamp_t end_win_ts = 0;
+      
       std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
 
       if (timeout) {
-        // Return if the last processed timestamp is greater than the newest timestamp
-        // This condition occurs after a timeout
-        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (at or past cap)";
+        if (m_next_window_start.get_timestamp() >= newest_ts + 1) {
+          TLOG() << "Nothing to postprocess (all items are processed already)";
           return 0;
         }
 
-        ++m_consecutive_timeouts;
-        timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
-
-        end_win_ts = newest_ts - m_processing_delay_ticks + timeout_accumulated;
-        end_win_ts = std::min(end_win_ts, newest_ts + 1); // Cap to prevent end_win_ts from becoming unnecessarily large
-      } else {
-        m_consecutive_timeouts = 0;
-
-        if (m_processed_up_to.get_timestamp() >= newest_ts + 1) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (data arrived too late, will be ignored)";
+        for (auto& count : m_timeout_counts) {
+          ++count;
+        }      
+      } else { // data arrival
+        if (m_next_window_start.get_timestamp() >= newest_ts + 1) {
+          TLOG() << "Nothing to postprocess (data arrived for a closed processing window, all items are processed already)";
           return 0;
         }
+                
+        m_timeout_counts.push_back(0);
 
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
-
-        if (milliseconds.count() > m_post_processing_delay_min_wait) {
-          if (newest_ts - m_processed_up_to.get_timestamp() > m_processing_delay_ticks) {
-            end_win_ts = newest_ts - m_processing_delay_ticks;
-          } else {
-            TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (m_processing_delay_ticks is greater)";
-            return 0;
-          }
-        } else {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
+        if (milliseconds.count() <= m_post_processing_delay_min_wait) {
+          TLOG() << "Not ready to postprocess (too fast)";
           return 0;
-        }
+        }        
       }
-
-      auto start_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
-      m_processed_up_to.set_timestamp(end_win_ts);
-      auto end_iter = m_latency_buffer_impl.lower_bound(m_processed_up_to, false);
+            
+      timestamp_t ts_window_end = newest_ts + 1;
+      size_t timeout_idx = 0;
+      
+      auto start_iter = m_latency_buffer_impl.lower_bound(m_next_window_start, false);
 
       // This likely happens when RDT uses a composite key
       // The current algorithm does not support composite keys
-      // Our search item `m_processed_up_to` will have its other keys set to their defaults
+      // Our search item `m_next_window_start` will have its other keys set to their defaults
       // E.g., for TriggerPrimitive, channel = INVALID_TP_CHANNEL
       // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
       // so `lower_bound` will not be able to find it
       // We should verify that this is the only scenario in which we end up here
       if (!start_iter.good()) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (!start_iter.good())";
+        TLOG() << "Nothing to postprocess (!start_iter.good())";
         return 0;
       }
 
+      auto it = start_iter;
+      while (true) {
+        // Just to be completely safe
+        // We should understand why we end up here
+        if (!it.good()) {
+          TLOG() << "Invalid iterator during end window find loop";
+          return 0;
+        }
+
+        auto ts = it->get_timestamp();
+        auto effective_ts = get_effective_ts(ts, timeout_idx);
+        int64_t newest_ts_signed = static_cast<int64_t>(newest_ts);
+        int64_t delay_ticks_signed = static_cast<int64_t>(m_processing_delay_ticks);
+
+        if (newest_ts_signed - effective_ts <= delay_ticks_signed) {
+          ts_window_end = ts;
+          break;
+        }
+
+        if (&(*it) == tail) {
+          break;
+        }
+        ++it;
+        ++timeout_idx;
+      }
+
+      if (ts_window_end == newest_ts + 1) {
+        TLOG() << "This will process everything";
+      }
+
+      RDT window_end = m_next_window_start;
+      window_end.set_timestamp(ts_window_end);
+      auto end_iter = m_latency_buffer_impl.lower_bound(window_end, false);
+
       if (start_iter == end_iter) {
-        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (start_iter == end_iter)";
+        TLOG() << "Nothing to postprocess (start_iter == end_iter)";
         return 0;
       }
 
       int processed = 0;
+      auto last_processed_ts = get_last_processed_ts();
       for (auto it = start_iter; it != end_iter; ++it) {
         // Just to be completely safe
         // We should understand why we end up here
         if (!it.good()) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Invalid iterator in postprocessing loop";
+          TLOG() << "Invalid iterator in postprocessing loop";
           break;
         }
         m_raw_processor_impl.postprocess_item(&(*it));
+        last_processed_ts = it->get_timestamp();
         ++processed;
       }
 
+      m_next_window_start.set_timestamp(ts_window_end);
+      set_postprocessing_state(ts_window_end, last_processed_ts);
+
       m_last_post_proc_time = now;
+
+      if (processed > 0) {
+        m_timeout_counts.erase(m_timeout_counts.begin(),
+                               m_timeout_counts.begin() + processed);
+      }
 
       return processed;
     }
 
   private:
+    timestamp_t get_last_processed_ts()
+    {
+      std::lock_guard<std::mutex> lock(m_state_mutex);
+      return m_state.last_processed_ts;
+    }
+
+    void set_postprocessing_state(timestamp_t next_window_start_ts, timestamp_t last_processed_ts)
+    {
+      std::lock_guard<std::mutex> lock(m_state_mutex);
+      m_state.next_window_start_ts = next_window_start_ts;
+      m_state.last_processed_ts = last_processed_ts;
+    }
+
+    int64_t get_effective_ts(timestamp_t ts, size_t timeout_idx) {
+      int64_t virtual_age = 
+        static_cast<int64_t>(m_timeout_counts[timeout_idx]) * static_cast<int64_t>(m_max_wait_in_ticks);
+
+      return static_cast<int64_t>(ts) - virtual_age;
+    }
+
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
     const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
     bool m_first_cycle;
-    RDT m_processed_up_to;
-    int m_consecutive_timeouts;
+    RDT m_next_window_start;
+    PostprocessState& m_state;
+    std::mutex& m_state_mutex;
+    std::vector<std::size_t> m_timeout_counts;
     const timestamp_t m_max_wait_in_ticks;
-    std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;
+    std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;    
   };
 
   // Perform processing operations on payload
@@ -339,7 +407,10 @@ protected:
   using sum_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_requests),metric_t>::type>::type;
   using rawq_timeout_count_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_data_input_timeouts),metric_t>::type>::type;
   using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
-  using num_post_processing_delay_max_waits_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_post_processing_delay_max_waits),metric_t>::type>::type;
+  using num_postprocess_schedule_timeouts_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_schedule_timeouts),metric_t>::type>::type;
+  using num_postprocess_late_arrivals_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_late_arrivals),metric_t>::type>::type;
+  using postprocess_lateness_from_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::postprocess_lateness_from_last_processed),metric_t>::type>::type;
+  using postprocess_lateness_from_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::postprocess_lateness_from_newest),metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
   std::atomic<sum_payload_t> m_sum_payloads{ 0 };
@@ -347,7 +418,10 @@ protected:
   std::atomic<sum_request_t> m_sum_requests{ 0 };
   std::atomic<rawq_timeout_count_t> m_rawq_timeout_count{ 0 };
   std::atomic<num_lb_insert_failures_t> m_num_lb_insert_failures{ 0 };
-  std::atomic<num_post_processing_delay_max_waits_t> m_num_post_processing_delay_max_waits{ 0 };
+  std::atomic<num_postprocess_schedule_timeouts_t> m_num_postprocess_schedule_timeouts{ 0 };
+  std::atomic<num_postprocess_late_arrivals_t> m_num_postprocess_late_arrivals{ 0 };
+  std::atomic<postprocess_lateness_from_last_processed_t> m_postprocess_lateness_from_last_processed{ 0 };
+  std::atomic<postprocess_lateness_from_newest_t> m_postprocess_lateness_from_newest{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
 
   // CONSUMER
@@ -380,6 +454,8 @@ protected:
   utilities::ReusableThread m_postprocess_scheduler_thread;
   folly::coro::Baton m_baton;
   std::unique_ptr<folly::Timekeeper> m_timekeeper;
+  PostprocessScheduleAlgorithm::PostprocessState m_postprocess_state;
+  std::mutex m_postprocess_state_mutex;  
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;

@@ -30,7 +30,21 @@ public:
     DataHandlingModel<ReadoutType, RequestHandlerType, LatencyBufferType, RawDataProcessorType, InputDataType>;
   using Base::Base;
   using Base::PostprocessScheduleAlgorithm;
-  using typename Base::num_post_processing_delay_max_waits_t;
+  using typename Base::num_postprocess_schedule_timeouts_t;
+  using typename Base::num_postprocess_late_arrivals_t;
+  using typename Base::postprocess_lateness_from_last_processed_t;
+  using typename Base::postprocess_lateness_from_newest_t;
+
+  void test_process_item(
+    std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
+    uint64_t processing_delay_ticks, ReadoutType&& payload) 
+  {
+    this->m_latency_buffer_impl = latency_buffer_impl;
+    this->m_raw_processor_impl = raw_processor_impl;
+    this->m_request_handler_supports_cutoff_timestamp = false;
+    this->m_processing_delay_ticks = processing_delay_ticks;
+    this->process_item(std::move(payload));
+  }
 
   void test_run_postprocess_scheduler(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
@@ -43,15 +57,39 @@ public:
     this->run_postprocess_scheduler();
   }
 
-  num_post_processing_delay_max_waits_t get_num_post_processing_delay_max_waits()
+  num_postprocess_schedule_timeouts_t get_num_postprocess_schedule_timeouts()
   {
-    return this->m_num_post_processing_delay_max_waits.load();
+    return this->m_num_postprocess_schedule_timeouts.load();
   }
+
+  num_postprocess_late_arrivals_t get_num_postprocess_late_arrivals()
+  {
+    return this->m_num_postprocess_late_arrivals.load();
+  }  
+
+  postprocess_lateness_from_last_processed_t get_postprocess_lateness_from_last_processed()
+  {
+    return this->m_postprocess_lateness_from_last_processed.load();
+  }    
+
+  postprocess_lateness_from_newest_t get_postprocess_lateness_from_newest()
+  {
+    return this->m_postprocess_lateness_from_newest.load();
+  }    
 
   void set_run_marker(bool run_marker)
   {
     return this->m_run_marker.store(run_marker);
   }
+  
+  auto& get_postprocess_state() {
+    return this->m_postprocess_state;
+  }
+
+  auto& get_postprocess_state_mutex() {
+    return this->m_postprocess_state_mutex;
+  }
+
 };
 
 } // namespace unittest

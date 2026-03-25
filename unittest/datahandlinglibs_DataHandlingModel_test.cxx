@@ -25,6 +25,84 @@ using namespace dunedaq::datahandlinglibs;
 
 using ReadoutType = types::DUMMY_FRAME_STRUCT;
 
+BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgorithm_data_arrives_after_window_processed_with_timeout_monitoring)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model =
+    unittest::MockDataHandlingModel<ReadoutType,
+                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
+                                    SkipListLatencyBufferModel<ReadoutType>,
+                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
+
+  constexpr bool post_processing_enabled = true;
+  auto error_registry = std::make_unique<FrameErrorRegistry>();
+
+  auto raw_processor =
+    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+
+  constexpr uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
+  constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
+
+  typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
+  };  
+
+  {
+    ReadoutType frame{};
+    frame.timestamp = 1 * 62500;
+    buffer->write(std::move(frame));  
+    model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
+  }
+  for (int i = 3; i < 5; i++) {
+    ReadoutType frame{};
+    frame.timestamp = i * 62500;
+    buffer->write(std::move(frame));
+    model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
+  }
+  // Buffer = {1, 3, 4}  
+  
+  bool timeout = false;
+  // Just populating `m_timeout_counts`
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+
+  // Buffer = {1, 3, 4} delay_ticks = 4
+  timeout = true;
+  // 1st timeout => 1 - 1 * 2 (delay_max_wait = 2)
+  // 4 - -1 > 4 -> postprocess {1}
+  // 3 - 1 * 2
+  // 4 - 1 <= 4 -> no postprocessing
+  int processed_count = sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 1);
+
+  // 2nd timeout => 3 - 2 * 2 (delay_max_wait = 2)
+  // 4 - -1 > 4 -> postprocess {3}
+  // 4 - 2 * 2
+  // 4 - 0 <= 4 -> no postprocessing
+  processed_count += sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 2);
+
+  auto last_processed_ts = 3 * 62500;
+  auto newest_ts = 4 * 62500;
+  // m_next_window_start = {4}
+
+  // Data arrived for a closed processing window
+  {
+    ReadoutType frame{};
+    frame.timestamp = 2 * 62500;
+    model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
+    BOOST_REQUIRE_EQUAL(model.get_num_postprocess_late_arrivals(), 1);  
+    BOOST_REQUIRE_EQUAL(model.get_postprocess_lateness_from_last_processed(), last_processed_ts - frame.timestamp);  
+    BOOST_REQUIRE_EQUAL(model.get_postprocess_lateness_from_newest(), newest_ts - frame.timestamp);  
+  }
+
+}
+
 BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_run_postprocess_scheduler_timeout)
 {
   std::atomic<bool> run_marker = true;
@@ -64,7 +142,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_run_postprocess_schedule
   model.set_run_marker(false); // Let coroutine end
   coro_thread.join(); // The test will stuck here if timeout is not triggered (because of folly::coro::blockingWait)
 
-  BOOST_REQUIRE_EQUAL(model.get_num_post_processing_delay_max_waits(), 1);
+  BOOST_REQUIRE_EQUAL(model.get_num_postprocess_schedule_timeouts(), 1);
 }
 
 BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgorithm_timeout)
@@ -96,7 +174,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
   };
 
   // First pass
@@ -106,19 +184,25 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   // 5 - 1 > 4 is false => no postprocessing
   BOOST_REQUIRE_EQUAL(processed_count, 0);
 
+  // Just populating `m_timeout_counts`
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+
   timeout = true;
   // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
-  // end_win_ts = 5 - 4 + 2 => postprocess until 3 {1, 2}
+  // ts_window_end = 5 - 4 + 2 => postprocess until 3 {1, 2}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 2);
 
   // 2nd timeout => timeout_accumulated = 2 * 2
-  // end_win_ts = 5 - 4 + 4 => postprocess until 5 {3, 4}
+  // ts_window_end = 5 - 4 + 4 => postprocess until 5 {3, 4}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 4);
 
   // 3rd timeout => timeout_accumulated = 3 * 2
-  // end_win_ts = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}
+  // ts_window_end = 5 - 4 + 6 => postprocess until 6 (capped to newest_ts + 1) {5}
   processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 5);
 
@@ -163,14 +247,20 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
   };
 
-  bool timeout = true;
+  bool timeout = false;
+  // Just populating `m_timeout_counts`
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+  sched_algo.run(timeout);
+
+  timeout = true;
   int processed_count = sched_algo.run(timeout);
   // Buffer = {1, 2, 4} delay_ticks = 1
   // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
-  // end_win_ts = 4 - 1 + 2 => postprocess until 5 {1, 2, 4}
+  // ts_window_end = 4 - 1 + 2 => postprocess until 5 {1, 2, 4}
   BOOST_REQUIRE_EQUAL(processed_count, 3);
 
   {
