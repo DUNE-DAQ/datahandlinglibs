@@ -63,13 +63,12 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     buffer->write(std::move(frame));
     model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
   }
-  // Buffer = {1, 3, 4}  
-  
+  // Buffer = {1, 3, 4}
+
+  // First pass
   bool timeout = false;
-  // Just populating `m_timeout_counts`
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
+  int processed_count = sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 0);
 
   // Buffer = {1, 3, 4} delay_ticks = 4
   timeout = true;
@@ -77,7 +76,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   // 4 - -1 > 4 -> postprocess {1}
   // 3 - 1 * 2
   // 4 - 1 <= 4 -> no postprocessing
-  int processed_count = sched_algo.run(timeout);
+  processed_count += sched_algo.run(timeout);
   BOOST_REQUIRE_EQUAL(processed_count, 1);
 
   // 2nd timeout => 3 - 2 * 2 (delay_max_wait = 2)
@@ -180,15 +179,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   // First pass
   bool timeout = false;
   int processed_count = sched_algo.run(timeout);
-  // Buffer = {1, 2, 3, 4, 5} delay_ticks = 4
-  // 5 - 1 > 4 is false => no postprocessing
   BOOST_REQUIRE_EQUAL(processed_count, 0);
-
-  // Just populating `m_timeout_counts`
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
 
   timeout = true;
   // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
@@ -250,14 +241,13 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
   };
 
+  // First pass
   bool timeout = false;
-  // Just populating `m_timeout_counts`
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
-  sched_algo.run(timeout);
+  int processed_count = sched_algo.run(timeout);
+  BOOST_REQUIRE_EQUAL(processed_count, 0);  
 
   timeout = true;
-  int processed_count = sched_algo.run(timeout);
+  processed_count = sched_algo.run(timeout);
   // Buffer = {1, 2, 4} delay_ticks = 1
   // 1st timeout => timeout_accumulated = 1 * 2 (delay_max_wait = 2)
   // ts_window_end = 4 - 1 + 2 => postprocess until 5 {1, 2, 4}

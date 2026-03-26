@@ -154,7 +154,7 @@ protected:
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
       , m_first_cycle{ true }
-      , m_next_window_start{}
+      , m_is_timeout{ false }
       , m_state{ state }
       , m_state_mutex{ state_mutex }
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
@@ -165,7 +165,9 @@ protected:
     // High-level interface
     // Schedule deferred post-processing and notify timeout expiration to the processor
     int run(bool timeout) {
-      int processed = this->do_run(timeout);
+      m_is_timeout = timeout;
+
+      int processed = this->do_run();
 
       // if (timeout) {
       //   timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
@@ -177,20 +179,18 @@ protected:
 
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    int do_run(bool timeout)
+    int do_run()
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
         TLOG() << "Nothing to postprocess (empty buffer)";
         return 0;
       }
 
-      if (m_first_cycle) {
-        m_timeout_counts.push_back(0);
-
+      if (m_first_cycle) { // first data arrival
         auto head = m_latency_buffer_impl.front();
-
-        m_next_window_start.set_timestamp(head->get_timestamp());
-        set_postprocessing_state(m_next_window_start.get_timestamp(), 0);
+        auto oldest_ts = head->get_timestamp();
+        
+        set_postprocessing_state(oldest_ts, 0);
 
         m_first_cycle = false;
 
@@ -200,42 +200,32 @@ protected:
 
       // Get the LB boundaries
       auto tail = m_latency_buffer_impl.back();
-      auto newest_ts = tail->get_timestamp();
+      const auto newest_ts = tail->get_timestamp();
+
+      const auto next_window_start_ts = get_next_window_start_ts();
       
-      std::chrono::time_point<std::chrono::system_clock> now{ std::chrono::system_clock::now() };
+      if (next_window_start_ts >= newest_ts + 1) {
+        TLOG() << "Nothing to postprocess (all items are processed already)";
+        return 0;
+      }
 
-      if (timeout) {
-        if (m_next_window_start.get_timestamp() >= newest_ts + 1) {
-          TLOG() << "Nothing to postprocess (all items are processed already)";
-          return 0;
-        }
+      auto now = std::chrono::system_clock::now();
 
-        for (auto& count : m_timeout_counts) {
-          ++count;
-        }      
-      } else { // data arrival
-        if (m_next_window_start.get_timestamp() >= newest_ts + 1) {
-          TLOG() << "Nothing to postprocess (data arrived for a closed processing window, all items are processed already)";
-          return 0;
-        }
-                
-        m_timeout_counts.push_back(0);
-
+      if (!m_is_timeout) { // data arrival
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
         if (milliseconds.count() <= m_post_processing_delay_min_wait) {
-          TLOG() << "Not ready to postprocess (too fast)";
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
           return 0;
         }        
       }
-            
-      timestamp_t ts_window_end = newest_ts + 1;
-      size_t timeout_idx = 0;
-      
-      auto start_iter = m_latency_buffer_impl.lower_bound(m_next_window_start, false);
+
+      RDT next_window_start{};
+      next_window_start.set_timestamp(next_window_start_ts);
+      auto start_iter = m_latency_buffer_impl.lower_bound(next_window_start, false);
 
       // This likely happens when RDT uses a composite key
       // The current algorithm does not support composite keys
-      // Our search item `m_next_window_start` will have its other keys set to their defaults
+      // Our search item `next_window_start` will have its other keys set to their defaults
       // E.g., for TriggerPrimitive, channel = INVALID_TP_CHANNEL
       // Even if an entry with the same ts exists in the buffer, its channel will be a valid (smaller) value,
       // so `lower_bound` will not be able to find it
@@ -245,73 +235,52 @@ protected:
         return 0;
       }
 
-      auto it = start_iter;
-      while (true) {
-        // Just to be completely safe
-        // We should understand why we end up here
-        if (!it.good()) {
-          TLOG() << "Invalid iterator during end window find loop";
-          return 0;
-        }
-
-        auto ts = it->get_timestamp();
-        auto effective_ts = get_effective_ts(ts, timeout_idx);
-        int64_t newest_ts_signed = static_cast<int64_t>(newest_ts);
-        int64_t delay_ticks_signed = static_cast<int64_t>(m_processing_delay_ticks);
-
-        if (newest_ts_signed - effective_ts <= delay_ticks_signed) {
-          ts_window_end = ts;
-          break;
-        }
-
-        if (&(*it) == tail) {
-          break;
-        }
-        ++it;
-        ++timeout_idx;
-      }
-
-      if (ts_window_end == newest_ts + 1) {
-        TLOG() << "This will process everything";
-      }
-
-      RDT window_end = m_next_window_start;
-      window_end.set_timestamp(ts_window_end);
-      auto end_iter = m_latency_buffer_impl.lower_bound(window_end, false);
-
-      if (start_iter == end_iter) {
-        TLOG() << "Nothing to postprocess (start_iter == end_iter)";
-        return 0;
-      }
-
-      int processed = 0;
+      size_t processed = 0;
       auto last_processed_ts = get_last_processed_ts();
-      for (auto it = start_iter; it != end_iter; ++it) {
-        // Just to be completely safe
-        // We should understand why we end up here
-        if (!it.good()) {
-          TLOG() << "Invalid iterator in postprocessing loop";
+      
+      auto window_end_ts = newest_ts + 1; // entire buffer
+      auto it = start_iter;
+
+      for (; it.good(); ++it) {
+        const auto ts = it->get_timestamp();
+
+        update_timeout_count(ts);
+
+        const auto effective_ts = get_effective_ts(ts);
+
+        if (is_not_ready_for_processing(newest_ts, effective_ts)) {
+          window_end_ts = ts;
           break;
         }
-        m_raw_processor_impl.postprocess_item(&(*it));
-        last_processed_ts = it->get_timestamp();
-        ++processed;
+
+        postprocess_item(&(*it), processed, last_processed_ts);
       }
 
-      m_next_window_start.set_timestamp(ts_window_end);
-      set_postprocessing_state(ts_window_end, last_processed_ts);
+      if (window_end_ts == newest_ts + 1) {
+        if (it.good()) {
+          TLOG() << "Processing entire buffer";
+          postprocess_item(&(*it), processed, last_processed_ts);
+        } else {
+          TLOG() << "Unexpected delayed postprocessing state: iterator invalid when processing entire buffer";
+        }
+      } else {
+        update_remaining_timeout_counts(it);
+      }
+
+      set_postprocessing_state(window_end_ts, last_processed_ts);
 
       m_last_post_proc_time = now;
-
-      if (processed > 0) {
-        m_timeout_counts.erase(m_timeout_counts.begin(),
-                               m_timeout_counts.begin() + processed);
-      }
 
       return processed;
     }
 
   private:
+    timestamp_t get_next_window_start_ts()
+    {
+      std::lock_guard<std::mutex> lock(m_state_mutex);
+      return m_state.next_window_start_ts;
+    }
+
     timestamp_t get_last_processed_ts()
     {
       std::lock_guard<std::mutex> lock(m_state_mutex);
@@ -325,24 +294,65 @@ protected:
       m_state.last_processed_ts = last_processed_ts;
     }
 
-    int64_t get_effective_ts(timestamp_t ts, size_t timeout_idx) {
-      int64_t virtual_age = 
-        static_cast<int64_t>(m_timeout_counts[timeout_idx]) * static_cast<int64_t>(m_max_wait_in_ticks);
+    void postprocess_item(const ReadoutType* item, size_t& processed, timestamp_t& last_processed_ts)
+    {
+      m_raw_processor_impl.postprocess_item(item);
+
+      const auto ts = item->get_timestamp();
+      ++processed;
+      last_processed_ts = ts;
+      m_timeout_count_map.erase(ts);
+    }    
+
+    void update_timeout_count(timestamp_t ts)
+    {
+      auto& timeout_count = m_timeout_count_map[ts];
+      if (m_is_timeout) {
+        ++timeout_count;
+      }
+    }    
+
+    void update_remaining_timeout_counts(auto it)
+    {
+      if (it.good()) { 
+        ++it; // skip 1 because its entry should already be updated in the window finding loop
+      } else {
+        TLOG() << "Unexpected delayed postprocessing state: iterator invalid before updating remaining timeouts";
+      }
+
+      for (; it.good(); ++it) {
+        update_timeout_count(it->get_timestamp());
+      }
+    }    
+
+    int64_t get_effective_ts(timestamp_t ts) const {
+      const auto timeout_count = m_timeout_count_map.at(ts);
+
+      const int64_t virtual_age =
+        static_cast<int64_t>(timeout_count) * static_cast<int64_t>(m_max_wait_in_ticks);
 
       return static_cast<int64_t>(ts) - virtual_age;
     }
+
+    bool is_not_ready_for_processing(timestamp_t newest_ts, int64_t effective_ts) const
+    {
+      const auto newest_ts_signed = static_cast<int64_t>(newest_ts);
+      const auto delay_ticks_signed = static_cast<int64_t>(m_processing_delay_ticks);
+
+      return newest_ts_signed - effective_ts <= delay_ticks_signed;
+    }    
 
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
     const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
+    const timestamp_t m_max_wait_in_ticks;
     bool m_first_cycle;
-    RDT m_next_window_start;
+    bool m_is_timeout;
     PostprocessState& m_state;
     std::mutex& m_state_mutex;
-    std::vector<std::size_t> m_timeout_counts;
-    const timestamp_t m_max_wait_in_ticks;
+    std::map<timestamp_t, std::size_t> m_timeout_count_map;
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;    
   };
 
