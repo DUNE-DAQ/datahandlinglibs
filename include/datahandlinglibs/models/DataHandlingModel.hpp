@@ -187,14 +187,7 @@ protected:
       }
 
       if (m_first_cycle) { // first data arrival
-        auto head = m_latency_buffer_impl.front();
-        auto oldest_ts = head->get_timestamp();
-        
-        set_postprocessing_state(oldest_ts, 0);
-
-        m_first_cycle = false;
-
-        TLOG() << "***** First pass post processing *****";
+        handle_first_cycle();
         return 0;
       }
 
@@ -204,8 +197,8 @@ protected:
 
       const auto next_window_start_ts = get_next_window_start_ts();
       
-      if (next_window_start_ts >= newest_ts + 1) {
-        TLOG() << "Nothing to postprocess (all items are processed already)";
+      if (next_window_start_ts > newest_ts) {
+        TLOG() << "Postprocessing window is already closed";
         return 0;
       }
 
@@ -214,7 +207,7 @@ protected:
       if (!m_is_timeout) { // data arrival
         auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
         if (milliseconds.count() <= m_post_processing_delay_min_wait) {
-          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not ready to postprocess (too fast)";
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Not enough time passed since last postprocessing";
           return 0;
         }        
       }
@@ -256,18 +249,13 @@ protected:
         postprocess_item(&(*it), processed, last_processed_ts);
       }
 
+      set_postprocessing_state(window_end_ts, last_processed_ts);
+
       if (window_end_ts == newest_ts + 1) {
-        if (it.good()) {
-          TLOG() << "Processing entire buffer";
-          postprocess_item(&(*it), processed, last_processed_ts);
-        } else {
-          TLOG() << "Unexpected delayed postprocessing state: iterator invalid when processing entire buffer";
-        }
+        TLOG() << "Entire buffer was postprocessed";
       } else {
         update_remaining_timeout_counts(it);
       }
-
-      set_postprocessing_state(window_end_ts, last_processed_ts);
 
       m_last_post_proc_time = now;
 
@@ -294,6 +282,16 @@ protected:
       m_state.last_processed_ts = last_processed_ts;
     }
 
+    void handle_first_cycle() {
+      auto head = m_latency_buffer_impl.front();
+      auto oldest_ts = head->get_timestamp();
+      
+      set_postprocessing_state(oldest_ts, 0);
+
+      m_first_cycle = false;
+      TLOG() << "***** First pass post processing *****";
+    }
+
     void postprocess_item(const ReadoutType* item, size_t& processed, timestamp_t& last_processed_ts)
     {
       m_raw_processor_impl.postprocess_item(item);
@@ -315,8 +313,8 @@ protected:
     void update_remaining_timeout_counts(auto it)
     {
       if (it.good()) { 
-        ++it; // skip 1 because its entry should already be updated in the window finding loop
-      } else {
+        ++it; // skip 1 because its entry should already be updated in the end window finding loop
+      } else [[unlikely]] {
         TLOG() << "Unexpected delayed postprocessing state: iterator invalid before updating remaining timeouts";
       }
 
@@ -326,12 +324,20 @@ protected:
     }    
 
     int64_t get_effective_ts(timestamp_t ts) const {
-      const auto timeout_count = m_timeout_count_map.at(ts);
+      const auto ts_signed = static_cast<int64_t>(ts);
+      const auto it = m_timeout_count_map.find(ts);
+
+      if (it == m_timeout_count_map.end()) [[unlikely]] {
+        TLOG() << "Unexpected delayed postprocessing state: missing timeout count for " << ts;
+        return ts_signed;
+      }
+
+      const auto timeout_count = it->second;      
 
       const int64_t virtual_age =
         static_cast<int64_t>(timeout_count) * static_cast<int64_t>(m_max_wait_in_ticks);
 
-      return static_cast<int64_t>(ts) - virtual_age;
+      return ts_signed - virtual_age;
     }
 
     bool is_not_ready_for_processing(timestamp_t newest_ts, int64_t effective_ts) const
