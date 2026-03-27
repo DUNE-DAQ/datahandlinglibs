@@ -137,7 +137,9 @@ protected:
   {
   public:
     struct PostprocessState {
+      // Where to start processing in the next iteration
       timestamp_t next_window_start_ts{ 0 };
+
       timestamp_t last_processed_ts{ 0 };
     };
 
@@ -154,7 +156,6 @@ protected:
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
       , m_first_cycle{ true }
-      , m_is_timeout{ false }
       , m_state{ state }
       , m_state_mutex{ state_mutex }
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
@@ -165,9 +166,7 @@ protected:
     // High-level interface
     // Schedule deferred post-processing and notify timeout expiration to the processor
     int run(bool timeout) {
-      m_is_timeout = timeout;
-
-      int processed = this->do_run();
+      int processed = this->do_run(timeout);
 
       // if (timeout) {
       //   timestamp_t timeout_accumulated = m_consecutive_timeouts * m_max_wait_in_ticks;
@@ -179,7 +178,7 @@ protected:
 
     // Deferral of the post processing, to allow elements being reordered in the LB
     // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
-    int do_run()
+    int do_run(bool timeout)
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
         TLOG() << "Nothing to postprocess (empty buffer)";
@@ -187,16 +186,25 @@ protected:
       }
 
       if (m_first_cycle) { // first data arrival
-        handle_first_cycle();
+        auto head = m_latency_buffer_impl.front();
+        auto oldest_ts = head->get_timestamp();
+
+        set_postprocessing_state(oldest_ts, 0);
+
+        m_first_cycle = false;
+        TLOG() << "***** First pass post processing *****";
         return 0;
       }
 
-      // Get the LB boundaries
       auto tail = m_latency_buffer_impl.back();
       const auto newest_ts = tail->get_timestamp();
 
-      const auto next_window_start_ts = get_next_window_start_ts();
+      auto [next_window_start_ts, last_processed_ts] = get_postprocessing_state();
       
+      // This happens if the entire buffer was already processed in a previous iteration
+      // and no newer data arrived since then.
+      // e.g. Buffer: {1, 3}. We already processed {1, 3}. Now {2} arrives.
+      //      We notice this because next window start is {4} (last processed + 1) and 4 > 3.   
       if (next_window_start_ts > newest_ts) {
         TLOG() << "Postprocessing window is already closed";
         return 0;
@@ -204,15 +212,14 @@ protected:
 
       auto now = std::chrono::system_clock::now();
 
-      if (!m_is_timeout) { // data arrival
-        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_post_proc_time);
-        if (milliseconds.count() <= m_post_processing_delay_min_wait) {
+      if (!timeout) { // data arrival
+        if (now - m_last_post_proc_time <= std::chrono::milliseconds(m_post_processing_delay_min_wait)) {
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Not enough time passed since last postprocessing";
           return 0;
         }        
       }
 
-      RDT next_window_start{};
+      RDT next_window_start{}; // braces are essential for value initialization
       next_window_start.set_timestamp(next_window_start_ts);
       auto start_iter = m_latency_buffer_impl.lower_bound(next_window_start, false);
 
@@ -224,38 +231,43 @@ protected:
       // so `lower_bound` will not be able to find it
       // We should verify that this is the only scenario in which we end up here
       if (!start_iter.good()) {
-        TLOG() << "Nothing to postprocess (!start_iter.good())";
+        TLOG() << "Postprocessing next window start cannot be found in the buffer (known issue with composite keys)";
         return 0;
       }
 
       size_t processed = 0;
-      auto last_processed_ts = get_last_processed_ts();
       
-      auto window_end_ts = newest_ts + 1; // entire buffer
+      timestamp_t window_end_ts = 0;
+      bool processed_entire_buffer = true;
       auto it = start_iter;
 
       for (; it.good(); ++it) {
         const auto ts = it->get_timestamp();
 
-        update_timeout_count(ts);
+        if (timeout) {
+          update_timeout_count(ts);
+        }
 
-        const auto effective_ts = get_effective_ts(ts);
-
-        if (is_not_ready_for_processing(newest_ts, effective_ts)) {
+        if (is_too_early_to_process(ts, newest_ts)) {
           window_end_ts = ts;
+          processed_entire_buffer = false;
           break;
         }
 
         postprocess_item(&(*it), processed, last_processed_ts);
       }
-
-      set_postprocessing_state(window_end_ts, last_processed_ts);
-
-      if (window_end_ts == newest_ts + 1) {
-        TLOG() << "Entire buffer was postprocessed";
-      } else {
-        update_remaining_timeout_counts(it);
+      
+      if (timeout) {
+        if (processed_entire_buffer) {
+          TLOG() << "Entire buffer is postprocessed";
+          window_end_ts = last_processed_ts + 1; // The loop didn't break and `window_end_ts` wasn't set.
+        } else {
+          update_remaining_timeout_counts(it);
+        }
       }
+      
+      // Make `window_end_ts` the next window start.
+      set_postprocessing_state(window_end_ts, last_processed_ts);
 
       m_last_post_proc_time = now;
 
@@ -263,16 +275,10 @@ protected:
     }
 
   private:
-    timestamp_t get_next_window_start_ts()
+    PostprocessState get_postprocessing_state()
     {
       std::lock_guard<std::mutex> lock(m_state_mutex);
-      return m_state.next_window_start_ts;
-    }
-
-    timestamp_t get_last_processed_ts()
-    {
-      std::lock_guard<std::mutex> lock(m_state_mutex);
-      return m_state.last_processed_ts;
+      return m_state;
     }
 
     void set_postprocessing_state(timestamp_t next_window_start_ts, timestamp_t last_processed_ts)
@@ -280,16 +286,6 @@ protected:
       std::lock_guard<std::mutex> lock(m_state_mutex);
       m_state.next_window_start_ts = next_window_start_ts;
       m_state.last_processed_ts = last_processed_ts;
-    }
-
-    void handle_first_cycle() {
-      auto head = m_latency_buffer_impl.front();
-      auto oldest_ts = head->get_timestamp();
-      
-      set_postprocessing_state(oldest_ts, 0);
-
-      m_first_cycle = false;
-      TLOG() << "***** First pass post processing *****";
     }
 
     void postprocess_item(const ReadoutType* item, size_t& processed, timestamp_t& last_processed_ts)
@@ -304,15 +300,12 @@ protected:
 
     void update_timeout_count(timestamp_t ts)
     {
-      auto& timeout_count = m_timeout_count_map[ts];
-      if (m_is_timeout) {
-        ++timeout_count;
-      }
+      ++m_timeout_count_map[ts];
     }    
 
     void update_remaining_timeout_counts(auto it)
     {
-      if (it.good()) { 
+      if (it.good()) {
         ++it; // skip 1 because its entry should already be updated in the end window finding loop
       } else [[unlikely]] {
         TLOG() << "Unexpected delayed postprocessing state: iterator invalid before updating remaining timeouts";
@@ -321,32 +314,26 @@ protected:
       for (; it.good(); ++it) {
         update_timeout_count(it->get_timestamp());
       }
-    }    
-
-    int64_t get_effective_ts(timestamp_t ts) const {
-      const auto ts_signed = static_cast<int64_t>(ts);
-      const auto it = m_timeout_count_map.find(ts);
-
-      if (it == m_timeout_count_map.end()) [[unlikely]] {
-        TLOG() << "Unexpected delayed postprocessing state: missing timeout count for " << ts;
-        return ts_signed;
-      }
-
-      const auto timeout_count = it->second;      
-
-      const int64_t virtual_age =
-        static_cast<int64_t>(timeout_count) * static_cast<int64_t>(m_max_wait_in_ticks);
-
-      return ts_signed - virtual_age;
     }
 
-    bool is_not_ready_for_processing(timestamp_t newest_ts, int64_t effective_ts) const
+    size_t get_timeout_count(timestamp_t ts) const
     {
-      const auto newest_ts_signed = static_cast<int64_t>(newest_ts);
-      const auto delay_ticks_signed = static_cast<int64_t>(m_processing_delay_ticks);
-
-      return newest_ts_signed - effective_ts <= delay_ticks_signed;
+      auto it = m_timeout_count_map.find(ts);
+      return (it != m_timeout_count_map.end()) ? it->second : 0;
     }    
+
+    bool is_too_early_to_process(timestamp_t ts, timestamp_t newest_ts) const
+    {
+      // An item can be processed if it is "old enough" relative to the newest timestamp. 
+      // The age difference must be bigger than the delay ticks we configure; otherwise, it is too early to process.
+      const auto age_diff = newest_ts - ts;
+
+      // Timeouts artificially make items older; that is why, on top of the (real) age difference,
+      // we add the virtual age of the item.
+      const auto virtual_age = get_timeout_count(ts) * m_max_wait_in_ticks;
+
+      return age_diff + virtual_age <= m_processing_delay_ticks;
+    }  
 
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
@@ -355,9 +342,11 @@ protected:
     const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
     const timestamp_t m_max_wait_in_ticks;
     bool m_first_cycle;
-    bool m_is_timeout;
     PostprocessState& m_state;
     std::mutex& m_state_mutex;
+    // Keeps track of timeout counts of not-yet-processed items.
+    // This is required because not every item waits in the buffer the same amount of time.
+    // This number will be used to decide if an item can be processed.
     std::map<timestamp_t, std::size_t> m_timeout_count_map;
     std::chrono::time_point<std::chrono::system_clock> m_last_post_proc_time;    
   };
