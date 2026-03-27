@@ -86,10 +86,6 @@ public:
     return this->m_postprocess_state;
   }
 
-  auto& get_postprocess_state_mutex() {
-    return this->m_postprocess_state_mutex;
-  }
-
 };
 
 } // namespace unittest

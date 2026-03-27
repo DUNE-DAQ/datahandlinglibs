@@ -277,18 +277,18 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
   }
 
   if (m_processing_delay_ticks > 0) {
-    timestamp_t next_window_start_ts;
-    timestamp_t last_processed_ts;
-
-    {
-      std::lock_guard<std::mutex> lock(m_postprocess_state_mutex);
-      next_window_start_ts = m_postprocess_state.next_window_start_ts;
-      last_processed_ts = m_postprocess_state.last_processed_ts;
-    }
-
+    // May not belong to the same state but we accept this possibility of inconsistency
+    auto next_window_start_ts = m_postprocess_state.next_window_start_ts.load(std::memory_order_relaxed);
+    auto last_processed_ts = m_postprocess_state.last_processed_ts.load(std::memory_order_relaxed);
+    
     if (payload_ts < next_window_start_ts) {
       ++m_num_postprocess_late_arrivals;
-      m_postprocess_lateness_from_last_processed.store(last_processed_ts - payload_ts);
+      
+      // Maybe smaller because of inconsistent state
+      auto lateness_from_last_processed =
+        (last_processed_ts > payload_ts) ? (last_processed_ts - payload_ts) : 0;      
+      m_postprocess_lateness_from_last_processed.store(lateness_from_last_processed);
+      
       m_postprocess_lateness_from_newest.store(m_latency_buffer_impl->back()->get_timestamp() - payload_ts);
     }
   }
@@ -363,8 +363,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
                                            m_processing_delay_ticks,
                                            m_post_processing_delay_min_wait,
                                            m_post_processing_delay_max_wait,
-                                           m_postprocess_state,
-                                           m_postprocess_state_mutex };
+                                           m_postprocess_state };
 
   const auto wait_data = [this]() -> folly::coro::Task<void> {
     // folly::coro::timeout cancels the task on timeout.

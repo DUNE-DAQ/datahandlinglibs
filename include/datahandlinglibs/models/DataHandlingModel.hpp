@@ -138,9 +138,9 @@ protected:
   public:
     struct PostprocessState {
       // Where to start processing in the next iteration
-      timestamp_t next_window_start_ts{ 0 };
+      std::atomic<timestamp_t> next_window_start_ts{ 0 };
 
-      timestamp_t last_processed_ts{ 0 };
+      std::atomic<timestamp_t> last_processed_ts{ 0 };
     };
 
     PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
@@ -148,18 +148,16 @@ protected:
                                  uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
                                  uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
                                  uint64_t post_processing_delay_max_wait, // NOLINT(build/unsigned)
-                                 PostprocessState& state,
-                                 std::mutex& state_mutex) 
+                                 PostprocessState& state) 
       : m_latency_buffer_impl{ latency_buffer_impl }
       , m_raw_processor_impl{ raw_processor_impl }
       , m_processing_delay_ticks{ processing_delay_ticks }
       , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
       , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
+      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
       , m_first_cycle{ true }
       , m_state{ state }
-      , m_state_mutex{ state_mutex }
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
-      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
     {
     }   
 
@@ -181,7 +179,7 @@ protected:
     int do_run(bool timeout)
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
-        TLOG() << "Nothing to postprocess (empty buffer)";
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Nothing to postprocess (empty buffer)";
         return 0;
       }
 
@@ -199,14 +197,14 @@ protected:
       auto tail = m_latency_buffer_impl.back();
       const auto newest_ts = tail->get_timestamp();
 
-      auto [next_window_start_ts, last_processed_ts] = get_postprocessing_state();
+      const auto next_window_start_ts = m_state.next_window_start_ts.load(std::memory_order_relaxed);
       
       // This happens if the entire buffer was already processed in a previous iteration
       // and no newer data arrived since then.
       // e.g. Buffer: {1, 3}. We already processed {1, 3}. Now {2} arrives.
       //      We notice this because next window start is {4} (last processed + 1) and 4 > 3.   
       if (next_window_start_ts > newest_ts) {
-        TLOG() << "Postprocessing window is already closed";
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocessing window is already closed";
         return 0;
       }
 
@@ -231,7 +229,7 @@ protected:
       // so `lower_bound` will not be able to find it
       // We should verify that this is the only scenario in which we end up here
       if (!start_iter.good()) {
-        TLOG() << "Postprocessing next window start cannot be found in the buffer (known issue with composite keys)";
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocessing next window start cannot be found in the buffer (known issue with composite keys)";
         return 0;
       }
 
@@ -239,6 +237,7 @@ protected:
       
       timestamp_t window_end_ts = 0;
       bool processed_entire_buffer = true;
+      auto last_processed_ts = m_state.last_processed_ts.load(std::memory_order_relaxed);
       auto it = start_iter;
 
       for (; it.good(); ++it) {
@@ -259,7 +258,7 @@ protected:
       
       if (timeout) {
         if (processed_entire_buffer) {
-          TLOG() << "Entire buffer is postprocessed";
+          TLOG_DEBUG(TLVL_WORK_STEPS) << "Entire buffer is postprocessed";
           window_end_ts = last_processed_ts + 1; // The loop didn't break and `window_end_ts` wasn't set.
         } else {
           update_remaining_timeout_counts(it);
@@ -275,17 +274,11 @@ protected:
     }
 
   private:
-    PostprocessState get_postprocessing_state()
-    {
-      std::lock_guard<std::mutex> lock(m_state_mutex);
-      return m_state;
-    }
 
     void set_postprocessing_state(timestamp_t next_window_start_ts, timestamp_t last_processed_ts)
     {
-      std::lock_guard<std::mutex> lock(m_state_mutex);
-      m_state.next_window_start_ts = next_window_start_ts;
-      m_state.last_processed_ts = last_processed_ts;
+      m_state.next_window_start_ts.store(next_window_start_ts, std::memory_order_relaxed);
+      m_state.last_processed_ts.store(last_processed_ts, std::memory_order_relaxed);
     }
 
     void postprocess_item(const ReadoutType* item, size_t& processed, timestamp_t& last_processed_ts)
@@ -308,7 +301,7 @@ protected:
       if (it.good()) {
         ++it; // skip 1 because its entry should already be updated in the end window finding loop
       } else [[unlikely]] {
-        TLOG() << "Unexpected delayed postprocessing state: iterator invalid before updating remaining timeouts";
+        TLOG_DEBUG(TLVL_WORK_STEPS) << "Unexpected delayed postprocessing state: iterator invalid before updating remaining timeouts";
       }
 
       for (; it.good(); ++it) {
@@ -343,7 +336,6 @@ protected:
     const timestamp_t m_max_wait_in_ticks;
     bool m_first_cycle;
     PostprocessState& m_state;
-    std::mutex& m_state_mutex;
     // Keeps track of timeout counts of not-yet-processed items.
     // This is required because not every item waits in the buffer the same amount of time.
     // This number will be used to decide if an item can be processed.
@@ -460,7 +452,6 @@ protected:
   folly::coro::Baton m_baton;
   std::unique_ptr<folly::Timekeeper> m_timekeeper;
   PostprocessScheduleAlgorithm::PostprocessState m_postprocess_state;
-  std::mutex m_postprocess_state_mutex;  
 
   // LATENCY BUFFER
   std::shared_ptr<LatencyBufferType> m_latency_buffer_impl;

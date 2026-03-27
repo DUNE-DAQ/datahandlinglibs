@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state()
   };  
 
   {
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state()
   };
 
   // First pass
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   constexpr uint64_t delay_max_wait = 2; // NOLINT(build/unsigned)
 
   typename decltype(model)::PostprocessScheduleAlgorithm sched_algo{
-    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state(), model.get_postprocess_state_mutex()
+    *buffer, *raw_processor, delay_ticks, delay_min_wait, delay_max_wait, model.get_postprocess_state()
   };
 
   // First pass
