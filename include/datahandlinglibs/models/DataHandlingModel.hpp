@@ -6,8 +6,8 @@
  * Licensing/copyright details are in the COPYING file that you should have
  * received with this code.
  */
-#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
-#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
+#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_
+#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_
 
 #include "confmodel/DaqModule.hpp"
 #include "confmodel/Connection.hpp"
@@ -34,7 +34,6 @@
 
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
-#include "appmodel/DataHandlerModule.hpp"
 
 #include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
@@ -56,6 +55,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
 using dunedaq::datahandlinglibs::logging::TLVL_QUEUE_POP;
 using dunedaq::datahandlinglibs::logging::TLVL_TAKE_NOTE;
@@ -241,14 +241,14 @@ protected:
       auto it = start_iter;
 
       for (; it.good(); ++it) {
-        const auto ts = it->get_timestamp();
+        const auto current_ts = it->get_timestamp();
 
         if (timeout) {
-          update_timeout_count(ts);
+          increment_timeout_count(current_ts);
         }
 
-        if (is_too_early_to_process(ts, newest_ts)) {
-          window_end_ts = ts;
+        if (is_too_early_to_postprocess(current_ts, newest_ts)) {
+          window_end_ts = current_ts;
           processed_entire_buffer = false;
           break;
         }
@@ -261,7 +261,7 @@ protected:
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Entire buffer is postprocessed";
           window_end_ts = last_processed_ts + 1; // The loop didn't break and `window_end_ts` wasn't set.
         } else {
-          update_remaining_timeout_counts(it);
+          increment_remaining_timeout_counts(it);
         }
       }
       
@@ -291,12 +291,12 @@ protected:
       m_timeout_count_map.erase(ts);
     }    
 
-    void update_timeout_count(timestamp_t ts)
+    void increment_timeout_count(timestamp_t ts)
     {
       ++m_timeout_count_map[ts];
     }    
 
-    void update_remaining_timeout_counts(auto it)
+    void increment_remaining_timeout_counts(auto it)
     {
       if (it.good()) {
         ++it; // skip 1 because its entry should already be updated in the end window finding loop
@@ -305,7 +305,7 @@ protected:
       }
 
       for (; it.good(); ++it) {
-        update_timeout_count(it->get_timestamp());
+        increment_timeout_count(it->get_timestamp());
       }
     }
 
@@ -315,7 +315,7 @@ protected:
       return (it != m_timeout_count_map.end()) ? it->second : 0;
     }    
 
-    bool is_too_early_to_process(timestamp_t ts, timestamp_t newest_ts) const
+    bool is_too_early_to_postprocess(timestamp_t ts, timestamp_t newest_ts) const
     {
       // An item can be processed if it is "old enough" relative to the newest timestamp. 
       // The age difference must be bigger than the delay ticks we configure; otherwise, it is too early to process.
@@ -380,7 +380,7 @@ protected:
   }
 
   // Operational monitoring
-  virtual void generate_opmon_data() override;
+  void generate_opmon_data() override;
 
   // Constructor params
   std::atomic<bool>& m_run_marker;
@@ -476,4 +476,4 @@ protected:
 // Declarations
 #include "detail/DataHandlingModel.hxx"
 
-#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
+#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_DATAHANDLINGMODEL_HPP_

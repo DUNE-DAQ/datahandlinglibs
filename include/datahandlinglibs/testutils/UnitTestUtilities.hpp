@@ -6,12 +6,15 @@
  * received with this code.
  */
 
-#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP
-#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP
+#ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP_
+#define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP_
 
 #include "datahandlinglibs/models/DataHandlingModel.hpp"
 #include "datahandlinglibs/models/DefaultRequestHandlerModel.hpp"
 #include "datahandlinglibs/models/TaskRawDataProcessorModel.hpp"
+
+#include <memory>
+#include <utility>
 
 namespace dunedaq {
 namespace datahandlinglibs {
@@ -37,7 +40,7 @@ public:
 
   void test_process_item(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
-    uint64_t processing_delay_ticks, ReadoutType&& payload) 
+    uint64_t processing_delay_ticks, ReadoutType&& payload) // NOLINT(build/unsigned)
   {
     this->m_latency_buffer_impl = latency_buffer_impl;
     this->m_raw_processor_impl = raw_processor_impl;
@@ -48,7 +51,7 @@ public:
 
   void test_run_postprocess_scheduler(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
-    std::unique_ptr<folly::Timekeeper> timekeeper, uint64_t post_processing_delay_max_wait)
+    std::unique_ptr<folly::Timekeeper> timekeeper, uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
   {
     this->m_latency_buffer_impl = latency_buffer_impl;
     this->m_raw_processor_impl = raw_processor_impl;
@@ -92,4 +95,4 @@ public:
 } // namespace datahandlinglibs
 } // namespace dunedaq
 
-#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP
+#endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_TESTUTILS_UNITTESTUTILITIES_HPP_
