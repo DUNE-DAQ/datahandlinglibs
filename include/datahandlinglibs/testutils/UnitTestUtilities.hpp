@@ -35,8 +35,9 @@ public:
   using Base::PostprocessScheduleAlgorithm;
   using typename Base::num_postprocess_schedule_timeouts_t;
   using typename Base::num_postprocess_late_arrivals_t;
-  using typename Base::postprocess_lateness_from_last_processed_t;
-  using typename Base::postprocess_lateness_from_newest_t;
+  using typename Base::max_postprocess_distance_from_next_window_start_t;
+  using typename Base::max_postprocess_distance_from_newest_t;
+  using typename Base::max_postprocess_distance_from_last_processed_t;
 
   void test_process_item(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
@@ -70,15 +71,20 @@ public:
     return this->m_num_postprocess_late_arrivals.load();
   }  
 
-  postprocess_lateness_from_last_processed_t get_postprocess_lateness_from_last_processed()
+  max_postprocess_distance_from_next_window_start_t get_max_postprocess_distance_from_next_window_start()
   {
-    return this->m_postprocess_lateness_from_last_processed.load();
-  }    
+    return this->m_max_postprocess_distance_from_next_window_start.load();
+  }  
 
-  postprocess_lateness_from_newest_t get_postprocess_lateness_from_newest()
+  max_postprocess_distance_from_newest_t get_max_postprocess_distance_from_newest()
   {
-    return this->m_postprocess_lateness_from_newest.load();
-  }    
+    return this->m_max_postprocess_distance_from_newest.load();
+  }  
+  
+  max_postprocess_distance_from_last_processed_t get_max_postprocess_distance_from_last_processed()
+  {
+    return this->m_max_postprocess_distance_from_last_processed.load();
+  }      
 
   void set_run_marker(bool run_marker)
   {

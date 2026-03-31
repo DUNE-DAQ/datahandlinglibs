@@ -406,8 +406,9 @@ protected:
   using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
   using num_postprocess_schedule_timeouts_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_schedule_timeouts),metric_t>::type>::type;
   using num_postprocess_late_arrivals_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_late_arrivals),metric_t>::type>::type;
-  using postprocess_lateness_from_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::postprocess_lateness_from_last_processed),metric_t>::type>::type;
-  using postprocess_lateness_from_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::postprocess_lateness_from_newest),metric_t>::type>::type;
+  using max_postprocess_distance_from_next_window_start_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_next_window_start),metric_t>::type>::type;
+  using max_postprocess_distance_from_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_newest),metric_t>::type>::type;
+  using max_postprocess_distance_from_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_last_processed),metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
   std::atomic<sum_payload_t> m_sum_payloads{ 0 };
@@ -417,8 +418,9 @@ protected:
   std::atomic<num_lb_insert_failures_t> m_num_lb_insert_failures{ 0 };
   std::atomic<num_postprocess_schedule_timeouts_t> m_num_postprocess_schedule_timeouts{ 0 };
   std::atomic<num_postprocess_late_arrivals_t> m_num_postprocess_late_arrivals{ 0 };
-  std::atomic<postprocess_lateness_from_last_processed_t> m_postprocess_lateness_from_last_processed{ 0 };
-  std::atomic<postprocess_lateness_from_newest_t> m_postprocess_lateness_from_newest{ 0 };
+  std::atomic<max_postprocess_distance_from_next_window_start_t> m_max_postprocess_distance_from_next_window_start{ 0 };
+  std::atomic<max_postprocess_distance_from_newest_t> m_max_postprocess_distance_from_newest{ 0 };
+  std::atomic<max_postprocess_distance_from_last_processed_t> m_max_postprocess_distance_from_last_processed{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
 
   // CONSUMER

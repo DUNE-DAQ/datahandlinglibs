@@ -88,16 +88,17 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
 
   auto last_processed_ts = 3 * 62500;
   auto newest_ts = 4 * 62500;
-  // m_next_window_start = {4}
+  auto next_window_start_ts = 4 * 62500;
 
   // Data arrived for a closed processing window
   {
     ReadoutType frame{};
     frame.timestamp = 2 * 62500;
     model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
-    BOOST_REQUIRE_EQUAL(model.get_num_postprocess_late_arrivals(), 1);  
-    BOOST_REQUIRE_EQUAL(model.get_postprocess_lateness_from_last_processed(), last_processed_ts - frame.timestamp);  
-    BOOST_REQUIRE_EQUAL(model.get_postprocess_lateness_from_newest(), newest_ts - frame.timestamp);  
+    BOOST_REQUIRE_EQUAL(model.get_num_postprocess_late_arrivals(), 1);
+    BOOST_REQUIRE_EQUAL(model.get_max_postprocess_distance_from_next_window_start(), next_window_start_ts - frame.timestamp);  
+    BOOST_REQUIRE_EQUAL(model.get_max_postprocess_distance_from_newest(), newest_ts - frame.timestamp);  
+    BOOST_REQUIRE_EQUAL(model.get_max_postprocess_distance_from_last_processed(), last_processed_ts - frame.timestamp);  
   }
 
 }
