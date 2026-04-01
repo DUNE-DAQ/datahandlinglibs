@@ -87,7 +87,7 @@ public:
   {}
 
   //void init(const appfwk::DAQModule::CommandData_t& /*args*/) {}
-  void set_sender(const appmodel::DataMoveCallbackConf* conf);
+  void acquire_callback() override;
 
   void conf(const confmodel::DetectorStream* stream_conf, const appmodel::StreamEmulationParameters* emu_conf);
   void scrap(const appfwk::DAQModule::CommandData_t& /*args*/)

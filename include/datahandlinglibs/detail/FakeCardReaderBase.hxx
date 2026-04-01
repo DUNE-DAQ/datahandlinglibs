@@ -65,7 +65,7 @@ FakeCardReaderBase::do_conf(const appfwk::DAQModule::CommandData_t& /*args*/)
         TLOG() << "Emulator for queue name " << cb->UID() << " was already configured";
         throw datahandlinglibs::GenericConfigurationError(ERS_HERE, "Emulator configured twice: " + cb->UID());
       }
-      m_source_emus[cb->UID()]->set_sender(cb);
+      m_source_emus[cb->UID()]->set_sink_config(cb);
       m_source_emus[cb->UID()]->conf(streams[cb->get_source_id()],
                                             cfg->get_configuration()->get_emulation_conf());
     }
@@ -103,6 +103,7 @@ FakeCardReaderBase::do_start(const appfwk::DAQModule::CommandData_t& args)
   m_run_marker.store(true);
 
   for (auto& [name, emu] : m_source_emus) {
+    emu->acquire_callback();
     emu->start(args);
   }
 

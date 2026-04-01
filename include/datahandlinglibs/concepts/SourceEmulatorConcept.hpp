@@ -34,12 +34,15 @@ public:
   SourceEmulatorConcept(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-constructible
   SourceEmulatorConcept& operator=(SourceEmulatorConcept&&) = delete; ///< SourceEmulatorConcept is not move-assignable
 
-  virtual void set_sender(const appmodel::DataMoveCallbackConf* /*sink*/) = 0;
   virtual void conf(const confmodel::DetectorStream* conf, const appmodel::StreamEmulationParameters* emu_conf) = 0;
   virtual void start(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
   virtual void stop(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
   virtual void scrap(const appfwk::DAQModule::CommandData_t& /*args*/) = 0;
   virtual bool is_configured() = 0;
+  
+  void set_sink_config(const appmodel::DataMoveCallbackConf* sink_conf) { m_sink_conf = sink_conf; }
+  virtual void acquire_callback() = 0;
+  const appmodel::DataMoveCallbackConf* m_sink_conf;
 
 private:
 };
