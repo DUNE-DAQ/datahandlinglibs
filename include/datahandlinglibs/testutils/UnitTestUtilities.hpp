@@ -52,12 +52,12 @@ public:
 
   void test_run_postprocess_scheduler(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
-    std::unique_ptr<folly::Timekeeper> timekeeper, uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
+    std::unique_ptr<folly::Timekeeper> timekeeper, uint64_t post_processing_delay_max_wait_ms) // NOLINT(build/unsigned)
   {
     this->m_latency_buffer_impl = latency_buffer_impl;
     this->m_raw_processor_impl = raw_processor_impl;
     this->m_timekeeper = std::move(timekeeper);
-    this->m_post_processing_delay_max_wait = post_processing_delay_max_wait;
+    this->m_post_processing_delay_max_wait_ms = post_processing_delay_max_wait_ms;
     this->run_postprocess_scheduler();
   }
 

@@ -146,15 +146,15 @@ protected:
     PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
                                  RawDataProcessorType& raw_processor_impl,
                                  uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
-                                 uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
-                                 uint64_t post_processing_delay_max_wait, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_min_wait_ms, // NOLINT(build/unsigned)
+                                 uint64_t post_processing_delay_max_wait_ms, // NOLINT(build/unsigned)
                                  PostprocessState& state) 
       : m_latency_buffer_impl{ latency_buffer_impl }
       , m_raw_processor_impl{ raw_processor_impl }
       , m_processing_delay_ticks{ processing_delay_ticks }
-      , m_post_processing_delay_min_wait{ post_processing_delay_min_wait }
-      , m_post_processing_delay_max_wait{ post_processing_delay_max_wait }
-      , m_max_wait_in_ticks{ post_processing_delay_max_wait * 62500 } // FIXME: hardcoded clock frequency
+      , m_post_processing_delay_min_wait_ms{ post_processing_delay_min_wait_ms }
+      , m_post_processing_delay_max_wait_ms{ post_processing_delay_max_wait_ms }
+      , m_max_wait_in_ticks{ post_processing_delay_max_wait_ms * 62500 } // FIXME: hardcoded clock frequency
       , m_first_cycle{ true }
       , m_state{ state }
       , m_last_post_proc_time{ std::chrono::system_clock::now() }
@@ -211,7 +211,7 @@ protected:
       auto now = std::chrono::system_clock::now();
 
       if (!timeout) { // data arrival
-        if (now - m_last_post_proc_time <= std::chrono::milliseconds(m_post_processing_delay_min_wait)) {
+        if (now - m_last_post_proc_time <= std::chrono::milliseconds(m_post_processing_delay_min_wait_ms)) {
           TLOG_DEBUG(TLVL_WORK_STEPS) << "Not enough time passed since last postprocessing";
           return 0;
         }        
@@ -331,8 +331,8 @@ protected:
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
     const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
-    const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
-    const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_min_wait_ms; // NOLINT(build/unsigned)
+    const uint64_t m_post_processing_delay_max_wait_ms; // NOLINT(build/unsigned)
     const timestamp_t m_max_wait_in_ticks;
     bool m_first_cycle;
     PostprocessState& m_state;
@@ -393,8 +393,8 @@ protected:
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
   uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
-  uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
-  uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_min_wait_ms; // NOLINT(build/unsigned)
+  uint64_t m_post_processing_delay_max_wait_ms; // NOLINT(build/unsigned)
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;

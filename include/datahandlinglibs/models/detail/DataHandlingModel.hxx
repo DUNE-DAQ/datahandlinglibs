@@ -73,8 +73,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_sourceid.id = mcfg->get_source_id();
   m_sourceid.subsystem = RDT::subsystem;
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
-  m_post_processing_delay_min_wait = mcfg->get_module_configuration()->get_post_processing_delay_min_wait();
-  m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
+  m_post_processing_delay_min_wait_ms = mcfg->get_module_configuration()->get_post_processing_delay_min_wait_ms();
+  m_post_processing_delay_max_wait_ms = mcfg->get_module_configuration()->get_post_processing_delay_max_wait_ms();
 
   if (m_processing_delay_ticks) {
     if constexpr (!SupportsDelayedPostprocessing<LBT>) {
@@ -371,13 +371,13 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
 {
 
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Postprocess schedule coroutine started...";
-  TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait << " *****";
+  TLOG() << "***** Starting post-process coroutine with timout " << m_post_processing_delay_max_wait_ms << " *****";
 
   PostprocessScheduleAlgorithm sched_algo{ *m_latency_buffer_impl,
                                            *m_raw_processor_impl,
                                            m_processing_delay_ticks,
-                                           m_post_processing_delay_min_wait,
-                                           m_post_processing_delay_max_wait,
+                                           m_post_processing_delay_min_wait_ms,
+                                           m_post_processing_delay_max_wait_ms,
                                            m_postprocess_state };
 
   const auto wait_data = [this]() -> folly::coro::Task<void> {
@@ -391,10 +391,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::postprocess_schedule()
   while (m_run_marker.load()) {
     bool timeout = false;
 
-    if (m_post_processing_delay_max_wait > 0) {
+    if (m_post_processing_delay_max_wait_ms > 0) {
       try {
         co_await folly::coro::timeout(
-          wait_data(), std::chrono::milliseconds{ m_post_processing_delay_max_wait }, m_timekeeper.get());
+          wait_data(), std::chrono::milliseconds{ m_post_processing_delay_max_wait_ms }, m_timekeeper.get());
 
       } catch (const folly::FutureTimeout&) {
         timeout = true;
