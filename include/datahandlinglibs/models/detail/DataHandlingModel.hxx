@@ -75,7 +75,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_processing_delay_ticks = mcfg->get_module_configuration()->get_post_processing_delay_ticks();
   m_post_processing_delay_min_wait_ms = mcfg->get_module_configuration()->get_post_processing_delay_min_wait_ms();
   m_post_processing_delay_max_wait_ms = mcfg->get_module_configuration()->get_post_processing_delay_max_wait_ms();
-
+  m_post_processing_delay_monitor_late_tick_diffs_only = mcfg->get_module_configuration()->get_post_processing_delay_monitor_late_tick_diffs_only();
+  
   if (m_processing_delay_ticks) {
     if constexpr (!SupportsDelayedPostprocessing<LBT>) {
       ers::error(ConfigurationError(
@@ -139,9 +140,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::start(const appfwk::DAQModule::Comma
   m_rawq_timeout_count = 0;
   m_num_postprocess_schedule_timeouts = 0;
   m_num_postprocess_late_arrivals = 0;
-  m_max_postprocess_distance_from_next_window_start = 0;
-  m_max_postprocess_distance_from_newest = 0;
-  m_max_postprocess_distance_from_last_processed = 0;
+  m_max_postprocess_tick_diff_to_next_window_start = 0;
+  m_max_postprocess_tick_distance_to_newest = 0;
+  m_max_postprocess_tick_diff_to_last_processed = 0;
 
   m_t0 = std::chrono::high_resolution_clock::now();
 
@@ -225,9 +226,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
   ri.set_num_requests(m_num_requests.exchange(0));
   ri.set_num_postprocess_schedule_timeouts(m_num_postprocess_schedule_timeouts.exchange(0));
   ri.set_num_postprocess_late_arrivals(m_num_postprocess_late_arrivals.load());
-  ri.set_max_postprocess_distance_from_next_window_start(m_max_postprocess_distance_from_next_window_start.exchange(0));
-  ri.set_max_postprocess_distance_from_newest(m_max_postprocess_distance_from_newest.exchange(0));
-  ri.set_max_postprocess_distance_from_last_processed(m_max_postprocess_distance_from_last_processed.exchange(0));
+  ri.set_max_postprocess_tick_diff_to_next_window_start(m_max_postprocess_tick_diff_to_next_window_start.exchange(0));
+  ri.set_max_postprocess_tick_distance_to_newest(m_max_postprocess_tick_distance_to_newest.exchange(0));
+  ri.set_max_postprocess_tick_diff_to_last_processed(m_max_postprocess_tick_diff_to_last_processed.exchange(0));
   ri.set_last_daq_timestamp(m_raw_processor_impl->get_last_daq_time());
   ri.set_newest_timestamp(m_raw_processor_impl->get_last_daq_time());
   ri.set_oldest_timestamp(m_request_handler_impl->get_oldest_time());
@@ -283,26 +284,31 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
     auto next_window_start_ts = m_postprocess_state.next_window_start_ts.load(std::memory_order_relaxed);
     auto last_processed_ts = m_postprocess_state.last_processed_ts.load(std::memory_order_relaxed);
     
-    if (next_window_start_ts > payload_ts) {
+    auto is_late_arrival = next_window_start_ts > payload_ts;
+
+    if (is_late_arrival) {
       ++m_num_postprocess_late_arrivals;
+    }
 
-      auto distance_from_next_window_start = next_window_start_ts - payload_ts;
+    if (is_late_arrival || !m_post_processing_delay_monitor_late_tick_diffs_only) {
+      auto diff_to_next_window_start =
+        static_cast<int64_t>(next_window_start_ts) - static_cast<int64_t>(payload_ts);
 
-      if (distance_from_next_window_start > m_max_postprocess_distance_from_next_window_start.load()) {
-        m_max_postprocess_distance_from_next_window_start.store(distance_from_next_window_start);
+      if (diff_to_next_window_start > m_max_postprocess_tick_diff_to_next_window_start.load()) {
+        m_max_postprocess_tick_diff_to_next_window_start.store(diff_to_next_window_start);
       }      
 
-      auto distance_from_newest = m_latency_buffer_impl->back()->get_timestamp() - payload_ts;
+      auto distance_to_newest = m_latency_buffer_impl->back()->get_timestamp() - payload_ts;
 
-      if (distance_from_newest > m_max_postprocess_distance_from_newest.load()) {
-        m_max_postprocess_distance_from_newest.store(distance_from_newest);
+      if (distance_to_newest > m_max_postprocess_tick_distance_to_newest.load()) {
+        m_max_postprocess_tick_distance_to_newest.store(distance_to_newest);
       }
 
-      auto distance_from_last_processed =
-        (last_processed_ts > payload_ts) ? (last_processed_ts - payload_ts) : 0; // Maybe smaller because of inconsistent state
+      auto diff_to_last_processed =
+        static_cast<int64_t>(last_processed_ts) - static_cast<int64_t>(payload_ts);
       
-      if (distance_from_last_processed > m_max_postprocess_distance_from_last_processed.load()) {
-        m_max_postprocess_distance_from_last_processed.store(distance_from_last_processed);
+      if (diff_to_last_processed > m_max_postprocess_tick_diff_to_last_processed.load()) {
+        m_max_postprocess_tick_diff_to_last_processed.store(diff_to_last_processed);
       }      
     }
   }
@@ -343,9 +349,9 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::run_consume()
   m_stats_packet_count = 0;
   m_num_postprocess_schedule_timeouts = 0;
   m_num_postprocess_late_arrivals = 0;
-  m_max_postprocess_distance_from_next_window_start = 0;  
-  m_max_postprocess_distance_from_newest = 0;  
-  m_max_postprocess_distance_from_last_processed = 0;
+  m_max_postprocess_tick_diff_to_next_window_start = 0;  
+  m_max_postprocess_tick_distance_to_newest = 0;  
+  m_max_postprocess_tick_diff_to_last_processed = 0;
 
   while (m_run_marker.load()) {
     // Try to acquire data

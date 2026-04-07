@@ -395,7 +395,8 @@ protected:
   uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
   uint64_t m_post_processing_delay_min_wait_ms; // NOLINT(build/unsigned)
   uint64_t m_post_processing_delay_max_wait_ms; // NOLINT(build/unsigned)
-
+  bool m_post_processing_delay_monitor_late_tick_diffs_only;
+  
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
   using num_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_payloads),metric_t>::type>::type;
@@ -406,9 +407,9 @@ protected:
   using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
   using num_postprocess_schedule_timeouts_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_schedule_timeouts),metric_t>::type>::type;
   using num_postprocess_late_arrivals_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_late_arrivals),metric_t>::type>::type;
-  using max_postprocess_distance_from_next_window_start_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_next_window_start),metric_t>::type>::type;
-  using max_postprocess_distance_from_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_newest),metric_t>::type>::type;
-  using max_postprocess_distance_from_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_distance_from_last_processed),metric_t>::type>::type;
+  using max_postprocess_tick_diff_to_next_window_start_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_diff_to_next_window_start),metric_t>::type>::type;
+  using max_postprocess_tick_distance_to_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_distance_to_newest),metric_t>::type>::type;
+  using max_postprocess_tick_diff_to_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_diff_to_last_processed),metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
   std::atomic<sum_payload_t> m_sum_payloads{ 0 };
@@ -418,9 +419,9 @@ protected:
   std::atomic<num_lb_insert_failures_t> m_num_lb_insert_failures{ 0 };
   std::atomic<num_postprocess_schedule_timeouts_t> m_num_postprocess_schedule_timeouts{ 0 };
   std::atomic<num_postprocess_late_arrivals_t> m_num_postprocess_late_arrivals{ 0 };
-  std::atomic<max_postprocess_distance_from_next_window_start_t> m_max_postprocess_distance_from_next_window_start{ 0 };
-  std::atomic<max_postprocess_distance_from_newest_t> m_max_postprocess_distance_from_newest{ 0 };
-  std::atomic<max_postprocess_distance_from_last_processed_t> m_max_postprocess_distance_from_last_processed{ 0 };
+  std::atomic<max_postprocess_tick_diff_to_next_window_start_t> m_max_postprocess_tick_diff_to_next_window_start{ 0 };
+  std::atomic<max_postprocess_tick_distance_to_newest_t> m_max_postprocess_tick_distance_to_newest{ 0 };
+  std::atomic<max_postprocess_tick_diff_to_last_processed_t> m_max_postprocess_tick_diff_to_last_processed{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
 
   // CONSUMER
