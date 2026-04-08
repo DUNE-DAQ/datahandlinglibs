@@ -36,7 +36,7 @@ public:
   using typename Base::num_postprocess_schedule_timeouts_t;
   using typename Base::num_postprocess_late_arrivals_t;
   using typename Base::max_postprocess_tick_diff_to_next_window_start_t;
-  using typename Base::max_postprocess_tick_distance_to_newest_t;
+  using typename Base::max_postprocess_tick_diff_to_newest_t;
   using typename Base::max_postprocess_tick_diff_to_last_processed_t;
 
   void test_process_item(
@@ -76,9 +76,9 @@ public:
     return this->m_max_postprocess_tick_diff_to_next_window_start.load();
   }  
 
-  max_postprocess_tick_distance_to_newest_t get_max_postprocess_tick_distance_to_newest()
+  max_postprocess_tick_diff_to_newest_t get_max_postprocess_tick_diff_to_newest()
   {
-    return this->m_max_postprocess_tick_distance_to_newest.load();
+    return this->m_max_postprocess_tick_diff_to_newest.load();
   }  
   
   max_postprocess_tick_diff_to_last_processed_t get_max_postprocess_tick_diff_to_last_processed()

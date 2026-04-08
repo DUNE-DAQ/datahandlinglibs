@@ -25,7 +25,7 @@ message DataHandlerInfo {
   uint64 oldest_timestamp = 23; // Most recent DAQ timestamp processed 
   uint64 num_postprocess_schedule_timeouts = 31; // Number of times post-processing was triggered due to max wait time elapsing before data arrival
   uint64 num_postprocess_late_arrivals = 32; // Number of data arrivals for an already closed post-processing window
-  uint64 max_postprocess_tick_distance_to_newest = 33; // Maximum tick difference between late arrival and the newest item in the buffer since last monitoring
+  int64 max_postprocess_tick_diff_to_newest = 33; // Maximum tick difference between late arrival and the newest item in the buffer since last monitoring
   int64 max_postprocess_tick_diff_to_next_window_start = 34; // Maximum tick difference between late arrival and the next processing window start since last monitoring
   int64 max_postprocess_tick_diff_to_last_processed = 35; // Maximum tick difference between late arrival and the last processed item since last monitoring
 }

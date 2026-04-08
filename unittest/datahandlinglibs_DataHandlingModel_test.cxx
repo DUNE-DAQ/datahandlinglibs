@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
     model.test_process_item(buffer, raw_processor, delay_ticks, std::move(frame));
     BOOST_REQUIRE_EQUAL(model.get_num_postprocess_late_arrivals(), 1);
     BOOST_REQUIRE_EQUAL(model.get_max_postprocess_tick_diff_to_next_window_start(), next_window_start_ts - frame.timestamp);  
-    BOOST_REQUIRE_EQUAL(model.get_max_postprocess_tick_distance_to_newest(), newest_ts - frame.timestamp);  
+    BOOST_REQUIRE_EQUAL(model.get_max_postprocess_tick_diff_to_newest(), newest_ts - frame.timestamp);  
     BOOST_REQUIRE_EQUAL(model.get_max_postprocess_tick_diff_to_last_processed(), last_processed_ts - frame.timestamp);  
   }
 

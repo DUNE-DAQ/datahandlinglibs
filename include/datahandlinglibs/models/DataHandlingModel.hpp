@@ -408,7 +408,7 @@ protected:
   using num_postprocess_schedule_timeouts_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_schedule_timeouts),metric_t>::type>::type;
   using num_postprocess_late_arrivals_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_postprocess_late_arrivals),metric_t>::type>::type;
   using max_postprocess_tick_diff_to_next_window_start_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_diff_to_next_window_start),metric_t>::type>::type;
-  using max_postprocess_tick_distance_to_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_distance_to_newest),metric_t>::type>::type;
+  using max_postprocess_tick_diff_to_newest_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_diff_to_newest),metric_t>::type>::type;
   using max_postprocess_tick_diff_to_last_processed_t = std::remove_const<std::invoke_result<decltype(&metric_t::max_postprocess_tick_diff_to_last_processed),metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
@@ -420,7 +420,7 @@ protected:
   std::atomic<num_postprocess_schedule_timeouts_t> m_num_postprocess_schedule_timeouts{ 0 };
   std::atomic<num_postprocess_late_arrivals_t> m_num_postprocess_late_arrivals{ 0 };
   std::atomic<max_postprocess_tick_diff_to_next_window_start_t> m_max_postprocess_tick_diff_to_next_window_start{ 0 };
-  std::atomic<max_postprocess_tick_distance_to_newest_t> m_max_postprocess_tick_distance_to_newest{ 0 };
+  std::atomic<max_postprocess_tick_diff_to_newest_t> m_max_postprocess_tick_diff_to_newest{ 0 };
   std::atomic<max_postprocess_tick_diff_to_last_processed_t> m_max_postprocess_tick_diff_to_last_processed{ 0 };
   std::atomic<int> m_stats_packet_count{ 0 };
 
