@@ -259,6 +259,49 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::consume_callback(IDT&& payload)
 
 template<class RDT, class RHT, class LBT, class RPT, class IDT>
 void
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::update_postprocess_monitoring(timestamp_t payload_ts) {
+  if (m_latency_buffer_impl->occupancy() == 0) {
+    return;
+  }
+
+  // May not belong to the same state but we accept this possibility of inconsistency
+  auto next_window_start_ts = m_postprocess_state.next_window_start_ts.load(std::memory_order_relaxed);
+  auto last_processed_ts = m_postprocess_state.last_processed_ts.load(std::memory_order_relaxed);
+  
+  auto is_late_arrival = next_window_start_ts > payload_ts;
+
+  if (is_late_arrival) {
+    ++m_num_postprocess_late_arrivals;
+  }
+
+  if (is_late_arrival || !m_post_processing_delay_monitor_late_tick_diffs_only) {
+    auto payload_ts_signed = static_cast<int64_t>(payload_ts);
+
+    auto diff_to_next_window_start =
+      static_cast<int64_t>(next_window_start_ts) - payload_ts_signed;
+
+    if (diff_to_next_window_start > m_max_postprocess_tick_diff_to_next_window_start.load()) {
+      m_max_postprocess_tick_diff_to_next_window_start.store(diff_to_next_window_start);
+    }      
+
+    auto diff_to_newest = 
+      static_cast<int64_t>(m_latency_buffer_impl->back()->get_timestamp()) - payload_ts_signed;
+
+    if (diff_to_newest > m_max_postprocess_tick_diff_to_newest.load()) {
+      m_max_postprocess_tick_diff_to_newest.store(diff_to_newest);
+    }
+
+    auto diff_to_last_processed =
+      static_cast<int64_t>(last_processed_ts) - payload_ts_signed;
+    
+    if (diff_to_last_processed > m_max_postprocess_tick_diff_to_last_processed.load()) {
+      m_max_postprocess_tick_diff_to_last_processed.store(diff_to_last_processed);
+    }      
+  }  
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void
 DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
 {
   m_raw_processor_impl->preprocess_item(&payload);
@@ -279,41 +322,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
     }
   }
 
-  if (m_processing_delay_ticks > 0 && m_latency_buffer_impl->occupancy() != 0) {
-    // May not belong to the same state but we accept this possibility of inconsistency
-    auto next_window_start_ts = m_postprocess_state.next_window_start_ts.load(std::memory_order_relaxed);
-    auto last_processed_ts = m_postprocess_state.last_processed_ts.load(std::memory_order_relaxed);
-    
-    auto is_late_arrival = next_window_start_ts > payload_ts;
-
-    if (is_late_arrival) {
-      ++m_num_postprocess_late_arrivals;
-    }
-
-    if (is_late_arrival || !m_post_processing_delay_monitor_late_tick_diffs_only) {
-      auto payload_ts_signed = static_cast<int64_t>(payload_ts);
-
-      auto diff_to_next_window_start =
-        static_cast<int64_t>(next_window_start_ts) - payload_ts_signed;
-
-      if (diff_to_next_window_start > m_max_postprocess_tick_diff_to_next_window_start.load()) {
-        m_max_postprocess_tick_diff_to_next_window_start.store(diff_to_next_window_start);
-      }      
-
-      auto diff_to_newest = 
-        static_cast<int64_t>(m_latency_buffer_impl->back()->get_timestamp()) - payload_ts_signed;
-
-      if (diff_to_newest > m_max_postprocess_tick_diff_to_newest.load()) {
-        m_max_postprocess_tick_diff_to_newest.store(diff_to_newest);
-      }
-
-      auto diff_to_last_processed =
-        static_cast<int64_t>(last_processed_ts) - payload_ts_signed;
-      
-      if (diff_to_last_processed > m_max_postprocess_tick_diff_to_last_processed.load()) {
-        m_max_postprocess_tick_diff_to_last_processed.store(diff_to_last_processed);
-      }      
-    }
+  if (m_processing_delay_ticks > 0) {
+    update_postprocess_monitoring(payload_ts);
   }
 
   if (!m_latency_buffer_impl->write(std::move(payload))) {

@@ -346,6 +346,9 @@ protected:
   // Perform processing operations on payload
   void process_item(RDT&& payload);
 
+  // Update monitoring variables of delayed postprocessing
+  void update_postprocess_monitoring(timestamp_t payload_ts);
+
   // Transform payload if needed, then perform processing
   void transform_and_process(IDT&& payload);
 

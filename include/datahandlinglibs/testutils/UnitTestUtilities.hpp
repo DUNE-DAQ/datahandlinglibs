@@ -30,7 +30,8 @@ class MockDataHandlingModel
 {
 public:
   using Base =
-    DataHandlingModel<ReadoutType, RequestHandlerType, LatencyBufferType, RawDataProcessorType, InputDataType>;
+  DataHandlingModel<ReadoutType, RequestHandlerType, LatencyBufferType, RawDataProcessorType, InputDataType>;
+  using timestamp_t = typename Base::timestamp_t;
   using Base::Base;
   using Base::PostprocessScheduleAlgorithm;
   using typename Base::num_postprocess_schedule_timeouts_t;
@@ -38,17 +39,6 @@ public:
   using typename Base::max_postprocess_tick_diff_to_next_window_start_t;
   using typename Base::max_postprocess_tick_diff_to_newest_t;
   using typename Base::max_postprocess_tick_diff_to_last_processed_t;
-
-  void test_process_item(
-    std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
-    uint64_t processing_delay_ticks, ReadoutType&& payload) // NOLINT(build/unsigned)
-  {
-    this->m_latency_buffer_impl = latency_buffer_impl;
-    this->m_raw_processor_impl = raw_processor_impl;
-    this->m_request_handler_supports_cutoff_timestamp = false;
-    this->m_processing_delay_ticks = processing_delay_ticks;
-    this->process_item(std::move(payload));
-  }
 
   void test_run_postprocess_scheduler(
     std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
@@ -61,6 +51,22 @@ public:
     this->run_postprocess_scheduler();
   }
 
+  void test_update_postprocess_monitoring(
+    std::shared_ptr<LatencyBufferType> latency_buffer_impl, uint64_t processing_delay_ticks, timestamp_t payload_ts) // NOLINT(build/unsigned)
+  {
+    this->m_latency_buffer_impl = latency_buffer_impl;
+    this->m_processing_delay_ticks = processing_delay_ticks;
+    this->m_max_postprocess_tick_diff_to_next_window_start = std::numeric_limits<max_postprocess_tick_diff_to_next_window_start_t>::min();
+    this->m_max_postprocess_tick_diff_to_newest = std::numeric_limits<max_postprocess_tick_diff_to_newest_t>::min();
+    this->m_max_postprocess_tick_diff_to_last_processed = std::numeric_limits<max_postprocess_tick_diff_to_last_processed_t>::min();    
+    this->update_postprocess_monitoring(payload_ts);
+  }
+
+  void set_run_marker(bool run_marker)
+  {
+    this->m_run_marker.store(run_marker);
+  }
+    
   num_postprocess_schedule_timeouts_t get_num_postprocess_schedule_timeouts()
   {
     return this->m_num_postprocess_schedule_timeouts.load();
@@ -86,11 +92,6 @@ public:
     return this->m_max_postprocess_tick_diff_to_last_processed.load();
   }      
 
-  void set_run_marker(bool run_marker)
-  {
-    return this->m_run_marker.store(run_marker);
-  }
-  
   auto& get_postprocess_state() {
     return this->m_postprocess_state;
   }
