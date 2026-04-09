@@ -225,7 +225,7 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::generate_opmon_data()
   ri.set_sum_requests(m_sum_requests.load());
   ri.set_num_requests(m_num_requests.exchange(0));
   ri.set_num_postprocess_schedule_timeouts(m_num_postprocess_schedule_timeouts.exchange(0));
-  ri.set_num_postprocess_late_arrivals(m_num_postprocess_late_arrivals.load());
+  ri.set_num_postprocess_late_arrivals(m_num_postprocess_late_arrivals.exchange(0));
   ri.set_max_postprocess_tick_diff_to_next_window_start(m_max_postprocess_tick_diff_to_next_window_start.exchange(std::numeric_limits<max_postprocess_tick_diff_to_next_window_start_t>::min()));
   ri.set_max_postprocess_tick_diff_to_newest(m_max_postprocess_tick_diff_to_newest.exchange(std::numeric_limits<max_postprocess_tick_diff_to_newest_t>::min()));
   ri.set_max_postprocess_tick_diff_to_last_processed(m_max_postprocess_tick_diff_to_last_processed.exchange(std::numeric_limits<max_postprocess_tick_diff_to_last_processed_t>::min()));
