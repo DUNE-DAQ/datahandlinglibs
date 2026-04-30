@@ -217,11 +217,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
             int time_sample = ((tp_call_counter / 64) % 32) * 2;
             ++tp_call_counter;
 
-            try {
-              payload.fake_adc_pattern(channel, time_sample);
-            } catch (std::exception& ex) {
-              // FIXME: should not happen
-            }
+            payload.fake_adc_pattern(channel, time_sample);
           }
 
           number_pattern_hits_generated += tps_this_frame;
