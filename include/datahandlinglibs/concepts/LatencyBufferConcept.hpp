@@ -12,8 +12,14 @@
 #include "appmodel/LatencyBuffer.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
+#include <cstddef>
+#include <concepts>
+
 namespace dunedaq {
 namespace datahandlinglibs {
+
+template<typename T>
+concept SupportsDelayedPostprocessing = T::supports_delayed_postprocessing;
 
 /**
  * Concept of a LatencyBuffer.

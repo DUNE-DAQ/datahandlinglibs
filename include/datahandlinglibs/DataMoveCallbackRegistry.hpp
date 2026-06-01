@@ -10,6 +10,8 @@
 
 #include "logging/Logging.hpp"
 
+#include "appmodel/DataMoveCallbackConf.hpp"
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -56,22 +58,30 @@ public:
   DataMoveCallbackRegistry(const DataMoveCallbackRegistry&) = delete;            ///< DataMoveCallbackRegistry is not copy-constructible
   DataMoveCallbackRegistry& operator=(const DataMoveCallbackRegistry&) = delete; ///< DataMoveCallbackRegistry is not copy-assignable
   DataMoveCallbackRegistry(DataMoveCallbackRegistry&&) = delete;                 ///< DataMoveCallbackRegistry is not move-constructible
-  DataMoveCallbackRegistry& operator=(DataMoveCallbackRegistry&&) = delete;      ///< DataMoveCallbackRegistry is not move-assignable 
+  DataMoveCallbackRegistry& operator=(DataMoveCallbackRegistry&&) = delete;      ///< DataMoveCallbackRegistry is not move-assignable
 
-  template<typename DataType>
-  void register_callback(const std::string& id, std::function<void(DataType&&)> callback);
- 
+
+
   /**
-   * @brief Gets the callback function registered with the given ID
-   * 
+   * @brief Registers a callback function with a configuration object
+   *
+   * @tparam DataType The parameter type of the callback function
+   * @param conf The configuration object containing the unique identifier for the callback
+   * @param callback The callback function to register
+   */
+  template<typename DataType>
+  void register_callback(const appmodel::DataMoveCallbackConf* conf, std::function<void(DataType&&)> callback);
+
+  /**
+   * @brief Gets the callback function registered with the given configuration
+   *
    * @tparam DataType The expected parameter type of the callback function
-   * @param id The unique identifier for the callback
+   * @param conf The configuration object containing the unique identifier for the callback
    * @return A shared pointer to the callback function
    * @throw GenericConfigurationError if the registered callback function's parameter type does not match `DataType`
    */
   template<typename DataType>
-  std::shared_ptr<std::function<void(DataType&&)>>
-  get_callback(const std::string& id);
+  std::shared_ptr<std::function<void(DataType&&)>> get_callback(const appmodel::DataMoveCallbackConf* conf);
 
 private:
   DataMoveCallbackRegistry() {}

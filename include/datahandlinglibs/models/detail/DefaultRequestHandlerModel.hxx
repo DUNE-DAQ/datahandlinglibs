@@ -49,7 +49,6 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
     ers::error(ConfigurationError(ERS_HERE, m_sourceid, "Auto-pop percentage out of range."));
   } else {
     m_pop_limit_size = m_pop_limit_pct * m_buffer_capacity;
-    m_max_requested_elements = m_pop_limit_size - m_pop_limit_size * m_pop_size_pct;
   }
 
   m_recording_thread.set_name("recording", m_sourceid.id);
@@ -59,8 +58,7 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   std::ostringstream oss;
   oss << "RequestHandler configured. " << std::fixed << std::setprecision(2)
       << "auto-pop limit: " << m_pop_limit_pct * 100.0f << "% "
-      << "auto-pop size: " << m_pop_size_pct * 100.0f << "% "
-      << "max requested elements: " << m_max_requested_elements;
+      << "auto-pop size: " << m_pop_size_pct * 100.0f << "%";
   TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
 }
 
@@ -336,7 +334,7 @@ std::unique_ptr<daqdataformats::Fragment>
 DefaultRequestHandlerModel<RDT, LBT>::create_empty_fragment(const dfmessages::DataRequest& dr)
 {
   auto frag_header = create_fragment_header(dr);
-  frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+  frag_header.status_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
   auto fragment = std::make_unique<daqdataformats::Fragment>(std::vector<std::pair<void*, size_t>>());
   fragment->set_header_fields(frag_header);
   return fragment;
@@ -465,8 +463,10 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
   }
   else {
     RDT request_element = RDT();
-    request_element.set_timestamp(start_win_ts-(request_element.get_num_frames() * RDT::expected_tick_difference));
-    //request_element.set_timestamp(start_win_ts);
+    auto start_timestamp = start_win_ts - (request_element.get_num_frames() * RDT::expected_tick_difference);
+    if (start_timestamp < last_ts)
+      start_timestamp = last_ts;
+    request_element.set_timestamp(start_timestamp);
 
     auto start_iter = m_error_registry->has_error("MISSING_FRAMES")
                       ? m_latency_buffer->lower_bound(request_element, true)
@@ -478,7 +478,7 @@ DefaultRequestHandlerModel<RDT, LBT>::get_fragment_pieces(uint64_t start_win_ts,
     else {
       TLOG_DEBUG(TLVL_WORK_STEPS) << "Lower bound found " << start_iter->get_timestamp() << ", --> distance from window: " 
 	      << int64_t(start_win_ts) - int64_t(start_iter->get_timestamp()) ;  
-      if (end_win_ts > newest_ts) {
+      if (end_win_ts >= newest_ts) {
          rres.result_code = ResultCode::kPartial;
       }
       else if (start_win_ts < last_ts) {
@@ -546,7 +546,7 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
     if (m_warn_about_empty_buffer) {
       ers::warning(RequestOnEmptyBuffer(ERS_HERE, m_sourceid, "Data not found"));
     } 
-    frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+    frag_header.status_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kLatencyBufferEmpty));
     rres.result_code = ResultCode::kNotFound;
     ++m_num_requests_bad;    
   }
@@ -573,29 +573,39 @@ DefaultRequestHandlerModel<RDT, LBT>::data_request(dfmessages::DataRequest dr)
 		// return empty frag
 	        ++m_num_requests_old_window;
                 ++m_num_requests_bad;
-		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+                frag_header.status_bits |=
+                  (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
+                frag_header.status_bits |=
+                  (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kRequestWindowBeforeBuffer));
 		break;
 	case ResultCode::kPartiallyOld:
                 ++m_num_requests_old_window;
                 ++m_num_requests_found;
-		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
-		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+                frag_header.status_bits |=
+                  (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kIncomplete));
+                frag_header.status_bits |=
+                  (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kRequestWindowBeforeBuffer));
                 break;
 	case ResultCode::kFound:
 		++m_num_requests_found;
 		break;
 	case ResultCode::kPartial:
-                frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kIncomplete));
+          frag_header.status_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kIncomplete));
+          frag_header.status_bits |=
+            (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kRequestWindowAfterBuffer));
 		++m_num_requests_delayed;
                 break;
-	case ResultCode::kNotYet:
-		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+        case ResultCode::kNotYet:
+          frag_header.status_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
+          frag_header.status_bits |=
+            (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kRequestWindowAfterBuffer));
 		++m_num_requests_delayed;
 		break;
 	default:
 		// Unknown result of data search
 		++m_num_requests_bad;
-		frag_header.error_bits |= (0x1 << static_cast<size_t>(daqdataformats::FragmentErrorBits::kDataNotFound));
+                frag_header.status_bits |=
+                  (0x1 << static_cast<size_t>(daqdataformats::FragmentStatusBits::kEmptyFragment));
     }
   }
   // Create fragment from pieces
