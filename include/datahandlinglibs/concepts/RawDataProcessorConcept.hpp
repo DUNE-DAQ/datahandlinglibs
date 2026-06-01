@@ -47,6 +47,9 @@ public:
   virtual void preprocess_item(ReadoutType* item) = 0;
   //! Postprocess one element
   virtual void postprocess_item(const ReadoutType* item) = 0;
+  //! Handle postprocess timeout event
+  virtual void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumulated_timeout_ticks) = 0;
+
 };
 
 } // namespace datahandlinglibs

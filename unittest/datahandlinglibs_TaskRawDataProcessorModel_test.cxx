@@ -26,7 +26,7 @@ using namespace dunedaq::datahandlinglibs;
 
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_TaskRawDataProcessorModel_test)
 
-using ROType = unittest::FakeReadoutType;
+using ROType = unittest::MockReadoutType;
 
 template<typename Type>
 void
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_preprocess_item)
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_add_task)
 {
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
   bool post_func_one_called = false;
   bool post_func_two_called = false;
 
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_add_task)
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_queue)
 {
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
 
   bool post_func_one_called = false;
   bool post_func_two_called = false;
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_queue)
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_add_to_queue)
 {
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
 
   bool post_func_one_called = false;
   bool post_func_two_called = false;
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_add_to_queue)
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_after_queue)
 {
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
 
   bool post_func_one_called = false;
   bool post_func_two_called = false;
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_after_que
   post_pro_elem->set_timestamp(2);
   processor.postprocess_item(post_pro_elem);
 
-  processor.public_post_processing_threads();
+  processor.test_post_processing_threads();
   std::this_thread::sleep_for(std::chrono::milliseconds(100)); // if not used main thread finishes early
 
   BOOST_REQUIRE(post_func_one_called);
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_after_que
 BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_before_queue)
 {
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
 
   bool post_func_one_called = false;
   bool post_func_two_called = false;
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_run_threads_before_qu
   processor.make_queues(32);
 
   processor.run_marker_set(true); // m_run_marker.load() || queue.sizeGuess() > 0
-  processor.public_post_processing_threads();
+  processor.test_post_processing_threads();
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100)); // wait before adding elements to the queue
 
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(TaskRawDataProcessorModel_postprocess_fail_postprocess_item
   setenv("DUNEDAQ_ERS_WARNING", "throw", 1);
 
   auto error_registry = std::make_unique<dunedaq::datahandlinglibs::FrameErrorRegistry>();
-  unittest::FakeRawDataProcessorType processor(error_registry, true);
+  unittest::MockRawDataProcessorType processor(error_registry, true);
 
   bool post_func_one_called = false;
   bool post_func_two_called = false;

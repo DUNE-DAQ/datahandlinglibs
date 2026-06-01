@@ -120,7 +120,7 @@ for proc in procs:
           #raise Exception('Error! The CPU mask contains higher CPU IDs than logical CPU count on system!')
          
         for child in children:
-          cid = psutil.Process(child.id)
+          cid = psutil.Process(child.pid)
           cid.cpu_affinity(mask)
         for thread in threads:
           tid = psutil.Process(thread.id)
