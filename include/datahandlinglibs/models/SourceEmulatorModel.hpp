@@ -20,6 +20,7 @@
 #include "datahandlinglibs/concepts/SourceEmulatorConcept.hpp"
 #include "datahandlinglibs/utils/ErrorBitGenerator.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
+#include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "utilities/ReusableThread.hpp"
 
@@ -56,8 +57,8 @@ public:
     if (m_index == m_channel.size()) m_index = 0;
     return m_channel[m_index++];
   }
- 
-private: 
+
+private:
   std::vector<int> m_channel;
   int m_index = 0;
 };
@@ -79,27 +80,25 @@ public:
     , m_dropout_rate(dropout_rate)
     , m_frame_error_rate(frame_error_rate)
     , m_packet_count{ 0 }
-    , m_raw_sender_timeout_ms(0)
-    , m_raw_data_sender(nullptr)
     , m_producer_thread(0)
     , m_name(name)
     , m_rate_khz(rate_khz)
     ,m_frames_per_tick(frames_per_tick)
   {}
 
-  //void init(const nlohmann::json& /*args*/) {}
-  void set_sender(const std::string& conn_name);
+  //void init(const appfwk::DAQModule::CommandData_t& /*args*/) {}
+  void acquire_callback() override;
 
   void conf(const confmodel::DetectorStream* stream_conf, const appmodel::StreamEmulationParameters* emu_conf);
-  void scrap(const nlohmann::json& /*args*/)
+  void scrap(const appfwk::DAQModule::CommandData_t& /*args*/)
   {
     m_file_source.reset();
     m_is_configured = false;
   }
   bool is_configured() override { return m_is_configured; }
 
-  void start(const nlohmann::json& /*args*/);
-  void stop(const nlohmann::json& /*args*/);
+  void start(const appfwk::DAQModule::CommandData_t& /*args*/);
+  void stop(const appfwk::DAQModule::CommandData_t& /*args*/);
   //  void get_info(opmonlib::InfoCollector& ci, int /*level*/);
 
 protected:
@@ -125,12 +124,8 @@ private:
 
   //sourceemulatorconfig::Conf m_cfg;
 
-  // RAW SENDER
-  std::chrono::milliseconds m_raw_sender_timeout_ms;
-  using raw_sender_ct = iomanager::SenderConcept<ReadoutType>;
-  std::shared_ptr<raw_sender_ct> m_raw_data_sender;
-
   bool m_sender_is_set = false;
+  std::shared_ptr<std::function<void(ReadoutType&&)>> m_raw_data_callback;
   //using module_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::Conf;
   //module_conf_t m_conf;
   //using link_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::LinkConfiguration;
@@ -161,9 +156,9 @@ private:
   // Pattern generator configs
   bool m_generate_periodic_adc_pattern;
   SourceEmulatorPatternGenerator m_pattern_generator;
-  uint64_t m_pattern_generator_previous_ts;  
+  uint64_t m_pattern_generator_previous_ts;
   // Adding a hit every 9768 gives a TP rate of approx 100 Hz/wire using WIBEthernet
-  uint32_t m_time_to_wait = 9768; 
+  uint32_t m_time_to_wait = 9768;
 };
 
 } // namespace datahandlinglibs

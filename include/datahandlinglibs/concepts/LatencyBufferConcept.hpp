@@ -8,14 +8,18 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_LATENCYBUFFERCONCEPT_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_LATENCYBUFFERCONCEPT_HPP_
 
-#include <nlohmann/json.hpp>
+#include "appfwk/DAQModule.hpp"
 #include "appmodel/LatencyBuffer.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
 #include <cstddef>
+#include <concepts>
 
 namespace dunedaq {
 namespace datahandlinglibs {
+
+template<typename T>
+concept SupportsDelayedPostprocessing = T::supports_delayed_postprocessing;
 
 /**
  * Concept of a LatencyBuffer.
@@ -42,7 +46,7 @@ public:
   virtual void conf(const appmodel::LatencyBuffer* conf) = 0;
 
   //! Unconfigure the LB
-  virtual void scrap(const nlohmann::json& cfg) = 0;
+  virtual void scrap(const appfwk::DAQModule::CommandData_t& cfg) = 0;
 
   //! Occupancy of LB
   virtual std::size_t occupancy() const = 0;

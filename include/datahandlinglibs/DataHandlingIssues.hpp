@@ -116,12 +116,6 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "SourceID[" << sourceid << "] Got request for SourceID: " << request_sourceid,
                   ((daqdataformats::SourceID)sourceid)((daqdataformats::SourceID)request_sourceid))
 
-
-ERS_DECLARE_ISSUE(datahandlinglibs,
-                  TrmWithEmptyFragment,
-                  "SourceID[" << sourceid << "] Trigger Matching result with empty fragment: " << trmdetails,
-                  ((daqdataformats::SourceID)sourceid)((std::string)trmdetails))
-
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   RequestOnEmptyBuffer,
                   "SourceID[" << sourceid << "] Request on empty buffer: " << trmdetails,
@@ -189,16 +183,16 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   DataPacketArrivedTooLate,
-                  "Received a late data packet in run " << run << ", payload first timestamp = " << ts1 <<
+                  "SourceID[" << sourceid << "] Received a late data packet in run " << run << ", payload first timestamp = " << ts1 <<
                   ", request_handler cutoff timestamp = " << ts2 << ", difference = " << tick_diff <<
                   " ticks, " << msec_diff << " msec.",
-                  ((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
+                  ((daqdataformats::SourceID)sourceid)((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NonZeroLatencyBufferInsertFailures,
-                  "There were " << fail_count << " failures to insert data into the latency buffer out of " <<
+                  "SourceID[" << sourceid << "] There were " << fail_count << " failures to insert data into the latency buffer out of " <<
                   total_count << " attempts in the latest monitoring interval.",
-                  ((int64_t)fail_count)((int64_t)total_count))
+                  ((daqdataformats::SourceID)sourceid)((int64_t)fail_count)((int64_t)total_count))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NewErrorRegistered,

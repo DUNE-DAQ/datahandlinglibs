@@ -21,6 +21,8 @@ message DataHandlerInfo {
   uint64 sum_requests = 11; // Total number of received requests 
   uint64 num_requests = 12; // Incremental number of received requests 
   uint64 last_daq_timestamp = 21; // Most recent DAQ timestamp processed 
+  uint64 newest_timestamp = 22; // Most recent DAQ timestamp processed 
+  uint64 oldest_timestamp = 23; // Most recent DAQ timestamp processed 
   uint64 num_post_processing_delay_max_waits = 31; // Number of times post-processing was triggered due to max wait time elapsing before data arrival
 }
 
@@ -69,5 +71,19 @@ message HitFindingInfo {
 message TPChannelInfo {
   uint64 channel_id = 1; //Offline channel identifier
   uint64 number_of_tps = 2; // Numer of hits, i.e. TPs
+}
+
+message TPGProcessorInfo {
+  int64 pedestal = 1; // Pedestal value of AVXFrugalPedestalSubtractProcessor
+  int64 accum = 2; // Accum value of AVXFrugalPedestalSubtractProcessor
+}
+
+message TPGProcessorReducedInfo {
+  float average = 1; // across plane
+  int32 max = 2; 
+  int32 min = 3;
+  uint32 max_channel_id = 4;
+  uint32 min_channel_id = 5;
+  float standard_dev = 6;
 }
 

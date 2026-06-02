@@ -60,13 +60,13 @@ public:
   void conf(const appmodel::DataHandlerModule* conf) override;
 
   // Clears elements to process, pre-proc pipeline, and post-proc functions
-  void scrap(const nlohmann::json& /*cfg*/) override;
+  void scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/) override;
 
   // Starts the pre-processor pipeline and the parallel post-processor threads
-  void start(const nlohmann::json& /*args*/) override;
+  void start(const appfwk::DAQModule::CommandData_t& /*args*/) override;
 
   // Stops the pre-processor pipeline and the parallel post-processor threads
-  void stop(const nlohmann::json& /*args*/) override;
+  void stop(const appfwk::DAQModule::CommandData_t& /*args*/) override;
 
   // Resets last known/processed DAQ timestamp
   void reset_last_daq_time() { m_last_processed_daq_ts.store(0); }
@@ -79,6 +79,9 @@ public:
 
   // Registers ReadoutType item pointer to to the post-processing queue
   void postprocess_item(const ReadoutType* item) override;
+
+  // Handle a timeout event 
+  void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumilated_timeout_ticks) override {}
 
   // Registers a pre-processing task to the pre-processor pipeline
   template<typename Task>
