@@ -77,6 +77,7 @@ daq_add_application(datahandlinglibs_test_bufferedfilereader test_bufferedfilere
 daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_application(datahandlinglibs_test_co_timeout test_co_timeout_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_application(datahandlinglibs_test_cleanup_coordination test_cleanup_coordination_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################
 # Unit Tests
