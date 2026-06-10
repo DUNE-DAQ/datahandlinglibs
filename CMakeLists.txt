@@ -78,12 +78,19 @@ daq_add_application(datahandlinglibs_test_skiplist test_skiplist_app.cxx TEST LI
 daq_add_application(datahandlinglibs_test_composite_key test_composite_key_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_application(datahandlinglibs_test_co_timeout test_co_timeout_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
+daq_add_application(datahandlinglibs_test_to_include_to_lcov_app test_to_include_to_lcov_app.cxx TEST LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+
 ##############################################################################
 # Unit Tests
 
-#daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_BufferedReadWrite_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 #daq_add_unit_test(datahandlinglibs_VariableSizeElementQueue_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_DataMoveCallbackRegistry_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_ReadoutTypes_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_IterableQueueModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_SkiplistLatencyBufferModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_TaskRawDataProcessorModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
+daq_add_unit_test(datahandlinglibs_DefaultRequestHandlerModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 daq_add_unit_test(datahandlinglibs_DataHandlingModel_test LINK_LIBRARIES datahandlinglibs ${BOOST_LIBS})
 
 ##############################################################################

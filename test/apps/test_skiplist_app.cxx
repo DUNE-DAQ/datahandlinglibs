@@ -22,12 +22,14 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstdlib>  
+
 
 using namespace dunedaq::datahandlinglibs;
 using namespace folly;
 
 int
-main(int /*argc*/, char** /*argv[]*/)
+main(int argc, char** argv)
 {
 
   // ConcurrentSkipList from Folly
@@ -74,23 +76,45 @@ main(int /*argc*/, char** /*argv[]*/)
   });
 
   // Producer thread
-  auto producer = std::thread([&]() {
-    TLOG() << "SkipList Producer spawned... Creating accessor.";
-    uint64_t ts = 0; // NOLINT(build/unsigned)
-    while (marker) {
-      types::DUMMY_FRAME_STRUCT pl;
-      auto plptr =
-        const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
-      plptr->timestamp = ts;
-      {
-        SkipListTAcc prodacc(skl);
-        prodacc.insert(std::move(pl));
-      }
-      ts += 25;
-      rl.limit();
+
+  //vector of threads
+  std::vector< std::thread >producers;
+  int producer_num = 1;
+  if (argc > 1) {
+    try {
+        producer_num = std::stoi(argv[1]);
+        if (producer_num <= 0) {
+            std::cerr << "Error: producer_num must be positive.\n";
+            return 1;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: Invalid input for producer_num: " << argv[1] << "\n";
+        return 1;
     }
-    TLOG() << "Producer joins...";
-  });
+}
+
+  for(int i = 0; i <producer_num; i++){
+
+    auto producer = std::thread([&]() {
+      TLOG() << "SkipList Producer spawned... Creating accessor.";
+      uint64_t ts = 0; // NOLINT(build/unsigned)
+      while (marker) {
+        types::DUMMY_FRAME_STRUCT pl;
+        auto plptr =
+          const_cast<types::DUMMY_FRAME_STRUCT*>(reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(&pl)); // NOLINT
+        plptr->timestamp = ts;
+        {
+          SkipListTAcc prodacc(skl);
+          prodacc.insert(std::move(pl));
+        }
+        ts +=25;
+        rl.limit();
+      }
+    });
+
+    producers.push_back(std::move(producer));
+  }
+  
 
   // Cleanup thread
   auto cleaner = std::thread([&]() {
@@ -107,20 +131,20 @@ main(int /*argc*/, char** /*argv[]*/)
         auto headptr = reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(head); // NOLINT
         auto tailts = tailptr->get_timestamp();
         auto headts = headptr->get_timestamp();
-        if (headts - tailts > max_time_diff) { // ts differnce exceeds maximum
+        if (tailts - headts   > max_time_diff) { 
           uint64_t timediff = max_time_diff;   // NOLINT(build/unsigned)
           auto removed_ctr = 0;
           while (timediff >= max_time_diff) {
-            bool removed = cleanacc.remove(*tail);
+            bool removed = cleanacc.remove(*head);
             if (!removed) {
               TLOG() << tname << ": Unsuccessfull remove: " << removed;
             } else {
               ++removed_ctr;
             }
-            tail = cleanacc.last();
-            tailptr = reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(tail); // NOLINT
-            tailts = tailptr->get_timestamp();
-            timediff = headts - tailts;
+            head = cleanacc.first();
+            headptr = reinterpret_cast<const types::DUMMY_FRAME_STRUCT*>(head); // NOLINT
+            headts = headptr->get_timestamp();
+            timediff = tailts - headts;
           }
           TLOG() << tname << ": Cleared " << removed_ctr << " elements.";
         }
@@ -187,9 +211,12 @@ main(int /*argc*/, char** /*argv[]*/)
     killswitch.join();
   }
 
-  if (producer.joinable()) {
-    producer.join();
+  for (auto& producer : producers){
+    if (producer.joinable()) {
+      producer.join();
+    }
   }
+  
 
   if (cleaner.joinable()) {
     cleaner.join();

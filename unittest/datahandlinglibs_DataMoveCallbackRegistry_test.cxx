@@ -16,6 +16,10 @@
 
 #include "boost/test/unit_test.hpp"
 
+#include <iostream>
+
+#include <sstream>
+
 using namespace dunedaq::datahandlinglibs;
 
 DUNE_DAQ_TYPESTRING(int, "int");
@@ -41,13 +45,21 @@ BOOST_AUTO_TEST_CASE(DataMoveCallbackRegistry_get_callback)
   /**
    * @test A registered callback function can be retrieved
    */
-  registry->register_callback<int>(conf, [](int&&) {});
+  int check;
+  registry->register_callback<int>(conf, [&check](int&& num) { check = num; });
   BOOST_CHECK(registry->get_callback<int>(conf) != nullptr);
 
   /**
    * @test The registered callback function's parameter type and template argument must match
    */
   BOOST_CHECK_THROW(registry->get_callback<double>(conf), GenericConfigurationError);
+
+  /**
+   * @test Returned function must work
+   */
+  std::shared_ptr<std::function<void(int&&)>> returned_func = registry->get_callback<int>(conf);
+  (*returned_func)(42);
+  BOOST_CHECK_EQUAL(check, 42);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -273,7 +273,7 @@ IterableQueueModel<T>::front()
   return &records_[currentRead];
 }
 
-// Gives a pointer to the current write index
+// Gives a pointer to the last written element
 template<class T>
 const T* 
 IterableQueueModel<T>::back()

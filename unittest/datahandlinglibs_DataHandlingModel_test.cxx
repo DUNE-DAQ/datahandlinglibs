@@ -9,39 +9,304 @@
 #define BOOST_TEST_MODULE datahandlinglibs_DataHandlingModel_test // NOLINT
 
 #include "boost/test/unit_test.hpp"
-
-#include "datahandlinglibs/ReadoutTypes.hpp"
+#include "datahandlinglibs/models/BinarySearchQueueModel.hpp"
+#include "datahandlinglibs/models/DataHandlingModel.hpp"
+#include "datahandlinglibs/models/FixedRateQueueModel.hpp"
+#include "datahandlinglibs/models/IterableQueueModel.hpp"
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 #include "datahandlinglibs/testutils/UnitTestUtilities.hpp"
 
+#include <folly/coro/BlockingWait.h>
+#include <folly/coro/Timeout.h>
 #include <folly/futures/ManualTimekeeper.h>
-
-#include <memory>
-#include <utility>
-
-BOOST_AUTO_TEST_SUITE(datahandlinglibs_DataHandlingModel_test)
 
 using namespace dunedaq::datahandlinglibs;
 
-using ReadoutType = types::DUMMY_FRAME_STRUCT;
+BOOST_AUTO_TEST_SUITE(datahandlinglibs_DataHandlingModel_test)
+
+using RDT = unittest::MockReadoutType;
+using RHT = unittest::MockRequestHandlerType<unittest::MockReadoutType,
+                                             unittest::MockLatencyBufferType<unittest::MockReadoutType>>;
+using LBT = unittest::MockLatencyBufferType<unittest::MockReadoutType>;
+using RPT = unittest::MockRawDataProcessorType;
+
+
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_process_item_pre_post_process)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, RDT>(run_marker);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.initialize(true);
+  model.raw_processor(pre_func_one_called, post_func_one_called, 0);
+
+  RDT elem;
+  elem.set_timestamp(2);
+
+  model.test_process_item(std::move(elem));
+  BOOST_REQUIRE(pre_func_one_called);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 1);
+  BOOST_REQUIRE_EQUAL(model.get_sum_payloads(), 1);
+  BOOST_REQUIRE_EQUAL(model.get_stats_packet_count(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_process_item_cutoff_triggered)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, RDT>(run_marker);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.initialize(true);
+  model.raw_processor(pre_func_one_called, post_func_one_called, 10);
+
+  RDT elem;
+  elem.set_timestamp(2);
+
+  setenv("DUNEDAQ_ERS_WARNING", "throw", 1);
+  BOOST_CHECK_THROW(model.test_process_item(std::move(elem)), std::exception);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_transform_payload)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, unittest::MockSuperChunkReadoutType>(run_marker);
+
+  unittest::MockSuperChunkReadoutType input;
+  input.set_timestamp(4);
+  auto output = model.test_transform_payload(input);
+  BOOST_REQUIRE((std::is_same_v<unittest::MockReadoutType, decltype(output)::value_type>));
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_transform_and_process_same_type)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, RDT>(run_marker);
+  model.initialize(true);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.raw_processor(pre_func_one_called, post_func_one_called, 0);
+
+  RDT input;
+  input.set_timestamp(4);
+  model.test_transform_and_process(std::move(input));
+  BOOST_REQUIRE(pre_func_one_called);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_transform_and_process_different_type)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, unittest::MockSuperChunkReadoutType>(run_marker);
+  model.initialize(true);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.raw_processor(pre_func_one_called, post_func_one_called, 0);
+
+  unittest::MockSuperChunkReadoutType input;
+  input.set_timestamp(4);
+  model.test_transform_and_process(std::move(input));
+  BOOST_REQUIRE(pre_func_one_called);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_consume_callback)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT, RHT, LBT, RPT, unittest::MockSuperChunkReadoutType>(run_marker);
+  model.initialize(true);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.raw_processor(pre_func_one_called, post_func_one_called, 0);
+
+  unittest::MockSuperChunkReadoutType input;
+  input.set_timestamp(4);
+  model.test_consume_callback(std::move(input));
+  BOOST_REQUIRE(pre_func_one_called);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_consume_callback_write_failure)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT,
+                                   unittest::MockRequestHandlerType<RDT, BinarySearchQueueModel<RDT>>,
+                                   BinarySearchQueueModel<RDT>,
+                                   RPT,
+                                   RDT>(run_marker);
+  model.initialize(true); // default size of LB is 2
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.raw_processor(pre_func_one_called, post_func_one_called, 0);
+
+  for (int i = 100; i < 102; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_consume_callback(std::move(input));
+  }
+
+  BOOST_REQUIRE(pre_func_one_called);
+  BOOST_REQUIRE_EQUAL(model.get_num_lb_insert_failures(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_SkipListLatencyBufferModel)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<
+    RDT,
+    unittest::MockRequestHandlerType<unittest::MockReadoutType, SkipListLatencyBufferModel<unittest::MockReadoutType>>,
+    SkipListLatencyBufferModel<unittest::MockReadoutType>,
+    RPT,
+    RDT>(run_marker);
+  model.initialize(true);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.post_schedule_init(pre_func_one_called, post_func_one_called, 0, 0);
+
+  for (int i = 100; i < 105; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::thread postprocess([&]() { model.test_run_postprocess_scheduler(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  for (int i = 105; i < 112; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  model.set_run_marker(false);
+  {
+    RDT input;
+    input.set_timestamp(112);
+    model.test_transform_and_process(std::move(input));
+  }
+  postprocess.join();
+
+  BOOST_REQUIRE_EQUAL(model.get_num_post_processing_delay_max_waits(), 0);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 8); // newest ts - delay ticks
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_BinarySearchQueueModel)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT,
+                                   unittest::MockRequestHandlerType<RDT, BinarySearchQueueModel<RDT>>,
+                                   BinarySearchQueueModel<RDT>,
+                                   RPT,
+                                   RDT>(run_marker);
+  model.initialize_iterable_queue(true, 32);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.post_schedule_init(pre_func_one_called, post_func_one_called, 0, 0);
+
+  for (int i = 100; i < 105; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::thread postprocess([&]() { model.test_run_postprocess_scheduler(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  for (int i = 105; i < 112; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  model.set_run_marker(false);
+  {
+    RDT input;
+    input.set_timestamp(112);
+    model.test_transform_and_process(std::move(input));
+  }
+  postprocess.join();
+
+  BOOST_REQUIRE_EQUAL(model.get_num_post_processing_delay_max_waits(), 0);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 8); // newest ts - delay ticks
+}
+
+BOOST_AUTO_TEST_CASE(DataHandlingModel_postprocess_schedule_FixedRateQueueModel)
+{
+  std::atomic<bool> run_marker = true;
+
+  auto model = unittest::MockDataHandlingModel<RDT,
+                                   unittest::MockRequestHandlerType<RDT, FixedRateQueueModel<RDT>>,
+                                   FixedRateQueueModel<RDT>,
+                                   RPT,
+                                   RDT>(run_marker);
+  model.initialize_iterable_queue(true, 32);
+
+  bool pre_func_one_called = false;
+  bool post_func_one_called = false;
+  model.post_schedule_init(pre_func_one_called, post_func_one_called, 0, 0);
+
+  for (int i = 100; i < 105; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::thread postprocess([&]() { model.test_run_postprocess_scheduler(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  for (int i = 105; i < 112; i++) {
+    RDT input;
+    input.set_timestamp(i);
+    model.test_transform_and_process(std::move(input));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  model.set_run_marker(false);
+  {
+    RDT input;
+    input.set_timestamp(112);
+    model.test_transform_and_process(std::move(input));
+  }
+  postprocess.join();
+
+  BOOST_REQUIRE_EQUAL(model.get_num_post_processing_delay_max_waits(), 0);
+  BOOST_REQUIRE_EQUAL(model.get_num_payloads(), 8); // newest ts - delay ticks
+}
 
 BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_run_postprocess_scheduler_timeout)
 {
   std::atomic<bool> run_marker = true;
 
   auto model =
-    unittest::MockDataHandlingModel<ReadoutType,
-                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
-                                    SkipListLatencyBufferModel<ReadoutType>,
-                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+    unittest::MockDataHandlingModel<RDT,
+                                    DefaultRequestHandlerModel<RDT, SkipListLatencyBufferModel<RDT>>,
+                                    SkipListLatencyBufferModel<RDT>,
+                                    TaskRawDataProcessorModel<RDT>>(run_marker);
 
-  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>(); // Empty buffer
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<RDT>>(); // Empty buffer
 
   constexpr bool post_processing_enabled = true;
   auto error_registry = std::make_unique<FrameErrorRegistry>();
 
   auto raw_processor =
-    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+    std::make_shared<TaskRawDataProcessorModel<RDT>>(error_registry, post_processing_enabled);
 
   auto timekeeper = std::make_unique<folly::ManualTimekeeper>();
   auto* timekeeper_ptr = timekeeper.get();
@@ -72,15 +337,15 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   std::atomic<bool> run_marker = true;
 
   auto model =
-    unittest::MockDataHandlingModel<ReadoutType,
-                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
-                                    SkipListLatencyBufferModel<ReadoutType>,
-                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+    unittest::MockDataHandlingModel<RDT,
+                                    DefaultRequestHandlerModel<RDT, SkipListLatencyBufferModel<RDT>>,
+                                    SkipListLatencyBufferModel<RDT>,
+                                    TaskRawDataProcessorModel<RDT>>(run_marker);
 
-  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<RDT>>();
 
   for (int i = 1; i < 6; i++) {
-    ReadoutType frame{};
+    RDT frame{};
     frame.timestamp = i * 62500;
     buffer->write(std::move(frame));
   }
@@ -89,7 +354,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   auto error_registry = std::make_unique<FrameErrorRegistry>();
 
   auto raw_processor =
-    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+    std::make_shared<TaskRawDataProcessorModel<RDT>>(error_registry, post_processing_enabled);
 
   constexpr uint64_t delay_ticks = 4 * 62500; // NOLINT(build/unsigned)
   constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
@@ -133,21 +398,21 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   std::atomic<bool> run_marker = true;
 
   auto model =
-    unittest::MockDataHandlingModel<ReadoutType,
-                                    DefaultRequestHandlerModel<ReadoutType, SkipListLatencyBufferModel<ReadoutType>>,
-                                    SkipListLatencyBufferModel<ReadoutType>,
-                                    TaskRawDataProcessorModel<ReadoutType>>(run_marker);
+    unittest::MockDataHandlingModel<RDT,
+                                    DefaultRequestHandlerModel<RDT, SkipListLatencyBufferModel<RDT>>,
+                                    SkipListLatencyBufferModel<RDT>,
+                                    TaskRawDataProcessorModel<RDT>>(run_marker);
 
-  auto buffer = std::make_shared<SkipListLatencyBufferModel<ReadoutType>>();
+  auto buffer = std::make_shared<SkipListLatencyBufferModel<RDT>>();
 
   for (int i = 1; i < 3; i++) {
-    ReadoutType frame{};
+    RDT frame{};
     frame.timestamp = i * 62500;
     buffer->write(std::move(frame));
   }
 
   {
-    ReadoutType frame{};
+    RDT frame{};
     frame.timestamp = 4 * 62500;
     buffer->write(std::move(frame));  
   }
@@ -156,7 +421,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   auto error_registry = std::make_unique<FrameErrorRegistry>();
 
   auto raw_processor =
-    std::make_shared<TaskRawDataProcessorModel<ReadoutType>>(error_registry, post_processing_enabled);
+    std::make_shared<TaskRawDataProcessorModel<RDT>>(error_registry, post_processing_enabled);
 
   constexpr uint64_t delay_ticks = 1 * 62500; // NOLINT(build/unsigned)
   constexpr uint64_t delay_min_wait = 1; // NOLINT(build/unsigned)
@@ -174,7 +439,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_DataHandlingModel_PostprocessScheduleAlgor
   BOOST_REQUIRE_EQUAL(processed_count, 3);
 
   {
-    ReadoutType frame{};
+    RDT frame{};
     frame.timestamp = 3 * 62500;
     buffer->write(std::move(frame));  
   }

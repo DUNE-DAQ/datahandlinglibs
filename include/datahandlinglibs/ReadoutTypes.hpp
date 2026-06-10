@@ -1,5 +1,5 @@
 /**
- * @file ReadoutTypes.hpp Common types in datahandlinglibs
+ * @file ReadoutTypes.hpp Common types in datahandlinglibs, used for tests
  *
  * This is part of the DUNE DAQ , copyright 2020.
  * Licensing/copyright details are in the COPYING file that you should have
