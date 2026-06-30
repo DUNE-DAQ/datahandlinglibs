@@ -19,7 +19,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<typename T>
-concept SupportsDelayedPostprocessing = T::supports_delayed_postprocessing;
+concept ExpectsOrder = T::expects_order;
 
 /**
  * Concept of a LatencyBuffer.
@@ -51,7 +51,7 @@ public:
   virtual std::size_t occupancy() const = 0;
 
   //! Move referenced object into LB
-  virtual std::pair<const T*, bool> write(T&& element) = 0;
+  virtual bool write(T&& element) = 0;
 
   //! Move object from LB to referenced
   virtual bool read(T& element) = 0;

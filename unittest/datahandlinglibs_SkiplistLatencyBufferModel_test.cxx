@@ -22,14 +22,14 @@ using namespace dunedaq::datahandlinglibs;
 
 using ReadoutType = types::DUMMY_FRAME_STRUCT;
 
-BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write)
+BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write_and_return)
 {
   SkipListLatencyBufferModel<ReadoutType> buffer;
 
   ReadoutType frame1;
   frame1.timestamp = 2;
   frame1.another_key = 1;
-  const auto [written1, result1] = buffer.write(std::move(frame1));
+  const auto [written1, result1] = buffer.write_and_return(std::move(frame1));
   BOOST_REQUIRE_EQUAL(result1, true);
   BOOST_REQUIRE_EQUAL(written1->get_timestamp(), 2);
 
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write)
   ReadoutType frame2;
   frame2.timestamp = 1;
   frame2.another_key = 1;
-  const auto [written2, result2] = buffer.write(std::move(frame2));
+  const auto [written2, result2] = buffer.write_and_return(std::move(frame2));
   BOOST_REQUIRE_EQUAL(result2, true);
   BOOST_REQUIRE_EQUAL(written2->get_timestamp(), 1);
   BOOST_REQUIRE_NE(written2, buffer.back());
@@ -47,9 +47,25 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write)
   ReadoutType frame3;
   frame3.timestamp = 1;  
   frame3.another_key = 1;
-  const auto [written3, result3] = buffer.write(std::move(frame3));
+  const auto [written3, result3] = buffer.write_and_return(std::move(frame3));
   BOOST_REQUIRE_EQUAL(result3, false);
   BOOST_REQUIRE_EQUAL(written3, written2);
+}
+
+BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write)
+{
+  SkipListLatencyBufferModel<ReadoutType> buffer;
+
+  ReadoutType frame1;
+  frame1.timestamp = 2;
+  frame1.another_key = 1;
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame1)), true);
+
+  // Duplicate returns false
+  ReadoutType frame2;
+  frame2.timestamp = 2;
+  frame2.another_key = 1;
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame2)), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

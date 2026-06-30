@@ -29,31 +29,25 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_IterableQueueModel_write)
 
   ReadoutType frame1;
   frame1.timestamp = 2;
-  const auto [written1, result1] = buffer.write(std::move(frame1));
-  BOOST_REQUIRE_EQUAL(result1, true);
-  BOOST_REQUIRE_EQUAL(written1->get_timestamp(), 2);
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame1)), true);
+  BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 2);  
 
   // Last written == back() in queue
   ReadoutType frame2;
   frame2.timestamp = 1;
-  const auto [written2, result2] = buffer.write(std::move(frame2));
-  BOOST_REQUIRE_EQUAL(result2, true);
-  BOOST_REQUIRE_EQUAL(written2->get_timestamp(), 1);
-  BOOST_REQUIRE_EQUAL(written2, buffer.back());
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame2)), true);
+  BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 1);
 
   // Queue accepts duplicates
   ReadoutType frame3;
   frame3.timestamp = 1;  
-  const auto [written3, result3] = buffer.write(std::move(frame3));
-  BOOST_REQUIRE_EQUAL(result3, true);
-  BOOST_REQUIRE_EQUAL(written3->get_timestamp(), 1);
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame3)), true);
+  BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 1);
 
   // Overflow (the actual capacity is size - 1, in this case it is 3)
   ReadoutType frame4;
-  frame4.timestamp = 1;  
-  const auto [written4, result4] = buffer.write(std::move(frame4));
-  BOOST_REQUIRE_EQUAL(result4, false);
-  BOOST_REQUIRE_EQUAL(written4, nullptr);
+  frame4.timestamp = 1;
+  BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame4)), false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

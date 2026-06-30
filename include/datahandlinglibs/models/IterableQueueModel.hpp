@@ -72,6 +72,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
 {
   typedef T value_type;
 
+  static constexpr bool expects_order = true;
+
   IterableQueueModel(const IterableQueueModel&) = delete;
   IterableQueueModel& operator=(const IterableQueueModel&) = delete;
 
@@ -151,7 +153,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   void force_pagefault();
 
   // Write element into the queue
-  std::pair<const T*, bool> write(T&& record) override;
+  bool write(T&& record) override;
 
   // Read element from a queue (move or copy the value at the front of the queue to given variable)
   bool read(T& record) override;

@@ -18,8 +18,21 @@ SkipListLatencyBufferModel<T>::occupancy() const
 }
 
 template<class T>
-std::pair<const T*, bool>
+bool 
 SkipListLatencyBufferModel<T>::write(T&& new_element)
+{
+  bool success = false;
+  {
+    SkipListTAcc acc(m_skip_list);
+    auto ret = acc.insert(std::move(new_element)); // ret T = std::pair<iterator, bool>
+    success = ret.second;
+  }
+  return success;
+}
+
+template<class T>
+std::pair<const T*, bool>
+SkipListLatencyBufferModel<T>::write_and_return(T&& new_element)
 {
   const T* written = nullptr;
   bool success = false;

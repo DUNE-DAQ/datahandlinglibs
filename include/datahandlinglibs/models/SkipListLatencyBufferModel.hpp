@@ -35,7 +35,7 @@ public:
   using SkipListTAcc = typename folly::ConcurrentSkipList<T>::Accessor; // SKL Accessor
   using SkipListTSkip = typename folly::ConcurrentSkipList<T>::Skipper; // Skipper accessor
 
-  static constexpr bool supports_delayed_postprocessing = true;
+  static constexpr bool expects_order = false;
 
   // Constructor
   SkipListLatencyBufferModel()
@@ -97,7 +97,8 @@ private:
   // Override interface implementations
   size_t occupancy() const override;
   void flush() override { pop(occupancy()); }
-  std::pair<const T*, bool> write(T&& new_element) override;
+  bool write(T&& new_element) override;
+  std::pair<const T*, bool> write_and_return(T&& new_element);
   bool put(T& new_element); // override
   bool read(T& element) override;
 
