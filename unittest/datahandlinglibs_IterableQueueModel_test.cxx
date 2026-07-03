@@ -16,6 +16,8 @@
 #include "datahandlinglibs/ReadoutTypes.hpp"
 #include "datahandlinglibs/models/IterableQueueModel.hpp"
 
+#include <utility>
+
 BOOST_AUTO_TEST_SUITE(datahandlinglibs_IterableQueueModel_test)
 
 using namespace dunedaq::datahandlinglibs;
