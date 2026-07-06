@@ -77,11 +77,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
   m_post_processing_delay_max_wait = mcfg->get_module_configuration()->get_post_processing_delay_max_wait();
 
   if (m_processing_delay_ticks) {
-    if constexpr (!SupportsDelayedPostprocessing<LBT>) {
+    if constexpr (ExpectsOrder<LBT>) {
       ers::error(ConfigurationError(
         ERS_HERE,
         m_sourceid,
-        "Delayed postprocessing (post_processing_delay_ticks > 0) requires a sorted buffer (SkipList). "
         "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use "
         "post_processing_delay_ticks = 0."));
     }
@@ -266,15 +265,27 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
                                             (static_cast<double>(diff1) / 62500.0)));
     }
   }
-  if (!m_latency_buffer_impl->write(std::move(payload))) {
-    // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" <<
-    // payload.get_timestamp() << ")";
-    m_num_lb_insert_failures++;
-    return;
+
+  const RDT* written = nullptr;
+  if constexpr (ExpectsOrder<LBT>) {
+    if (!m_latency_buffer_impl->write(std::move(payload))) {
+      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+      m_num_lb_insert_failures++;
+      return;
+    }
+    written = m_latency_buffer_impl->back();
+  } else {
+    const auto [returned, result] = m_latency_buffer_impl->write_and_return(std::move(payload));
+    if (!result) {
+      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+      m_num_lb_insert_failures++;
+      return;
+    }
+    written = returned;
   }
 
   if (m_processing_delay_ticks == 0) {
-    m_raw_processor_impl->postprocess_item(m_latency_buffer_impl->back());
+    m_raw_processor_impl->postprocess_item(written);
     ++m_num_payloads;
     ++m_sum_payloads;
     ++m_stats_packet_count;

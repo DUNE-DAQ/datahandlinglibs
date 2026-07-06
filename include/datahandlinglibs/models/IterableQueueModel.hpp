@@ -72,6 +72,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
 {
   typedef T value_type;
 
+  static constexpr bool expects_order = true;
+
   IterableQueueModel(const IterableQueueModel&) = delete;
   IterableQueueModel& operator=(const IterableQueueModel&) = delete;
 
@@ -90,39 +92,6 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
     , readIndex_(0)
     , writeIndex_(0)
   {}
-
-  // Explicit constructor with size
-  explicit IterableQueueModel(std::size_t size) // size must be >= 2
-    : LatencyBufferConcept<T>() // NOLINT(build/unsigned)
-    , numa_aware_(false)
-    , numa_node_(0)
-    , intrinsic_allocator_(false)
-    , alignment_size_(0)
-    , invalid_configuration_requested_(false)
-    , prefill_ready_(false)
-    , prefill_done_(false)
-    , size_(size)
-    , records_(static_cast<T*>(std::malloc(sizeof(T) * size)))
-    , readIndex_(0)
-    , writeIndex_(0)
-  {
-    assert(size >= 2);
-    if (!records_) {
-      throw std::bad_alloc();
-    }
-#if 0
-    ptrlogger = std::thread([&](){
-      while(true) {
-        auto const currentRead = readIndex_.load(std::memory_order_relaxed);
-        auto const currentWrite = writeIndex_.load(std::memory_order_relaxed);
-        TLOG() << "BEG:" << std::hex << &records_[0] << " END:" << &records_[size] << std::dec
-                  << " R:" << currentRead << " - W:" << currentWrite
-                  << " OFLOW:" << overflow_ctr;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    });
-#endif
-  }
 
   // Constructor with alignment strategies
   IterableQueueModel(std::size_t size, // size must be >= 2
@@ -218,7 +187,7 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
   // Gives a pointer to the current read index
   const T* front() override;
 
-  // Gives a pointer to the current write index
+  // Gives a pointer to the last written element
   const T* back() override;
 
   // Gives a pointer to the first available slot of the queue
