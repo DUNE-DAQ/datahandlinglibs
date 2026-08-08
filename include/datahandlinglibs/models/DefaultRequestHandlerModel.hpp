@@ -100,9 +100,9 @@ public:
     , m_waiting_requests()
     , m_waiting_requests_lock()
     , m_error_registry(error_registry)
-    , m_pop_limit_pct(0.0f)
-    , m_pop_size_pct(0.0f)
-    , m_pop_limit_size(0)
+    , m_cleanup_min_occupancy_ratio(0.0f)
+    , m_cleanup_ratio(0.0f)
+    , m_cleanup_min_occupancy(0)
     , m_buffer_capacity(0)
     , m_pop_counter{ 0 }
     , m_pop_reqs(0)
@@ -265,9 +265,9 @@ protected:
 
   // Configuration
   bool m_configured;
-  float m_pop_limit_pct;     // buffer occupancy percentage to issue a pop request
-  float m_pop_size_pct;      // buffer percentage to pop
-  unsigned m_pop_limit_size; // pop_limit_pct * buffer_capacity
+  float m_cleanup_min_occupancy_ratio; // Minimum buffer occupancy ratio required to allow cleanup
+  float m_cleanup_ratio; // Buffer ratio to cleanup
+  unsigned m_cleanup_min_occupancy; // Minimum buffer occupancy required to allow cleanup
   size_t m_buffer_capacity;
   daqdataformats::SourceID m_sourceid;
   uint16_t m_detid;
