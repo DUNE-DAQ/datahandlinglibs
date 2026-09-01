@@ -83,9 +83,9 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
       if (emu_params->get_TP_rate_per_channel() != 0) {
        TLOG() << "TP rate per channel multiplier (base of 100 Hz/ch): " << emu_params->get_TP_rate_per_channel();
        // Define time to wait when adding an ADC above threshold
-       // Adding a hit every 9768 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
-        m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();
-      }
+       // Adding a hit every 9766 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
+        m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();       
+      }  
     }
 
     m_is_configured = true;
@@ -160,6 +160,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
   TLOG_DEBUG(TLVL_BOOKKEEPING) << "Using first timestamp: " << ts_0;
   uint64_t timestamp = ts_0; // NOLINT(build/unsigned)
   int dropout_index = 0;
+  uint64_t number_pattern_hits_generated = 0;
 
   while (m_run_marker.load()) {
     // TLOG() << "Generating " << m_frames_per_tick << " for TS " << timestamp;
@@ -192,28 +193,34 @@ SourceEmulatorModel<ReadoutType>::run_produce()
         payload.fake_frame_errors(&frame_errs);
 
         if (m_generate_periodic_adc_pattern) {
-          if (timestamp - m_pattern_generator_previous_ts > m_time_to_wait) {
+          uint64_t number_pattern_hits_expected = (timestamp - ts_0) / m_time_to_wait;
 
-            /* Reset the pattern from the beginning if it reaches the maximum
-            m_pattern_index++;
-            if (m_pattern_index == m_pattern_generator.get_total_size()) {
-              m_pattern_index = 0;
-            }
-            */
-            // Set the ADC to the uint16 maximum value
-            try {
-              payload.fake_adc_pattern(m_pattern_generator.get_channel_number());
-            }
-            catch (std::exception & ex) {
-              //FIXME: should not happen
-            }
+          // Calculate how many TPs to generate in this frame
+          uint64_t tps_this_frame = 0;
+          if (number_pattern_hits_expected > number_pattern_hits_generated) {
+            tps_this_frame = number_pattern_hits_expected - number_pattern_hits_generated;
+          }
 
-            //TLOG() << "Lift channel " << channel;
+          // Cap at maximum TPs per frame: 64 channels x 32 even time samples = 2048
+          // Each TP needs alternating ADC values (high/low), so only even time samples are used
+          const uint64_t max_tps_per_frame = 64 * 32;
+          if (tps_this_frame > max_tps_per_frame) {
+            tps_this_frame = max_tps_per_frame;
+          }
 
-            // Update the previous timestamp of the pattern generator
-            m_pattern_generator_previous_ts = timestamp;
+          // Distribute TPs across channels (via pattern generator) and time samples
+          // Channels are pseudo-random 0-63, time samples use even indices (0, 2, 4, ..., 62)
+          // tp_call_counter resets per frame; time_sample advances every 64 TPs within a frame
+          uint64_t tp_call_counter = 0;
+          for (uint64_t tp_idx = 0; tp_idx < tps_this_frame; ++tp_idx) {
+            int channel = m_pattern_generator.get_channel_number();
+            int time_sample = ((tp_call_counter / 64) % 32) * 2;
+            ++tp_call_counter;
 
-          } // timestamp difference
+            payload.fake_adc_pattern(channel, time_sample);
+          }
+
+          number_pattern_hits_generated += tps_this_frame;
         }
 
         // send it
