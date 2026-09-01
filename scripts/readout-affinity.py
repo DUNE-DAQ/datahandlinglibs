@@ -26,6 +26,15 @@ print('  -> Physical CPU count: ', pcpu_count)
 print('  -> Memory status: ', vmem) 
 print('\n')
 
+def get_app_name(proc_cmdline):
+  proc_name = proc_cmdline.split(" ")
+  target = "--name" if "--name" in proc_name else "-n"
+  try:
+    proc_name = proc_name[proc_name.index(target) + 1]
+  except ValueError:
+    raise ValueError("Cannot find application name in the command line using -n or --name")
+  return proc_name
+
 ### Parses CPU mask strings and lists
 def parse_cpumask(mask):
   cpu_mask = set()
@@ -93,10 +102,11 @@ for proc in psutil.process_iter():
     procs.append(proc)
 
 for proc in procs:
-  cmdline_dict = affinity_dict[proc.name()].keys()
+  names_dict = affinity_dict[proc.name()].keys()
   proc_cmdline = ' '.join(proc.cmdline())
-  for cmdl in cmdline_dict:
-    if cmdl in proc_cmdline:
+  proc_name = get_app_name(proc_cmdline)
+  for mask_name in names_dict:
+    if mask_name == proc_name:
       print('   -> Found process to mask!')
       print('      + Command line:', proc_cmdline)
       print('      + Process ID (PID):', proc.pid)
@@ -111,8 +121,8 @@ for proc in procs:
       threads = proc.threads()
       print('      + Thread count:', len(threads))
 
-      if 'parent' in affinity_dict[proc.name()][cmdl].keys():
-        mask = affinity_dict[proc.name()][cmdl]['parent']
+      if 'parent' in affinity_dict[proc.name()][mask_name].keys():
+        mask = affinity_dict[proc.name()][mask_name]['parent']
         print('      + Parent mask specified! Applying mask for every children and thread!')
         print('        - mask:', mask)
         if max(mask) > lcpu_count:
@@ -126,11 +136,11 @@ for proc in procs:
           tid = psutil.Process(thread.id)
           tid.cpu_affinity(mask)
 
-      if 'threads' in affinity_dict[proc.name()][cmdl]:
+      if 'threads' in affinity_dict[proc.name()][mask_name]:
         print('      + Thread masks specified! Applying thread specific masks!')
         for thread in threads:
           tid = psutil.Process(thread.id)
-          thread_masks = affinity_dict[proc.name()][cmdl]['threads']
+          thread_masks = affinity_dict[proc.name()][mask_name]['threads']
           # print(thread_masks)
 
           # Match thread names with the mask regex
