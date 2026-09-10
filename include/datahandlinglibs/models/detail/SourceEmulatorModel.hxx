@@ -160,6 +160,9 @@ SourceEmulatorModel<ReadoutType>::run_produce()
   TLOG_DEBUG(TLVL_BOOKKEEPING) << "Using first timestamp: " << ts_0;
   uint64_t timestamp = ts_0; // NOLINT(build/unsigned)
   int dropout_index = 0;
+  uint64_t number_pattern_hits_generated = 0;
+  // 64 total channels, placing on slot 0 gives 64 available slots.
+  const uint64_t max_tps_per_frame = 64;
 
   while (m_run_marker.load()) {
     // TLOG() << "Generating " << m_frames_per_tick << " for TS " << timestamp;
@@ -192,28 +195,34 @@ SourceEmulatorModel<ReadoutType>::run_produce()
         payload.fake_frame_errors(&frame_errs);
 
         if (m_generate_periodic_adc_pattern) {
-          if (timestamp - m_pattern_generator_previous_ts > m_time_to_wait) {
+          uint64_t number_pattern_hits_expected = (timestamp - ts_0) / m_time_to_wait;
 
-            /* Reset the pattern from the beginning if it reaches the maximum
-            m_pattern_index++;
-            if (m_pattern_index == m_pattern_generator.get_total_size()) {
-              m_pattern_index = 0;
-            }
-            */
-            // Set the ADC to the uint16 maximum value
+          // Calculate how many TPs to generate in this frame
+          uint64_t tps_this_frame = 0;
+          if (number_pattern_hits_expected > number_pattern_hits_generated) {
+            tps_this_frame = number_pattern_hits_expected - number_pattern_hits_generated;
+          }
+
+          if (tps_this_frame > max_tps_per_frame) {
+            tps_this_frame = max_tps_per_frame;
+          }
+
+          // Distribute TPs across channels via the pattern generator.
+          for (uint64_t tp_idx = 0; tp_idx < tps_this_frame; ++tp_idx) {
+            int channel = m_pattern_generator.get_channel_number();
+            // The pattern generator draws channel in range 0-63, current
+            // behaviour for frame type with 32 channels is silent dropping.
             try {
-              payload.fake_adc_pattern(m_pattern_generator.get_channel_number());
+              payload.fake_adc_pattern(channel);
             }
-            catch (std::exception & ex) {
-              //FIXME: should not happen
+            catch (const std::out_of_range&) {
             }
+          }
 
-            //TLOG() << "Lift channel " << channel;
-
-            // Update the previous timestamp of the pattern generator
-            m_pattern_generator_previous_ts = timestamp;
-
-          } // timestamp difference
+          // Count the number of patterns attempted to inject. Prevents
+          // expected - generated deficit from accumulating in case of
+          // injection failure.
+          number_pattern_hits_generated += tps_this_frame;
         }
 
         // send it
