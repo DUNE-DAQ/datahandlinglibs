@@ -9,8 +9,8 @@
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 
-#include "logging/Logging.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
+#include "logging/Logging.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -22,9 +22,9 @@ using namespace dunedaq::datahandlinglibs;
 int
 main(int argc, char* argv[])
 {
-  if (argc < 2 || argc > 4 || argc==3 || (argc == 4 && strcmp(argv[2], "-L") != 0)) {
+  if (argc < 2 || argc > 4 || argc == 3 || (argc == 4 && strcmp(argv[2], "-L") != 0)) {
     TLOG() << "usage: datahandlinglibs_test_bufferedfilewriter filename <-L rate_limiter_frequency>" << std::endl;
-    TLOG() << "-L frequency parameter is optional. Limiter will be disable" << std::endl;    
+    TLOG() << "-L frequency parameter is optional. Limiter will be disable" << std::endl;
     exit(1);
   }
   remove(argv[1]); // NOLINT
@@ -55,14 +55,14 @@ main(int argc, char* argv[])
 
   // Initializing limiter
   double limiter_freq = 0;
-  if (argc == 4) limiter_freq = std::stod(argv[3]);
+  if (argc == 4)
+    limiter_freq = std::stod(argv[3]);
   auto limiter = RateLimiter(limiter_freq);
 
   if (argc == 4) {
     TLOG() << "Starting with ratelimiter at " << limiter_freq << "kHz";
     limiter.init();
   }
-  
 
   while (true) {
     if (!writer.write(reinterpret_cast<char*>(&chunk), sizeof(chunk))) {
@@ -71,6 +71,7 @@ main(int argc, char* argv[])
     }
     bytes_written_total += sizeof(chunk);
     bytes_written_since_last_statistics += sizeof(chunk);
-    if (argc == 4) limiter.limit();
+    if (argc == 4)
+      limiter.limit();
   }
 }

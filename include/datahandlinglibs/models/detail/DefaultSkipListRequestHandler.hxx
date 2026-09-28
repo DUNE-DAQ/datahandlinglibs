@@ -4,7 +4,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class T>
-void 
+void
 DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
 {
   size_t removed_ctr = 0;
@@ -31,11 +31,11 @@ DefaultSkipListRequestHandler<T>::skip_list_cleanup_request()
             ++removed_ctr;
           }
           head = acc.first();
-          headts = (*head).get_timestamp(); 
+          headts = (*head).get_timestamp();
           timediff = tailts - headts;
         }
         inherited::m_pops_count += removed_ctr;
-    
+
         // Update hte oldest timestamp monitorable
         inherited::m_oldest_timestamp = headts;
       }

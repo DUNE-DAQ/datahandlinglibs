@@ -9,10 +9,10 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_REQUESTHANDLERCONCEPT_HPP_
 
 #include "appfwk/DAQModule.hpp"
-#include "iomanager/IOManager.hpp"
+#include "appmodel/DataHandlerModule.hpp"
 #include "daqdataformats/Fragment.hpp"
 #include "dfmessages/DataRequest.hpp"
-#include "appmodel/DataHandlerModule.hpp"
+#include "iomanager/IOManager.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
 #include <map>
@@ -31,14 +31,14 @@ public:
   RequestHandlerConcept() {}
 
   virtual ~RequestHandlerConcept() {}
-  
+
   RequestHandlerConcept(const RequestHandlerConcept&) = delete; ///< RequestHandlerConcept is not copy-constructible
   RequestHandlerConcept& operator=(const RequestHandlerConcept&) =
     delete;                                                ///< RequestHandlerConcept is not copy-assginable
   RequestHandlerConcept(RequestHandlerConcept&&) = delete; ///< RequestHandlerConcept is not move-constructible
   RequestHandlerConcept& operator=(RequestHandlerConcept&&) = delete; ///< RequestHandlerConcept is not move-assignable
 
-  //virtual void init(const CommandData_t& args) = 0;
+  // virtual void init(const CommandData_t& args) = 0;
   virtual void conf(const appmodel::DataHandlerModule* conf) = 0;
   virtual void scrap(const appfwk::DAQModule::CommandData_t& args) = 0;
   virtual void start(const appfwk::DAQModule::CommandData_t& args) = 0;
@@ -69,12 +69,13 @@ protected:
     kCleanup,
     kUnknown
   };
-  std::map<ResultCode, std::string> ResultCodeStrings{
-    { ResultCode::kFound, "FOUND" },    { ResultCode::kNotFound, "NOT_FOUND" },
-    { ResultCode::kTooOld, "TOO_OLD" }, { ResultCode::kNotYet, "NOT_YET_PRESENT" },
-    { ResultCode::kPartiallyOld, "PARTIALLY_PASSED" },    { ResultCode::kCleanup, "CLEANUP" },
-    { ResultCode::kUnknown, "UNKNOWN" }
-  };
+  std::map<ResultCode, std::string> ResultCodeStrings{ { ResultCode::kFound, "FOUND" },
+                                                       { ResultCode::kNotFound, "NOT_FOUND" },
+                                                       { ResultCode::kTooOld, "TOO_OLD" },
+                                                       { ResultCode::kNotYet, "NOT_YET_PRESENT" },
+                                                       { ResultCode::kPartiallyOld, "PARTIALLY_PASSED" },
+                                                       { ResultCode::kCleanup, "CLEANUP" },
+                                                       { ResultCode::kUnknown, "UNKNOWN" } };
 
   inline const std::string& resultCodeAsString(ResultCode rc) { return ResultCodeStrings[rc]; }
 
@@ -85,12 +86,14 @@ protected:
       : result_code(rc)
       , data_request(dr)
       , fragment()
-    {}
+    {
+    }
     RequestResult(ResultCode rc, dfmessages::DataRequest dr, daqdataformats::Fragment&& frag)
       : result_code(rc)
       , data_request(dr)
       , fragment(std::move(frag))
-    {}
+    {
+    }
     ResultCode result_code;
     dfmessages::DataRequest data_request;
     std::unique_ptr<daqdataformats::Fragment> fragment;

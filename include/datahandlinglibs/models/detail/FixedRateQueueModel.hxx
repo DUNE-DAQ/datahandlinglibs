@@ -4,7 +4,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<typename T>
-typename IterableQueueModel<T>::Iterator 
+typename IterableQueueModel<T>::Iterator
 FixedRateQueueModel<T>::lower_bound(T& element, bool with_errors)
 {
   if (with_errors) {
@@ -15,24 +15,25 @@ FixedRateQueueModel<T>::lower_bound(T& element, bool with_errors)
     IterableQueueModel<T>::readIndex_.load(std::memory_order_relaxed); // NOLINT(build/unsigned)
   size_t occupancy_guess = IterableQueueModel<T>::occupancy();
   uint64_t last_ts = IterableQueueModel<T>::records_[start_index].get_timestamp(); // NOLINT(build/unsigned)
-  uint64_t newest_ts =                                                                   // NOLINT(build/unsigned)
+  uint64_t newest_ts =                                                             // NOLINT(build/unsigned)
     last_ts +
     occupancy_guess * T::expected_tick_difference * IterableQueueModel<T>::records_[start_index].get_num_frames();
   size_t n_frames = IterableQueueModel<T>::records_[start_index].get_num_frames();
-  
+
   if (last_ts > timestamp || timestamp > newest_ts) {
     return IterableQueueModel<T>::end();
   }
 
   int64_t time_tick_diff = (timestamp - last_ts);
 
-  //if we are aligned on a n_frame boundary, 
-  uint32_t num_element_offset = time_tick_diff/T::expected_tick_difference/n_frames; // NOLINT(build/unsigned)
-  uint32_t target_index = start_index + num_element_offset; // NOLINT(build/unsigned)
+  // if we are aligned on a n_frame boundary,
+  uint32_t num_element_offset = time_tick_diff / T::expected_tick_difference / n_frames; // NOLINT(build/unsigned)
+  uint32_t target_index = start_index + num_element_offset;                              // NOLINT(build/unsigned)
 
-  //if we aren't perfectly aligned on a n_frames boundary, move us up so we satisfy normal lower_bound rules
-  if(time_tick_diff%(T::expected_tick_difference*n_frames)!=0) ++target_index;
-  
+  // if we aren't perfectly aligned on a n_frames boundary, move us up so we satisfy normal lower_bound rules
+  if (time_tick_diff % (T::expected_tick_difference * n_frames) != 0)
+    ++target_index;
+
   if (target_index >= IterableQueueModel<T>::size_) {
     target_index -= IterableQueueModel<T>::size_;
   }

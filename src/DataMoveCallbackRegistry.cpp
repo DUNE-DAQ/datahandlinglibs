@@ -10,5 +10,5 @@
 
 #include <memory>
 
-std::shared_ptr<dunedaq::datahandlinglibs::DataMoveCallbackRegistry> dunedaq::datahandlinglibs::DataMoveCallbackRegistry::s_instance = nullptr;
-
+std::shared_ptr<dunedaq::datahandlinglibs::DataMoveCallbackRegistry>
+  dunedaq::datahandlinglibs::DataMoveCallbackRegistry::s_instance = nullptr;

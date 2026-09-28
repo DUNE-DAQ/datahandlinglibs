@@ -15,20 +15,20 @@
 // package
 #include "datahandlinglibs/concepts/SourceEmulatorConcept.hpp"
 
-#include "confmodel/DaqModule.hpp"
+#include "appmodel/DataReaderConf.hpp"
+#include "appmodel/DataReaderModule.hpp"
 #include "confmodel/Connection.hpp"
-#include "confmodel/QueueWithSourceId.hpp"
-#include "confmodel/DetectorToDaqConnection.hpp"
+#include "confmodel/DaqModule.hpp"
 #include "confmodel/DetDataSender.hpp"
 #include "confmodel/DetectorStream.hpp"
-#include "appmodel/DataReaderModule.hpp"
-#include "appmodel/DataReaderConf.hpp"
+#include "confmodel/DetectorToDaqConnection.hpp"
+#include "confmodel/QueueWithSourceId.hpp"
 
 #include "appfwk/ConfigurationManager.hpp"
 #include "appfwk/DAQModule.hpp"
 
-#include "utilities/ReusableThread.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
+#include "utilities/ReusableThread.hpp"
 
 #include "rcif/cmd/Nljs.hpp"
 
@@ -61,8 +61,9 @@ public:
   void init(std::shared_ptr<appfwk::ConfigurationManager> cfg);
 
   // To be implemented by final module
-  virtual std::shared_ptr<datahandlinglibs::SourceEmulatorConcept>
-  create_source_emulator(const appmodel::DataMoveCallbackConf* cb, std::atomic<bool>& run_marker) = 0;
+  virtual std::shared_ptr<datahandlinglibs::SourceEmulatorConcept> create_source_emulator(
+    const appmodel::DataMoveCallbackConf* cb,
+    std::atomic<bool>& run_marker) = 0;
 
   // Commands
   void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/);

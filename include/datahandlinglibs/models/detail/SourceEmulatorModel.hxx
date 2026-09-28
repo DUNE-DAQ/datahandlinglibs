@@ -9,12 +9,12 @@ namespace datahandlinglibs {
 void
 SourceEmulatorPatternGenerator::generate(int source_id, int size)
 {
-  //TLOG() << "Generate random ADC patterns" ;
-  std::srand(source_id*12345);
+  // TLOG() << "Generate random ADC patterns" ;
+  std::srand(source_id * 12345);
   m_channel.reserve(size);
   for (int i = 0; i < size; i++) {
-      int random_ch = std::rand()%64;
-      m_channel.push_back(random_ch);
+    int random_ch = std::rand() % 64;
+    m_channel.push_back(random_ch);
   }
 }
 
@@ -23,7 +23,8 @@ void
 SourceEmulatorModel<ReadoutType>::acquire_callback()
 {
   if (!m_sender_is_set) {
-    m_raw_data_callback = datahandlinglibs::DataMoveCallbackRegistry::get()->get_callback<ReadoutType>(SourceEmulatorConcept::m_sink_conf);
+    m_raw_data_callback =
+      datahandlinglibs::DataMoveCallbackRegistry::get()->get_callback<ReadoutType>(SourceEmulatorConcept::m_sink_conf);
     m_sender_is_set = true;
   } else {
     // ers::error();
@@ -32,13 +33,14 @@ SourceEmulatorModel<ReadoutType>::acquire_callback()
 
 template<class ReadoutType>
 void
-SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_conf, const appmodel::StreamEmulationParameters* emu_params)
+SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_conf,
+                                       const appmodel::StreamEmulationParameters* emu_params)
 {
   if (m_is_configured) {
     TLOG_DEBUG(TLVL_WORK_STEPS) << "This emulator is already configured!";
   } else {
-    //m_conf = args.get<module_conf_t>();
-    //m_link_conf = link_conf.get<link_conf_t>();
+    // m_conf = args.get<module_conf_t>();
+    // m_link_conf = link_conf.get<link_conf_t>();
 
     std::mt19937 mt(rand()); // NOLINT(runtime/threadsafe_fn)
     std::uniform_real_distribution<double> dis(0.0, 1.0);
@@ -81,9 +83,9 @@ SourceEmulatorModel<ReadoutType>::conf(const confmodel::DetectorStream* link_con
       m_pattern_generator.generate(m_sourceid.id, vec_size);
 
       if (emu_params->get_TP_rate_per_channel() != 0) {
-       TLOG() << "TP rate per channel multiplier (base of 100 Hz/ch): " << emu_params->get_TP_rate_per_channel();
-       // Define time to wait when adding an ADC above threshold
-       // Adding a hit every 9768 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
+        TLOG() << "TP rate per channel multiplier (base of 100 Hz/ch): " << emu_params->get_TP_rate_per_channel();
+        // Define time to wait when adding an ADC above threshold
+        // Adding a hit every 9768 gives a total Sent TP rate of approx 100 Hz/wire with WIBEth
         m_time_to_wait = m_time_to_wait / emu_params->get_TP_rate_per_channel();
       }
     }
@@ -100,7 +102,8 @@ SourceEmulatorModel<ReadoutType>::start(const appfwk::DAQModule::CommandData_t& 
 {
   m_packet_count_tot = 0;
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Starting threads...";
-  // FIXME: don't know where to take the slowdown from... m_rate_limiter = std::make_unique<RateLimiter>(m_rate_khz / m_link_conf.slowdown);
+  // FIXME: don't know where to take the slowdown from... m_rate_limiter = std::make_unique<RateLimiter>(m_rate_khz /
+  // m_link_conf.slowdown);
   m_rate_limiter = std::make_unique<RateLimiter>(m_rate_khz);
   // m_stats_thread.set_work(&SourceEmulatorModel<ReadoutType>::run_stats, this);
   m_producer_thread.set_work(&SourceEmulatorModel<ReadoutType>::run_produce, this);
@@ -119,11 +122,11 @@ template<class ReadoutType>
 void
 SourceEmulatorModel<ReadoutType>::generate_opmon_data()
 {
-   opmon::DataSourceInfo info;
-   info.set_sum_packets(m_packet_count_tot.load());
-   info.set_num_packets(m_packet_count.exchange(0));
+  opmon::DataSourceInfo info;
+  info.set_sum_packets(m_packet_count_tot.load());
+  info.set_num_packets(m_packet_count.exchange(0));
 
-   this->publish(std::move(info));
+  this->publish(std::move(info));
 }
 
 template<class ReadoutType>
@@ -155,7 +158,6 @@ SourceEmulatorModel<ReadoutType>::run_produce()
     // FIXME: where do I get the clockspeed from?
     // ts_0 = (m_conf.clock_speed_hz / 100000) * current_time;
     ts_0 = 625 * current_time / 10;
-
   }
   TLOG_DEBUG(TLVL_BOOKKEEPING) << "Using first timestamp: " << ts_0;
   uint64_t timestamp = ts_0; // NOLINT(build/unsigned)
@@ -214,8 +216,7 @@ SourceEmulatorModel<ReadoutType>::run_produce()
             // behaviour for frame type with 32 channels is silent dropping.
             try {
               payload.fake_adc_pattern(channel);
-            }
-            catch (const std::out_of_range&) {
+            } catch (const std::out_of_range&) {
             }
           }
 
@@ -237,13 +238,9 @@ SourceEmulatorModel<ReadoutType>::run_produce()
         ++offset;
         ++m_packet_count;
         ++m_packet_count_tot;
-
-
       }
     }
     timestamp += m_time_tick_diff * rptr->get_num_frames();
-
-
 
     m_rate_limiter->limit();
   }

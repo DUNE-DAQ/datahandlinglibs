@@ -9,20 +9,20 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_READOUTMODEL_HPP_
 
-#include "confmodel/DaqModule.hpp"
-#include "confmodel/Connection.hpp"
+#include "appmodel/DataHandlerConf.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataMoveCallbackConf.hpp"
-#include "appmodel/DataHandlerConf.hpp"
-#include "appmodel/RequestHandler.hpp"
-#include "appmodel/LatencyBuffer.hpp"
 #include "appmodel/DataProcessor.hpp"
+#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/RequestHandler.hpp"
+#include "confmodel/Connection.hpp"
+#include "confmodel/DaqModule.hpp"
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
 #include "iomanager/IOManager.hpp"
-#include "iomanager/Sender.hpp"
 #include "iomanager/Receiver.hpp"
+#include "iomanager/Sender.hpp"
 
 #include "logging/Logging.hpp"
 
@@ -32,9 +32,9 @@
 #include "dfmessages/DataRequest.hpp"
 #include "dfmessages/TimeSync.hpp"
 
+#include "appmodel/DataHandlerModule.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
-#include "appmodel/DataHandlerModule.hpp"
 
 #include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
@@ -65,7 +65,11 @@ using dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS;
 namespace dunedaq {
 namespace datahandlinglibs {
 
-template<class ReadoutType, class RequestHandlerType, class LatencyBufferType, class RawDataProcessorType, class InputDataType = ReadoutType>
+template<class ReadoutType,
+         class RequestHandlerType,
+         class LatencyBufferType,
+         class RawDataProcessorType,
+         class InputDataType = ReadoutType>
 class DataHandlingModel : public DataHandlingConcept
 {
 public:
@@ -121,13 +125,10 @@ public:
   void stop(const appfwk::DAQModule::CommandData_t& args);
 
   // Record function: invokes request handler's record implementation
-  void record(const appfwk::DAQModule::CommandData_t& args) override
-  {
-    m_request_handler_impl->record(args);
-  }
+  void record(const appfwk::DAQModule::CommandData_t& args) override { m_request_handler_impl->record(args); }
 
   // Opmon get_info call implementation
-  //void get_info(opmonlib::InfoCollector& ci, int level);
+  // void get_info(opmonlib::InfoCollector& ci, int level);
 
   // Consume callback
   std::function<void(IDT&&)> m_consume_callback;
@@ -138,7 +139,7 @@ protected:
   public:
     PostprocessScheduleAlgorithm(LatencyBufferType& latency_buffer_impl,
                                  RawDataProcessorType& raw_processor_impl,
-                                 uint64_t processing_delay_ticks, // NOLINT(build/unsigned)
+                                 uint64_t processing_delay_ticks,         // NOLINT(build/unsigned)
                                  uint64_t post_processing_delay_min_wait, // NOLINT(build/unsigned)
                                  uint64_t post_processing_delay_max_wait) // NOLINT(build/unsigned)
       : m_latency_buffer_impl{ latency_buffer_impl }
@@ -156,7 +157,8 @@ protected:
 
     // High-level interface
     // Schedule deferred post-processing and notify timeout expiration to the processor
-    int run(bool timeout) {
+    int run(bool timeout)
+    {
       int processed = this->do_run(timeout);
 
       if (timeout) {
@@ -167,9 +169,9 @@ protected:
       return processed;
     }
 
-
     // Deferral of the post processing, to allow elements being reordered in the LB
-    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up to that value
+    // Basically, find data older than a certain timestamp and process all data since the last post-processed element up
+    // to that value
     int do_run(bool timeout)
     {
       if (m_latency_buffer_impl.occupancy() == 0) {
@@ -268,7 +270,7 @@ protected:
   private:
     LatencyBufferType& m_latency_buffer_impl;
     RawDataProcessorType& m_raw_processor_impl;
-    const uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+    const uint64_t m_processing_delay_ticks;         // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
     const uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
     bool m_first_cycle;
@@ -303,10 +305,7 @@ protected:
   void dispatch_requests(dfmessages::DataRequest& data_request);
 
   // Transform input data type to readout
-  virtual std::vector<RDT> transform_payload(IDT& original) const
-  {
-    return { reinterpret_cast<RDT&>(original) };
-  }
+  virtual std::vector<RDT> transform_payload(IDT& original) const { return { reinterpret_cast<RDT&>(original) }; }
 
   // Actions postprocess scheduler takes if no data arrives in a configured time
   virtual void invoke_postprocess_schedule_timeout_policy() const
@@ -321,25 +320,28 @@ protected:
   std::atomic<bool>& m_run_marker;
 
   // CONFIGURATION
-  //appfwk::app::ModInit m_queue_config;
+  // appfwk::app::ModInit m_queue_config;
   bool m_fake_trigger;
   bool m_generate_timesync = false;
   int m_current_fake_trigger_id;
   daqdataformats::SourceID m_sourceid;
   daqdataformats::run_number_t m_run_number;
-  uint64_t m_processing_delay_ticks; // NOLINT(build/unsigned)
+  uint64_t m_processing_delay_ticks;         // NOLINT(build/unsigned)
   uint64_t m_post_processing_delay_min_wait; // NOLINT(build/unsigned)
   uint64_t m_post_processing_delay_max_wait; // NOLINT(build/unsigned)
 
   // STATS
   using metric_t = dunedaq::datahandlinglibs::opmon::DataHandlerInfo;
-  using num_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_payloads),metric_t>::type>::type;
-  using sum_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_payloads),metric_t>::type>::type;
-  using num_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_requests),metric_t>::type>::type;
-  using sum_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_requests),metric_t>::type>::type;
-  using rawq_timeout_count_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_data_input_timeouts),metric_t>::type>::type;
-  using num_lb_insert_failures_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures),metric_t>::type>::type;
-  using num_post_processing_delay_max_waits_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_post_processing_delay_max_waits),metric_t>::type>::type;
+  using num_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_payloads), metric_t>::type>::type;
+  using sum_payload_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_payloads), metric_t>::type>::type;
+  using num_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::num_requests), metric_t>::type>::type;
+  using sum_request_t = std::remove_const<std::invoke_result<decltype(&metric_t::sum_requests), metric_t>::type>::type;
+  using rawq_timeout_count_t =
+    std::remove_const<std::invoke_result<decltype(&metric_t::num_data_input_timeouts), metric_t>::type>::type;
+  using num_lb_insert_failures_t =
+    std::remove_const<std::invoke_result<decltype(&metric_t::num_lb_insert_failures), metric_t>::type>::type;
+  using num_post_processing_delay_max_waits_t = std::remove_const<
+    std::invoke_result<decltype(&metric_t::num_post_processing_delay_max_waits), metric_t>::type>::type;
 
   std::atomic<num_payload_t> m_num_payloads{ 0 };
   std::atomic<sum_payload_t> m_sum_payloads{ 0 };
@@ -366,9 +368,9 @@ protected:
   std::shared_ptr<request_receiver_ct> m_data_request_receiver;
 
   // FRAGMENT SENDER
-  //std::chrono::milliseconds m_fragment_sender_timeout_ms;
-  //using fragment_sender_ct = iomanager::SenderConcept<std::pair<std::unique_ptr<daqdataformats::Fragment>, std::string>>;
-  //std::shared_ptr<fragment_sender_ct> m_fragment_sender;
+  // std::chrono::milliseconds m_fragment_sender_timeout_ms;
+  // using fragment_sender_ct = iomanager::SenderConcept<std::pair<std::unique_ptr<daqdataformats::Fragment>,
+  // std::string>>; std::shared_ptr<fragment_sender_ct> m_fragment_sender;
 
   // TIME-SYNC
   using timesync_sender_ct = iomanager::SenderConcept<dfmessages::TimeSync>; // no timeout -> published

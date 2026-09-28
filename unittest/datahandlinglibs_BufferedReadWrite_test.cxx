@@ -13,9 +13,9 @@
 
 #include "boost/test/unit_test.hpp"
 
-#include "logging/Logging.hpp"
 #include "datahandlinglibs/utils/BufferedFileReader.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
+#include "logging/Logging.hpp"
 
 #include <cstdio>
 #include <string>

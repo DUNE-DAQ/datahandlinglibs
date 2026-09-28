@@ -9,8 +9,8 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RAWDATAPROCESSORCONCEPT_HPP_
 
 #include "appfwk/DAQModule.hpp"
-#include "daqdataformats/SourceID.hpp"
 #include "appmodel/DataHandlerModule.hpp"
+#include "daqdataformats/SourceID.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
 #include <string>
@@ -22,9 +22,9 @@ template<class ReadoutType>
 class RawDataProcessorConcept : public opmonlib::MonitorableObject
 {
 public:
-  RawDataProcessorConcept(){}
+  RawDataProcessorConcept() {}
   virtual ~RawDataProcessorConcept() {}
-  
+
   RawDataProcessorConcept(const RawDataProcessorConcept&) =
     delete; ///< RawDataProcessorConcept is not copy-constructible
   RawDataProcessorConcept& operator=(const RawDataProcessorConcept&) =
@@ -49,7 +49,6 @@ public:
   virtual void postprocess_item(const ReadoutType* item) = 0;
   //! Handle postprocess timeout event
   virtual void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumulated_timeout_ticks) = 0;
-
 };
 
 } // namespace datahandlinglibs

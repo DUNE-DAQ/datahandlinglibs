@@ -4,7 +4,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::DataHandlerModule* conf)
 {
   auto cfg = conf->get_module_configuration()->get_data_processor();
@@ -20,7 +20,7 @@ TaskRawDataProcessorModel<ReadoutType>::conf(const appmodel::DataHandlerModule* 
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::scrap(const appfwk::DAQModule::CommandData_t& /*cfg*/)
 {
   m_items_to_postprocess_queues.clear();
@@ -30,7 +30,7 @@ TaskRawDataProcessorModel<ReadoutType>::scrap(const appfwk::DAQModule::CommandDa
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::start(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   // m_last_processed_daq_ts =
@@ -45,7 +45,7 @@ TaskRawDataProcessorModel<ReadoutType>::start(const appfwk::DAQModule::CommandDa
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::stop(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
   m_run_marker.store(false);
@@ -57,7 +57,7 @@ TaskRawDataProcessorModel<ReadoutType>::stop(const appfwk::DAQModule::CommandDat
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::postprocess_item(const ReadoutType* item)
 {
   for (size_t i = 0; i < m_items_to_postprocess_queues.size(); ++i) {
@@ -69,7 +69,7 @@ TaskRawDataProcessorModel<ReadoutType>::postprocess_item(const ReadoutType* item
 
 template<class ReadoutType>
 template<typename Task>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::add_preprocess_task(Task&& task)
 {
   m_preprocess_functions.push_back(std::forward<Task>(task));
@@ -77,7 +77,7 @@ TaskRawDataProcessorModel<ReadoutType>::add_preprocess_task(Task&& task)
 
 template<class ReadoutType>
 template<typename Task>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::add_postprocess_task(Task&& task)
 {
   m_post_process_threads.emplace_back(std::make_unique<utilities::ReusableThread>(0));
@@ -85,7 +85,7 @@ TaskRawDataProcessorModel<ReadoutType>::add_postprocess_task(Task&& task)
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::invoke_all_preprocess_functions(ReadoutType* item)
 {
   for (auto&& task : m_preprocess_functions) {
@@ -94,7 +94,7 @@ TaskRawDataProcessorModel<ReadoutType>::invoke_all_preprocess_functions(ReadoutT
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::launch_all_preprocess_functions(ReadoutType* item)
 {
   for (auto&& task : m_preprocess_functions) {
@@ -103,7 +103,7 @@ TaskRawDataProcessorModel<ReadoutType>::launch_all_preprocess_functions(ReadoutT
 }
 
 template<class ReadoutType>
-void 
+void
 TaskRawDataProcessorModel<ReadoutType>::run_post_processing_thread(
   std::function<void(const ReadoutType*)>& function,
   folly::ProducerConsumerQueue<const ReadoutType*>& queue)
@@ -120,12 +120,12 @@ TaskRawDataProcessorModel<ReadoutType>::run_post_processing_thread(
 
 template<class ReadoutType>
 void
-TaskRawDataProcessorModel<ReadoutType>::generate_opmon_data() 
+TaskRawDataProcessorModel<ReadoutType>::generate_opmon_data()
 {
-   for (size_t i = 0; i < m_items_to_postprocess_queues.size(); ++i) {
+  for (size_t i = 0; i < m_items_to_postprocess_queues.size(); ++i) {
     opmon::DataProcessorInfo info;
     info.set_elements_queued(m_items_to_postprocess_queues[i]->sizeGuess());
-    this->publish(std::move(info), {{"post_processor_id", std::to_string(i)}});
+    this->publish(std::move(info), { { "post_processor_id", std::to_string(i) } });
   }
 }
 

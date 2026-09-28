@@ -16,20 +16,20 @@
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
-#include "confmodel/DaqModule.hpp"
-#include "confmodel/Connection.hpp"
-#include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataHandlerConf.hpp"
-#include "appmodel/RequestHandler.hpp"
-#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataRecorderConf.hpp"
+#include "appmodel/LatencyBuffer.hpp"
+#include "appmodel/RequestHandler.hpp"
+#include "confmodel/Connection.hpp"
+#include "confmodel/DaqModule.hpp"
 
-#include "dfmessages/Fragment_serialization.hpp"
 #include "daqdataformats/Types.hpp"
-#include "dfmessages/DataRequest.hpp"
-#include "logging/Logging.hpp"
 #include "datahandlinglibs/FrameErrorRegistry.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
+#include "dfmessages/DataRequest.hpp"
+#include "dfmessages/Fragment_serialization.hpp"
+#include "logging/Logging.hpp"
 
 #include <boost/asio.hpp>
 
@@ -77,7 +77,6 @@ get_frame_iterator_timestamp(T iter)
   return iter->get_timestamp();
 }
 
-
 template<class ReadoutType, class LatencyBufferType>
 class DefaultRequestHandlerModel : public RequestHandlerConcept<ReadoutType, LatencyBufferType>
 {
@@ -88,7 +87,7 @@ public:
 
   using RequestResult =
     typename dunedaq::datahandlinglibs::RequestHandlerConcept<ReadoutType, LatencyBufferType>::RequestResult;
-  using ResultCode = 
+  using ResultCode =
     typename dunedaq::datahandlinglibs::RequestHandlerConcept<ReadoutType, LatencyBufferType>::ResultCode;
 
   // Explicit constructor with binding LB and error registry
@@ -121,7 +120,8 @@ public:
                    const std::chrono::time_point<std::chrono::high_resolution_clock>& tp_value)
       : request(data_request)
       , start_time(tp_value)
-    {}
+    {
+    }
 
     dfmessages::DataRequest request;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
@@ -144,18 +144,18 @@ public:
 
   // A function that determines if a cleanup request should be issued based on LB occupancy
   void cleanup_check() override;
-  
+
   // Periodic data transmission method invoked at configurable interval
   virtual void periodic_data_transmission() override;
 
   // Implementation of default request handling. (boost::asio post to a thread pool)
-  void issue_request(dfmessages::DataRequest datarequest, bool is_retry=false) override;
+  void issue_request(dfmessages::DataRequest datarequest, bool is_retry = false) override;
 
   // Opmon get_info implementation
   // void get_info(opmonlib::InfoCollector& ci, int /*level*/) override;
 
-  virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() {return 0;}
-  virtual bool supports_cutoff_timestamp() {return false;}
+  virtual dunedaq::daqdataformats::timestamp_t get_cutoff_timestamp() { return 0; }
+  virtual bool supports_cutoff_timestamp() { return false; }
 
   // Resets last known/processed DAQ timestamp
   void reset_oldest_time() { m_oldest_timestamp.store(0); }
@@ -165,8 +165,7 @@ public:
 
 protected:
   // An inline helper function that creates a fragment header based on a data request
-  inline 
-  daqdataformats::FragmentHeader create_fragment_header(const dfmessages::DataRequest& dr)
+  inline daqdataformats::FragmentHeader create_fragment_header(const dfmessages::DataRequest& dr)
   {
     daqdataformats::FragmentHeader fh;
     fh.size = sizeof(fh);
@@ -186,10 +185,11 @@ protected:
   std::unique_ptr<daqdataformats::Fragment> create_empty_fragment(const dfmessages::DataRequest& dr);
 
   // An inline helper function that merges a set of byte arrays into a destination array
-  inline 
-  void dump_to_buffer(const void* data, std::size_t size,
-                      void* buffer, uint32_t buffer_pos,  // NOLINT(build/unsigned)
-                      const std::size_t& buffer_size)
+  inline void dump_to_buffer(const void* data,
+                             std::size_t size,
+                             void* buffer,
+                             uint32_t buffer_pos, // NOLINT(build/unsigned)
+                             const std::size_t& buffer_size)
   {
     auto bytes_to_copy = size;
     while (bytes_to_copy > 0) {
@@ -206,7 +206,7 @@ protected:
   // Cleanup thread's work function. Runs the cleanup() routine
   void periodic_cleanups();
 
-   // Periodic data transmission thread's work function. Runs the periodic_data_transmission() routine
+  // Periodic data transmission thread's work function. Runs the periodic_data_transmission() routine
   void periodic_data_transmissions();
 
   // LB cleanup implementation
@@ -222,7 +222,6 @@ protected:
 
   // Override data_request functionality
   RequestResult data_request(dfmessages::DataRequest dr) override;
-
 
   // operational monitoring
   virtual void generate_opmon_data() override;
@@ -274,7 +273,7 @@ protected:
   std::string m_output_file;
   size_t m_stream_buffer_size = 0;
   bool m_recording_configured = false;
-  bool m_warn_on_timeout = true; // Whether to warn when a request times out
+  bool m_warn_on_timeout = true;         // Whether to warn when a request times out
   bool m_warn_about_empty_buffer = true; // Whether to warn about an empty buffer when processing a request
   uint32_t m_periodic_data_transmission_ms = 0;
   std::vector<std::string> m_frag_out_conn_ids;
@@ -297,9 +296,9 @@ protected:
   std::atomic<int> m_response_time_max{ 0 };
   std::atomic<int> m_payloads_written{ 0 };
   std::atomic<int> m_bytes_written{ 0 };
-  std::atomic<uint64_t> m_num_periodic_sent{ 0 };  // NOLINT(build/unsigned)
+  std::atomic<uint64_t> m_num_periodic_sent{ 0 };        // NOLINT(build/unsigned)
   std::atomic<uint64_t> m_num_periodic_send_failed{ 0 }; // NOLINT(build/unsigned)
-  std::atomic<uint64_t> m_oldest_timestamp{ 0 }; // NOLINT(build/unsigned)
+  std::atomic<uint64_t> m_oldest_timestamp{ 0 };         // NOLINT(build/unsigned)
 
   // std::atomic<int> m_avg_req_count{ 0 }; // for opmon, later
   // std::atomic<int> m_avg_resp_time{ 0 };
@@ -308,9 +307,9 @@ protected:
   // std::mutex m_response_time_log_lock;
 
   int m_fragment_send_timeout_ms;
+
 private:
   int m_request_timeout_ms;
-    
 };
 
 } // namespace datahandlinglibs

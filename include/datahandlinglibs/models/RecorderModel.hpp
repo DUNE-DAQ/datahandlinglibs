@@ -8,20 +8,20 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_RECORDERMODEL_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_RECORDERMODEL_HPP_
 
-#include "iomanager/IOManager.hpp"
-#include "iomanager/Receiver.hpp"
-#include "utilities/WorkerThread.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
 #include "datahandlinglibs/concepts/RecorderConcept.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
+#include "iomanager/IOManager.hpp"
+#include "iomanager/Receiver.hpp"
 #include "utilities/ReusableThread.hpp"
+#include "utilities/WorkerThread.hpp"
 
 #include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
-#include "confmodel/DaqModule.hpp"
-#include "confmodel/Connection.hpp"
-#include "appmodel/DataRecorderModule.hpp"
 #include "appmodel/DataRecorderConf.hpp"
+#include "appmodel/DataRecorderModule.hpp"
+#include "confmodel/Connection.hpp"
+#include "confmodel/DaqModule.hpp"
 #include <atomic>
 #include <fstream>
 #include <iostream>
@@ -38,7 +38,8 @@ public:
   explicit RecorderModel(std::string name)
     : m_work_thread(0)
     , m_name(name)
-  {}
+  {
+  }
 
   void init(const appmodel::DataRecorderModule* conf) override;
   //  void get_info(opmonlib::InfoCollector& ci, int /* level */) override;
@@ -59,7 +60,7 @@ private:
   std::shared_ptr<source_t> m_data_receiver;
 
   // Internal
-  //recorderconfig::Conf m_conf;
+  // recorderconfig::Conf m_conf;
   std::string m_output_file;
   size_t m_stream_buffer_size = 0;
   std::string m_compression_algorithm;

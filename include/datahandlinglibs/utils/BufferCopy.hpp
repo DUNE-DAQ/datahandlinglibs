@@ -9,15 +9,15 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_UTILS_BUFFERCOPY_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_UTILS_BUFFERCOPY_HPP_
 
-#include <cstddef>
-#include <cstring>
-#include <cstdint>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 namespace dunedaq {
 namespace datahandlinglibs {
 
-/* 
+/*
  * Most common use-case:
  *
  *   size_t msg_size = 1024; // source buffer size
@@ -33,10 +33,10 @@ namespace datahandlinglibs {
  *   size_t subchunk_length[NUMBER_OF_CHUNKS];    // source payloads' sizes
  *   TargetStruct payload; // target payload
  *   size_t target_size = sizeof(payload); // target payload size
- *   uint32_t bytes_copied_chunk = 0; 
+ *   uint32_t bytes_copied_chunk = 0;
  *   for (unsigned i = 0; i < n_subchunks; i++) {
- *     buffer_copy(subchunk_data[i], subchunk_sizes[i], static_cast<void*>(&payload.data), bytes_copied_chunk, target_size);
- *     bytes_copied_chunk += subchunk_sizes[i];
+ *     buffer_copy(subchunk_data[i], subchunk_sizes[i], static_cast<void*>(&payload.data), bytes_copied_chunk,
+ * target_size); bytes_copied_chunk += subchunk_sizes[i];
  *   }
  *
  * */
@@ -51,7 +51,7 @@ buffer_copy(const char* data,
   while (bytes_to_copy > 0) {
     auto n = std::min(bytes_to_copy, buffer_size - buffer_pos); // NOLINT
     std::memcpy(static_cast<char*>(buffer) + buffer_pos, data, n);
-    buffer_pos += n; 
+    buffer_pos += n;
     bytes_to_copy -= n;
     if (buffer_pos == buffer_size) {
       buffer_pos = 0;

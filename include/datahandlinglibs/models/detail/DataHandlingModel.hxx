@@ -78,11 +78,11 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::init(const appmodel::DataHandlerModu
 
   if (m_processing_delay_ticks) {
     if constexpr (ExpectsOrder<LBT>) {
-      ers::error(ConfigurationError(
-        ERS_HERE,
-        m_sourceid,
-        "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use "
-        "post_processing_delay_ticks = 0."));
+      ers::error(
+        ConfigurationError(ERS_HERE,
+                           m_sourceid,
+                           "Queue buffers (FixedRateQueue, BinarySearchQueue) expect in-order data and must use "
+                           "post_processing_delay_ticks = 0."));
     }
   }
 
@@ -269,7 +269,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
   const RDT* written = nullptr;
   if constexpr (ExpectsOrder<LBT>) {
     if (!m_latency_buffer_impl->write(std::move(payload))) {
-      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" <<
+      // payload.get_timestamp() << ")";
       m_num_lb_insert_failures++;
       return;
     }
@@ -277,7 +278,8 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::process_item(RDT&& payload)
   } else {
     const auto [returned, result] = m_latency_buffer_impl->write_and_return(std::move(payload));
     if (!result) {
-      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" << payload.get_timestamp() << ")";
+      // TLOG_DEBUG(TLVL_TAKE_NOTE) << "***ERROR: Latency buffer insert failed! (Payload timestamp=" <<
+      // payload.get_timestamp() << ")";
       m_num_lb_insert_failures++;
       return;
     }
