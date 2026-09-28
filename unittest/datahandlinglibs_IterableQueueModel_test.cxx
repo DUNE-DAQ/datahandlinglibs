@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_IterableQueueModel_write)
   ReadoutType frame1;
   frame1.timestamp = 2;
   BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame1)), true);
-  BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 2);  
+  BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 2);
 
   // Last written == back() in queue
   ReadoutType frame2;
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_IterableQueueModel_write)
 
   // Queue accepts duplicates
   ReadoutType frame3;
-  frame3.timestamp = 1;  
+  frame3.timestamp = 1;
   BOOST_REQUIRE_EQUAL(buffer.write(std::move(frame3)), true);
   BOOST_REQUIRE_EQUAL(buffer.back()->get_timestamp(), 1);
 

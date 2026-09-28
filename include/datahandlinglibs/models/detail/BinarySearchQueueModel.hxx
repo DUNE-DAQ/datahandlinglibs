@@ -4,13 +4,12 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<typename T>
-typename IterableQueueModel<T>::Iterator 
-BinarySearchQueueModel<T>::lower_bound(T& element, bool )
+typename IterableQueueModel<T>::Iterator
+BinarySearchQueueModel<T>::lower_bound(T& element, bool)
 {
   unsigned int start_index =
-    IterableQueueModel<T>::readIndex_.load(std::memory_order_relaxed); // NOLINT(build/unsigned)
-  unsigned int end_index =
-    IterableQueueModel<T>::writeIndex_.load(std::memory_order_acquire); // NOLINT(build/unsigned)
+    IterableQueueModel<T>::readIndex_.load(std::memory_order_relaxed);                         // NOLINT(build/unsigned)
+  unsigned int end_index = IterableQueueModel<T>::writeIndex_.load(std::memory_order_acquire); // NOLINT(build/unsigned)
 
   if (start_index == end_index) {
     TLOG() << "Queue is empty" << std::endl;
@@ -33,23 +32,23 @@ BinarySearchQueueModel<T>::lower_bound(T& element, bool )
       middle_index -= IterableQueueModel<T>::size_;
     T& element_between = IterableQueueModel<T>::records_[middle_index];
 
-    //if we landed on our element, let's get out of here.
-    if (element.get_timestamp()==element_between.get_timestamp())
+    // if we landed on our element, let's get out of here.
+    if (element.get_timestamp() == element_between.get_timestamp())
       return typename IterableQueueModel<T>::Iterator(*this, middle_index);
 
-    if ( diff == 0 ) {
+    if (diff == 0) {
 
-      //if we satisfy the lower_bound condition, we have the right index
-      if(element < element_between)
-	return typename IterableQueueModel<T>::Iterator(*this, middle_index);
+      // if we satisfy the lower_bound condition, we have the right index
+      if (element < element_between)
+        return typename IterableQueueModel<T>::Iterator(*this, middle_index);
 
-      //if we don't, we need to increment one up. for safety check size too
-      if(++middle_index >= IterableQueueModel<T>::size_)
-	middle_index -= IterableQueueModel<T>::size_;
-      
+      // if we don't, we need to increment one up. for safety check size too
+      if (++middle_index >= IterableQueueModel<T>::size_)
+        middle_index -= IterableQueueModel<T>::size_;
+
       return typename IterableQueueModel<T>::Iterator(*this, middle_index);
     }
-    
+
     if (element < element_between) {
       end_index = middle_index != 0 ? middle_index - 1 : IterableQueueModel<T>::size_ - 1;
     } else {

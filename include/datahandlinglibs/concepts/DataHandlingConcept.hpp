@@ -15,15 +15,15 @@
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class DataHandlingConcept: public opmonlib::MonitorableObject 
+class DataHandlingConcept : public opmonlib::MonitorableObject
 {
 public:
   DataHandlingConcept() {}
   virtual ~DataHandlingConcept() {}
-  DataHandlingConcept(const DataHandlingConcept&) = delete;            ///< DataHandlingConcept is not copy-constructible
+  DataHandlingConcept(const DataHandlingConcept&) = delete; ///< DataHandlingConcept is not copy-constructible
   DataHandlingConcept& operator=(const DataHandlingConcept&) = delete; ///< DataHandlingConcept is not copy-assginable
-  DataHandlingConcept(DataHandlingConcept&&) = delete;                 ///< DataHandlingConcept is not move-constructible
-  DataHandlingConcept& operator=(DataHandlingConcept&&) = delete;      ///< DataHandlingConcept is not move-assignable
+  DataHandlingConcept(DataHandlingConcept&&) = delete;            ///< DataHandlingConcept is not move-constructible
+  DataHandlingConcept& operator=(DataHandlingConcept&&) = delete; ///< DataHandlingConcept is not move-assignable
 
   //! Forward calls from the appfwk
   virtual void init(const appmodel::DataHandlerModule* mcfg) = 0;

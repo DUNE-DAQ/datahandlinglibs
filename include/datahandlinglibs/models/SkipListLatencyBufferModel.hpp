@@ -56,7 +56,8 @@ public:
     Iterator(SkipListTAcc&& acc, SkipListTIter iter)
       : m_acc(std::move(acc))
       , m_iter(iter)
-    {}
+    {
+    }
 
     reference operator*() const { return *m_iter; }
     pointer operator->() { return &(*m_iter); }
@@ -71,8 +72,7 @@ public:
 
     bool good() { return m_iter.good(); }
 
-
-private:
+  private:
     SkipListTAcc m_acc;
     SkipListTIter m_iter;
   };
@@ -104,13 +104,13 @@ private:
 
   void allocate_memory(size_t) override
   {
-      TLOG(TLVL_DEBUG) << "SkipListLatencyBufferModel::allocate_memory not implemented.";
+    TLOG(TLVL_DEBUG) << "SkipListLatencyBufferModel::allocate_memory not implemented.";
   }
 
   // Iterator support
   Iterator begin();
   Iterator end();
-  Iterator lower_bound(T& element, bool with_errors=false);
+  Iterator lower_bound(T& element, bool with_errors = false);
 
   // Front/back accessors override
   const T* front() override;
@@ -119,7 +119,7 @@ private:
   // Pop X override
   void pop(size_t num = 1) override; // NOLINT(build/unsigned)
 protected:
-    virtual void generate_opmon_data() override;  
+  virtual void generate_opmon_data() override;
 
 private:
   // Concurrent SkipList

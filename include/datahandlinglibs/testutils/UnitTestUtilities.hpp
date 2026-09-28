@@ -32,9 +32,10 @@ public:
   using Base::PostprocessScheduleAlgorithm;
   using typename Base::num_post_processing_delay_max_waits_t;
 
-  void test_run_postprocess_scheduler(
-    std::shared_ptr<LatencyBufferType> latency_buffer_impl, std::shared_ptr<RawDataProcessorType> raw_processor_impl,
-    std::unique_ptr<folly::Timekeeper> timekeeper, uint64_t post_processing_delay_max_wait)
+  void test_run_postprocess_scheduler(std::shared_ptr<LatencyBufferType> latency_buffer_impl,
+                                      std::shared_ptr<RawDataProcessorType> raw_processor_impl,
+                                      std::unique_ptr<folly::Timekeeper> timekeeper,
+                                      uint64_t post_processing_delay_max_wait)
   {
     this->m_latency_buffer_impl = latency_buffer_impl;
     this->m_raw_processor_impl = raw_processor_impl;
@@ -48,10 +49,7 @@ public:
     return this->m_num_post_processing_delay_max_waits.load();
   }
 
-  void set_run_marker(bool run_marker)
-  {
-    return this->m_run_marker.store(run_marker);
-  }
+  void set_run_marker(bool run_marker) { return this->m_run_marker.store(run_marker); }
 };
 
 } // namespace unittest

@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(datahandlinglibs_SkiplistLatencyBufferModel_write_and_retur
 
   // Skip list doesn't accept duplicates, it returns an iterator to the existing element
   ReadoutType frame3;
-  frame3.timestamp = 1;  
+  frame3.timestamp = 1;
   frame3.another_key = 1;
   const auto [written3, result3] = buffer.write_and_return(std::move(frame3)); // NOLINT(performance-move-const-arg)
   BOOST_REQUIRE_EQUAL(result3, false);

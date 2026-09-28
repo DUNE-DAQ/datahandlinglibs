@@ -17,10 +17,10 @@
 #include "confmodel/GeoId.hpp"
 
 #include "datahandlinglibs/DataHandlingIssues.hpp"
+#include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/concepts/SourceEmulatorConcept.hpp"
 #include "datahandlinglibs/utils/ErrorBitGenerator.hpp"
 #include "datahandlinglibs/utils/FileSourceBuffer.hpp"
-#include "datahandlinglibs/DataMoveCallbackRegistry.hpp"
 #include "datahandlinglibs/utils/RateLimiter.hpp"
 #include "utilities/ReusableThread.hpp"
 
@@ -42,20 +42,21 @@ using dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS;
 namespace dunedaq {
 namespace datahandlinglibs {
 
-
 // Pattern generator class for creating different types of TP patterns
 // AAA: at the moment the pattern generator is very simple: random source id and random channel
-class SourceEmulatorPatternGenerator {
+class SourceEmulatorPatternGenerator
+{
 
 public:
-  SourceEmulatorPatternGenerator() {
-  };
+  SourceEmulatorPatternGenerator() {};
   ~SourceEmulatorPatternGenerator() {};
 
   void generate(int, int);
 
-  int get_channel_number() {
-    if (m_index == m_channel.size()) m_index = 0;
+  int get_channel_number()
+  {
+    if (m_index == m_channel.size())
+      m_index = 0;
     return m_channel[m_index++];
   }
 
@@ -63,7 +64,6 @@ private:
   std::vector<int> m_channel;
   int m_index = 0;
 };
-
 
 template<class ReadoutType>
 class SourceEmulatorModel : public SourceEmulatorConcept
@@ -75,7 +75,7 @@ public:
                                double dropout_rate,
                                double frame_error_rate,
                                double rate_khz,
-			       uint16_t frames_per_tick=1)
+                               uint16_t frames_per_tick = 1)
     : m_run_marker(run_marker)
     , m_time_tick_diff(time_tick_diff)
     , m_dropout_rate(dropout_rate)
@@ -84,10 +84,11 @@ public:
     , m_producer_thread(0)
     , m_name(name)
     , m_rate_khz(rate_khz)
-    ,m_frames_per_tick(frames_per_tick)
-  {}
+    , m_frames_per_tick(frames_per_tick)
+  {
+  }
 
-  //void init(const appfwk::DAQModule::CommandData_t& /*args*/) {}
+  // void init(const appfwk::DAQModule::CommandData_t& /*args*/) {}
   void acquire_callback() override;
 
   void conf(const confmodel::DetectorStream* stream_conf, const appmodel::StreamEmulationParameters* emu_conf);
@@ -123,14 +124,14 @@ private:
   std::atomic<int> m_packet_count{ 0 };
   std::atomic<int> m_packet_count_tot{ 0 };
 
-  //sourceemulatorconfig::Conf m_cfg;
+  // sourceemulatorconfig::Conf m_cfg;
 
   bool m_sender_is_set = false;
   std::shared_ptr<std::function<void(ReadoutType&&)>> m_raw_data_callback;
-  //using module_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::Conf;
-  //module_conf_t m_conf;
-  //using link_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::LinkConfiguration;
-  //link_conf_t m_link_conf;
+  // using module_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::Conf;
+  // module_conf_t m_conf;
+  // using link_conf_t = dunedaq::datahandlinglibs::sourceemulatorconfig::LinkConfiguration;
+  // link_conf_t m_link_conf;
 
   std::unique_ptr<RateLimiter> m_rate_limiter;
   std::unique_ptr<FileSourceBuffer> m_file_source;

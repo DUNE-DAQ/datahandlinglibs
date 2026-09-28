@@ -91,7 +91,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
     , records_(static_cast<T*>(std::malloc(sizeof(T) * 2)))
     , readIndex_(0)
     , writeIndex_(0)
-  {}
+  {
+  }
 
   // Constructor with alignment strategies
   IterableQueueModel(std::size_t size, // size must be >= 2
@@ -144,8 +145,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
                        bool intrinsic_allocator = false,
                        std::size_t alignment_size = 0);
 
-  void allocate_memory(std::size_t size) override { allocate_memory(size,false); }
-  
+  void allocate_memory(std::size_t size) override { allocate_memory(size, false); }
+
   // Task that fills up the LB.
   void prefill_task();
 
@@ -220,7 +221,8 @@ struct IterableQueueModel : public LatencyBufferConcept<T>
     Iterator(IterableQueueModel<T>& queue, uint32_t index) // NOLINT(build/unsigned)
       : m_queue(queue)
       , m_index(index)
-    {}
+    {
+    }
 
     reference operator*() const { return m_queue.records_[m_index]; }
     pointer operator->() { return &m_queue.records_[m_index]; }
@@ -298,7 +300,7 @@ protected:
   bool invalid_configuration_requested_;
 
   // Pre-fill and page-fault internal thread control
-  std::string prefiller_name_{"lbpfn"};
+  std::string prefiller_name_{ "lbpfn" };
   std::mutex prefill_mutex_;
   std::condition_variable prefill_cv_;
   bool prefill_ready_;
@@ -313,11 +315,10 @@ protected:
   char pad0_[folly::hardware_destructive_interference_size]; // NOLINT(runtime/arrays)
   uint32_t size_;                                            // NOLINT(build/unsigned)
   T* records_;
-  alignas(
-    folly::hardware_destructive_interference_size) std::atomic<unsigned int> readIndex_; // NOLINT(build/unsigned)
+  alignas(folly::hardware_destructive_interference_size) std::atomic<unsigned int> readIndex_; // NOLINT(build/unsigned)
   alignas(
     folly::hardware_destructive_interference_size) std::atomic<unsigned int> writeIndex_; // NOLINT(build/unsigned)
-  char pad1_[folly::hardware_destructive_interference_size - sizeof(writeIndex_)]; // NOLINT(runtime/arrays)
+  char pad1_[folly::hardware_destructive_interference_size - sizeof(writeIndex_)];        // NOLINT(runtime/arrays)
 };
 
 } // namespace datahandlinglibs

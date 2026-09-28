@@ -9,12 +9,12 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_CONCEPTS_RECORDERCONCEPT_HPP_
 
 #include "appfwk/DAQModule.hpp"
-#include "utilities/WorkerThread.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
-//#include "datahandlinglibs/recorderconfig/Structs.hpp"
+#include "utilities/WorkerThread.hpp"
+// #include "datahandlinglibs/recorderconfig/Structs.hpp"
+#include "appmodel/DataRecorderModule.hpp"
 #include "datahandlinglibs/utils/BufferedFileWriter.hpp"
 #include "utilities/ReusableThread.hpp"
-#include "appmodel/DataRecorderModule.hpp"
 
 #include <atomic>
 #include <fstream>
@@ -37,8 +37,8 @@ public:
   RecorderConcept& operator=(RecorderConcept&&) = delete;
 
   virtual void init(const appmodel::DataRecorderModule* mcfg) = 0;
-  
- // Commands
+
+  // Commands
   virtual void do_conf(const appfwk::DAQModule::CommandData_t& args) = 0;
   virtual void do_start(const appfwk::DAQModule::CommandData_t& obj) = 0;
   virtual void do_stop(const appfwk::DAQModule::CommandData_t& obj) = 0;

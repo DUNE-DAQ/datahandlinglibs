@@ -13,8 +13,8 @@
 #include <cstdint> // uint_t types
 #include <map>
 #include <mutex>
-#include <utility>
 #include <string>
+#include <utility>
 
 namespace dunedaq {
 namespace datahandlinglibs {
@@ -28,7 +28,8 @@ public:
     ErrorInterval(uint64_t start_ts, uint64_t end_ts) // NOLINT(build/unsigned)
       : start_ts(start_ts)
       , end_ts(end_ts)
-    {}
+    {
+    }
 
     uint64_t start_ts; // NOLINT(build/unsigned)
     uint64_t end_ts;   // NOLINT(build/unsigned)
@@ -40,12 +41,10 @@ public:
 
   FrameErrorRegistry()
     : m_errors()
-  {}
-
-  void set_ers_metadata(const std::string& ers_metadata)
   {
-    m_ers_metadata = ers_metadata;
   }
+
+  void set_ers_metadata(const std::string& ers_metadata) { m_ers_metadata = ers_metadata; }
 
   void add_error(std::string error_name, ErrorInterval error)
   {
@@ -68,7 +67,8 @@ public:
     }
   }
 
-  void log_registered_errors() {
+  void log_registered_errors()
+  {
     std::lock_guard<std::mutex> guard(m_error_map_mutex);
     for (const auto& [error_name, _] : m_errors) {
       ers::warning(NewErrorRegistered(ERS_HERE, m_ers_metadata.value_or(""), error_name));
@@ -80,9 +80,9 @@ public:
   bool has_error() { return !m_errors.empty(); }
 
 private:
-std::map<std::string, ErrorInterval> m_errors;
-std::mutex m_error_map_mutex;
-std::optional<std::string> m_ers_metadata;
+  std::map<std::string, ErrorInterval> m_errors;
+  std::mutex m_error_map_mutex;
+  std::optional<std::string> m_ers_metadata;
 };
 
 } // namespace datahandlinglibs

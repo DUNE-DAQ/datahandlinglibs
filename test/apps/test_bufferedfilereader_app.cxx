@@ -8,8 +8,8 @@
  */
 #include "datahandlinglibs/utils/BufferedFileReader.hpp"
 
-#include "logging/Logging.hpp"
 #include "datahandlinglibs/ReadoutTypes.hpp"
+#include "logging/Logging.hpp"
 
 #include <atomic>
 #include <chrono>

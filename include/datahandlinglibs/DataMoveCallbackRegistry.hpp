@@ -13,14 +13,15 @@
 #include "appmodel/DataMoveCallbackConf.hpp"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
 
 namespace dunedaq {
 namespace datahandlinglibs {
 
-class CallbackConcept {
+class CallbackConcept
+{
 public:
   explicit CallbackConcept(std::string id)
     : m_id(id)
@@ -28,6 +29,7 @@ public:
   }
   virtual ~CallbackConcept() = default;
   std::string id() const { return m_id; }
+
 protected:
   std::string m_id;
 };
@@ -55,12 +57,13 @@ public:
     return s_instance;
   }
 
-  DataMoveCallbackRegistry(const DataMoveCallbackRegistry&) = delete;            ///< DataMoveCallbackRegistry is not copy-constructible
-  DataMoveCallbackRegistry& operator=(const DataMoveCallbackRegistry&) = delete; ///< DataMoveCallbackRegistry is not copy-assignable
-  DataMoveCallbackRegistry(DataMoveCallbackRegistry&&) = delete;                 ///< DataMoveCallbackRegistry is not move-constructible
-  DataMoveCallbackRegistry& operator=(DataMoveCallbackRegistry&&) = delete;      ///< DataMoveCallbackRegistry is not move-assignable
-
-
+  DataMoveCallbackRegistry(const DataMoveCallbackRegistry&) =
+    delete; ///< DataMoveCallbackRegistry is not copy-constructible
+  DataMoveCallbackRegistry& operator=(const DataMoveCallbackRegistry&) =
+    delete;                                                      ///< DataMoveCallbackRegistry is not copy-assignable
+  DataMoveCallbackRegistry(DataMoveCallbackRegistry&&) = delete; ///< DataMoveCallbackRegistry is not move-constructible
+  DataMoveCallbackRegistry& operator=(DataMoveCallbackRegistry&&) =
+    delete; ///< DataMoveCallbackRegistry is not move-assignable
 
   /**
    * @brief Registers a callback function with a configuration object

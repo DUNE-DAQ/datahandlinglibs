@@ -12,8 +12,9 @@ void
 FakeCardReaderBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)
 {
   m_cfg = cfg;
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering init() method";
-  //auto ini = args.get<appfwk::app::ModInit>();
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Entering init() method";
+  // auto ini = args.get<appfwk::app::ModInit>();
   auto ini = cfg->get_dal<appmodel::DataReaderModule>(m_name);
   if (ini != nullptr && ini->get_configuration()->get_emulation_mode()) {
 
@@ -35,21 +36,23 @@ FakeCardReaderBase::init(std::shared_ptr<appfwk::ConfigurationManager> cfg)
       }
     }
   }
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting init() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Exiting init() method";
 }
 
 void
 FakeCardReaderBase::do_conf(const appfwk::DAQModule::CommandData_t& /*args*/)
 {
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_conf() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Entering do_conf() method";
 
   if (m_configured) {
     TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS) << "This module is already configured!";
   } else {
-      auto cfg = m_cfg->get_dal<appmodel::DataReaderModule>(get_fcr_name());
+    auto cfg = m_cfg->get_dal<appmodel::DataReaderModule>(get_fcr_name());
 
     std::map<uint32_t, const confmodel::DetectorStream*> streams;
-    for (const auto & det_connections : cfg->get_connections()) {
+    for (const auto& det_connections : cfg->get_connections()) {
 
       for (const auto& stream : det_connections->streams()) {
         streams[stream->get_source_id()] = stream;
@@ -66,8 +69,7 @@ FakeCardReaderBase::do_conf(const appfwk::DAQModule::CommandData_t& /*args*/)
         throw datahandlinglibs::GenericConfigurationError(ERS_HERE, "Emulator configured twice: " + cb->UID());
       }
       m_source_emus[cb->UID()]->set_sink_config(cb);
-      m_source_emus[cb->UID()]->conf(streams[cb->get_source_id()],
-                                            cfg->get_configuration()->get_emulation_conf());
+      m_source_emus[cb->UID()]->conf(streams[cb->get_source_id()], cfg->get_configuration()->get_emulation_conf());
     }
     for (auto& [name, emu] : m_source_emus) {
       if (!emu->is_configured()) {
@@ -79,13 +81,15 @@ FakeCardReaderBase::do_conf(const appfwk::DAQModule::CommandData_t& /*args*/)
     m_configured = true;
   }
 
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting do_conf() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Exiting do_conf() method";
 }
 
 void
 FakeCardReaderBase::do_scrap(const appfwk::DAQModule::CommandData_t& args)
 {
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_scrap() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Entering do_scrap() method";
 
   for (auto& [name, emu] : m_source_emus) {
     emu->scrap(args);
@@ -93,12 +97,14 @@ FakeCardReaderBase::do_scrap(const appfwk::DAQModule::CommandData_t& args)
 
   m_configured = false;
 
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting do_scrap() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Exiting do_scrap() method";
 }
 void
 FakeCardReaderBase::do_start(const appfwk::DAQModule::CommandData_t& args)
 {
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_start() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Entering do_start() method";
 
   m_run_marker.store(true);
 
@@ -107,13 +113,15 @@ FakeCardReaderBase::do_start(const appfwk::DAQModule::CommandData_t& args)
     emu->start(args);
   }
 
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting do_start() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Exiting do_start() method";
 }
 
 void
 FakeCardReaderBase::do_stop(const appfwk::DAQModule::CommandData_t& args)
 {
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Entering do_stop() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Entering do_stop() method";
 
   m_run_marker = false;
 
@@ -121,9 +129,9 @@ FakeCardReaderBase::do_stop(const appfwk::DAQModule::CommandData_t& args)
     emu->stop(args);
   }
 
-  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS) << get_fcr_name() << ": Exiting do_stop() method";
+  TLOG_DEBUG(dunedaq::datahandlinglibs::logging::TLVL_ENTER_EXIT_METHODS)
+    << get_fcr_name() << ": Exiting do_stop() method";
 }
 
 } // namespace datahandlinglibs
 } // namespace dunedaq
-

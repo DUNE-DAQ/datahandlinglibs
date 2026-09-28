@@ -11,8 +11,8 @@
 #include "daqdataformats/SourceID.hpp"
 #include "daqdataformats/Types.hpp"
 
-#include <ers/Issue.hpp>
 #include "logging/Logging.hpp" // NOTE: if ISSUES ARE DECLARED BEFORE include logging/Logging.hpp, TLOG_DEBUG<<issue wont work.
+#include <ers/Issue.hpp>
 
 #include <string>
 
@@ -55,13 +55,12 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   FileHasExtraData,
                   "Binary file contains extra data, " << numbytes
-                  << " bytes beyond an exact integer number of super-chunks. "
-                  << "This is not a problem and those bytes will be ignored, "
-                  << "filesize is " << filesize << ", "
-                  << "chunk_size is " << chunksize << ", "
-                  << "filename is " << filename,
+                                                      << " bytes beyond an exact integer number of super-chunks. "
+                                                      << "This is not a problem and those bytes will be ignored, "
+                                                      << "filesize is " << filesize << ", "
+                                                      << "chunk_size is " << chunksize << ", "
+                                                      << "filename is " << filename,
                   ((int32_t)numbytes)((size_t)filesize)((int32_t)chunksize)((std::string)filename))
-
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   TimeSyncTransmissionFailed,
@@ -102,13 +101,13 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   CannotWriteToQueue,
                   "SourceID[" << sourceid << "] Failed attempt to write to the queue: " << queuename
-                           << ". Data will be lost!",
+                              << ". Data will be lost!",
                   ((daqdataformats::SourceID)sourceid)((std::string)queuename))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   CannotDispatch,
                   "Module [" << name << "] Failed attempt to write to the queue: "
-                           << ". Data will be lost!",
+                             << ". Data will be lost!",
                   ((std::string)name))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
@@ -157,7 +156,10 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "The " << queueType << " queue was not successfully created for " << moduleName,
                   ((std::string)queueType)((std::string)moduleName))
 
-ERS_DECLARE_ISSUE(datahandlinglibs, ConfigurationNote, "ConfigurationNote: " << text, ((std::string)name)((std::string)text))
+ERS_DECLARE_ISSUE(datahandlinglibs,
+                  ConfigurationNote,
+                  "ConfigurationNote: " << text,
+                  ((std::string)name)((std::string)text))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   ConfigurationProblem,
@@ -169,40 +171,45 @@ ERS_DECLARE_ISSUE(datahandlinglibs,
                   "SourceID[" << sourceid << "] Request timed out",
                   ((daqdataformats::SourceID)sourceid))
 
-ERS_DECLARE_ISSUE(datahandlinglibs,
-                  VerboseRequestTimedOut,
-                  "SourceID[" << sourceid << "] Request timed out for trig/seq_num " << trignum << "." << seqnum
-                           << ", run_num " << runnum << ", window begin/end " << window_begin << "/" << window_end
-                           << ", data_destination: " << dest,
-                  ((daqdataformats::SourceID)sourceid)((daqdataformats::trigger_number_t)trignum)((daqdataformats::sequence_number_t)seqnum)((daqdataformats::run_number_t)runnum)((daqdataformats::timestamp_t)window_begin)((daqdataformats::timestamp_t)window_end)((std::string)dest))
+ERS_DECLARE_ISSUE(
+  datahandlinglibs,
+  VerboseRequestTimedOut,
+  "SourceID[" << sourceid << "] Request timed out for trig/seq_num " << trignum << "." << seqnum << ", run_num "
+              << runnum << ", window begin/end " << window_begin << "/" << window_end << ", data_destination: " << dest,
+  ((daqdataformats::SourceID)sourceid)((daqdataformats::trigger_number_t)trignum)(
+    (daqdataformats::sequence_number_t)seqnum)((daqdataformats::run_number_t)runnum)(
+    (daqdataformats::timestamp_t)window_begin)((daqdataformats::timestamp_t)window_end)((std::string)dest))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   EndOfRunEmptyFragment,
                   "SourceID[" << sourceid << "] Empty fragment at the end of the run",
                   ((daqdataformats::SourceID)sourceid))
 
-ERS_DECLARE_ISSUE(datahandlinglibs,
-                  DataPacketArrivedTooLate,
-                  "SourceID[" << sourceid << "] Received a late data packet in run " << run << ", payload first timestamp = " << ts1 <<
-                  ", request_handler cutoff timestamp = " << ts2 << ", difference = " << tick_diff <<
-                  " ticks, " << msec_diff << " msec.",
-                  ((daqdataformats::SourceID)sourceid)((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)((daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
+ERS_DECLARE_ISSUE(
+  datahandlinglibs,
+  DataPacketArrivedTooLate,
+  "SourceID[" << sourceid << "] Received a late data packet in run " << run << ", payload first timestamp = " << ts1
+              << ", request_handler cutoff timestamp = " << ts2 << ", difference = " << tick_diff << " ticks, "
+              << msec_diff << " msec.",
+  ((daqdataformats::SourceID)sourceid)((daqdataformats::run_number_t)run)((daqdataformats::timestamp_t)ts1)(
+    (daqdataformats::timestamp_t)ts2)((int64_t)tick_diff)((double)msec_diff))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NonZeroLatencyBufferInsertFailures,
-                  "SourceID[" << sourceid << "] There were " << fail_count << " failures to insert data into the latency buffer out of " <<
-                  total_count << " attempts in the latest monitoring interval.",
+                  "SourceID[" << sourceid << "] There were " << fail_count
+                              << " failures to insert data into the latency buffer out of " << total_count
+                              << " attempts in the latest monitoring interval.",
                   ((daqdataformats::SourceID)sourceid)((int64_t)fail_count)((int64_t)total_count))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   NewErrorRegistered,
                   ers_metadata << "New error registered with \"" << error_name << "\"",
-                  ((std::string)ers_metadata) ((std::string)error_name))
+                  ((std::string)ers_metadata)((std::string)error_name))
 
 ERS_DECLARE_ISSUE(datahandlinglibs,
                   ClearedError,
                   ers_metadata << "Cleared error of \"" << error_name << "\"",
-                  ((std::string)ers_metadata) ((std::string)error_name))                  
+                  ((std::string)ers_metadata)((std::string)error_name))
 } // namespace dunedaq
 
 #endif // DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_READOUTISSUES_HPP_

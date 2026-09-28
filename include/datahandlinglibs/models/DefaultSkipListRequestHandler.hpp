@@ -1,5 +1,5 @@
 /**
- * @file DefaultSkipListRequestHandler.hpp Trigger matching mechanism 
+ * @file DefaultSkipListRequestHandler.hpp Trigger matching mechanism
  * used for skip list based LBs in readout models
  *
  * This is part of the DUNE DAQ , copyright 2020.
@@ -11,8 +11,8 @@
 
 #include "logging/Logging.hpp"
 
-#include "datahandlinglibs/FrameErrorRegistry.hpp"
 #include "datahandlinglibs/DataHandlingIssues.hpp"
+#include "datahandlinglibs/FrameErrorRegistry.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/models/DefaultRequestHandlerModel.hpp"
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
@@ -27,7 +27,7 @@ namespace dunedaq {
 namespace datahandlinglibs {
 
 template<class T>
-class DefaultSkipListRequestHandler 
+class DefaultSkipListRequestHandler
   : public datahandlinglibs::DefaultRequestHandlerModel<T, datahandlinglibs::SkipListLatencyBufferModel<T>>
 {
 public:
@@ -38,9 +38,8 @@ public:
   // Constructor that binds LB and error registry
   DefaultSkipListRequestHandler(std::shared_ptr<datahandlinglibs::SkipListLatencyBufferModel<T>>& latency_buffer,
                                 std::unique_ptr<datahandlinglibs::FrameErrorRegistry>& error_registry)
-    : datahandlinglibs::DefaultRequestHandlerModel<T, datahandlinglibs::SkipListLatencyBufferModel<T>>(
-        latency_buffer,
-        error_registry)
+    : datahandlinglibs::DefaultRequestHandlerModel<T, datahandlinglibs::SkipListLatencyBufferModel<T>>(latency_buffer,
+                                                                                                       error_registry)
   {
     TLOG_DEBUG(TLVL_WORK_STEPS) << "DefaultSkipListRequestHandler created...";
   }
@@ -50,7 +49,7 @@ protected:
   void cleanup() override { skip_list_cleanup_request(); }
 
   // Cleanup request implementation for skiplist LB
-  void skip_list_cleanup_request(); 
+  void skip_list_cleanup_request();
 
 private:
   // Constant: m_max_ts_diff is used to clean old data from the latency buffer. It is set to 10s.

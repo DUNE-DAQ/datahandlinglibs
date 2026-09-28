@@ -11,7 +11,6 @@
 #ifndef DATAHANDLINGLIBS_SRC_SOURCECONCEPT_HPP_
 #define DATAHANDLINGLIBS_SRC_SOURCECONCEPT_HPP_
 
-
 #include "appfwk/DAQModule.hpp"
 #include "confmodel/DaqModule.hpp"
 #include "opmonlib/MonitorableObject.hpp"
@@ -37,8 +36,7 @@ public:
   virtual void init(const confmodel::DaqModule* mcfg) = 0;
   virtual void start() = 0;
   virtual void stop() = 0;
-  //virtual bool handle_payload(T& data) = 0;
-  
+  // virtual bool handle_payload(T& data) = 0;
 };
 
 } // namespace DATAHANDLINGLIBS

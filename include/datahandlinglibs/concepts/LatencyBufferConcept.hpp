@@ -12,8 +12,8 @@
 #include "appmodel/LatencyBuffer.hpp"
 #include "opmonlib/MonitorableObject.hpp"
 
-#include <cstddef>
 #include <concepts>
+#include <cstddef>
 
 namespace dunedaq {
 namespace datahandlinglibs {

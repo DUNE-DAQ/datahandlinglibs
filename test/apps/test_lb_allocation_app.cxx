@@ -6,9 +6,9 @@
  * received with this code.
  */
 
+#include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
 #include "datahandlinglibs/models/IterableQueueModel.hpp"
 #include "datahandlinglibs/models/SkipListLatencyBufferModel.hpp"
-#include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
 #include "logging/Logging.hpp"
 
 #include "CLI/App.hpp"
@@ -26,26 +26,26 @@
 #include <numaif.h>
 #endif
 
-//#define REGISTER (*(volatile unsigned char*)0x1234)
+// #define REGISTER (*(volatile unsigned char*)0x1234)
 
 using namespace dunedaq::datahandlinglibs;
 
 namespace {
 
-  struct kBlock // Dummy data type for LB test
-  {
-    kBlock(){};
-    char data[1024];
-  };
+struct kBlock // Dummy data type for LB test
+{
+  kBlock() {};
+  char data[1024];
+};
 
-  std::size_t lb_capacity = 1000; // LB capacity
- 
-  bool numa_aware_test = false;
-  int num_numa_nodes = 2;
-  bool intrinsic_test = false;
-  bool aligned_test = false;
-  bool prefill = false; // Prefill the LB
-  std::size_t alignment_size = 4096;
+std::size_t lb_capacity = 1000; // LB capacity
+
+bool numa_aware_test = false;
+int num_numa_nodes = 2;
+bool intrinsic_test = false;
+bool aligned_test = false;
+bool prefill = false; // Prefill the LB
+std::size_t alignment_size = 4096;
 }
 
 int
@@ -59,7 +59,7 @@ main(int argc, char** argv)
   // Counter for ops/s
   std::atomic<int> newops = 0;
 
-  CLI::App app{"datahandlinglibs_test_lb_allocation"};
+  CLI::App app{ "datahandlinglibs_test_lb_allocation" };
   app.add_option("-c", lb_capacity, "Capacity/size of latency buffer.");
   app.add_flag("--numa_aware", numa_aware_test, "Test NUMA aware allocator.");
   app.add_option("--num_numa_nodes", num_numa_nodes, "Number of NUMA nodes to test allocation on.");
@@ -73,7 +73,7 @@ main(int argc, char** argv)
 #ifdef WITH_LIBNUMA_SUPPORT
     TLOG() << "NUMA aware allocator test...";
 
-    for (int i=0; i<num_numa_nodes; ++i) { // for number of nodes...
+    for (int i = 0; i < num_numa_nodes; ++i) { // for number of nodes...
       TLOG() << "  # Allocating NUMA aware LB on node " << i;
       IterableQueueModel<kBlock> numaIQM(lb_capacity, true, i, false, 0);
 
@@ -82,19 +82,25 @@ main(int argc, char** argv)
         numaIQM.force_pagefault();
       }
 
-      for (std::size_t i=0; i<lb_capacity-1; ++i) { // Fill the LB
+      for (std::size_t i = 0; i < lb_capacity - 1; ++i) { // Fill the LB
         numaIQM.write(kBlock());
       }
-    
+
       // Test if the elements' pointers are on correct NUMA node.
       // Virtual addresses might be misleading between virt. and phys. addresses due to IOMMU!
       int numa_node = -1;
       get_mempolicy(&numa_node, NULL, 0, (void*)numaIQM.front(), MPOL_F_NODE | MPOL_F_ADDR);
-      if (i != numa_node) { TLOG() << "Discrepancy in expected NUMA node and first element residency!"; }
-      TLOG() << "  -> NUMA " << i << " IQM front virt.addr.: " << std::hex << (void*)numaIQM.front() << " is on: " << numa_node << std::dec;
+      if (i != numa_node) {
+        TLOG() << "Discrepancy in expected NUMA node and first element residency!";
+      }
+      TLOG() << "  -> NUMA " << i << " IQM front virt.addr.: " << std::hex << (void*)numaIQM.front()
+             << " is on: " << numa_node << std::dec;
       get_mempolicy(&numa_node, NULL, 0, (void*)numaIQM.back(), MPOL_F_NODE | MPOL_F_ADDR);
-      if (i != numa_node) { TLOG() << "Discrepancy in expected NUMA node and last element residency!"; }
-      TLOG() << "  -> NUMA " << i << " IQM back virt.addr.: " << std::hex << (void*)numaIQM.back() << " is on: " << numa_node << std::dec;
+      if (i != numa_node) {
+        TLOG() << "Discrepancy in expected NUMA node and last element residency!";
+      }
+      TLOG() << "  -> NUMA " << i << " IQM back virt.addr.: " << std::hex << (void*)numaIQM.back()
+             << " is on: " << numa_node << std::dec;
     }
     TLOG() << "  -> Done.";
 #else
@@ -110,7 +116,7 @@ main(int argc, char** argv)
       intrIQM.force_pagefault();
     }
 
-    for (std::size_t i=0; i<lb_capacity-1; ++i) { // Fill the LB
+    for (std::size_t i = 0; i < lb_capacity - 1; ++i) { // Fill the LB
       intrIQM.write(kBlock());
     }
 
@@ -125,7 +131,7 @@ main(int argc, char** argv)
       alignedIQM.force_pagefault();
     }
 
-    for (std::size_t i=0; i<lb_capacity-1; ++i) { // Fill the LB
+    for (std::size_t i = 0; i < lb_capacity - 1; ++i) { // Fill the LB
       alignedIQM.write(kBlock());
     }
 

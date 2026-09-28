@@ -1,5 +1,5 @@
 /**
- * @file RawDataHandlerBase.hpp Implements standard 
+ * @file RawDataHandlerBase.hpp Implements standard
  * module functionalities, requires the setup of a readout
  * creator function. This class is meant to be inherited
  * to specify which readout specialization to load.
@@ -11,16 +11,16 @@
 #ifndef DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_DATALINKHANDLERBASE_HPP_
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_DATALINKHANDLERBASE_HPP_
 
-#include "datahandlinglibs/DataHandlingIssues.hpp"
-#include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
-#include "datahandlinglibs/ReadoutLogging.hpp"
 #include "daqdataformats/Types.hpp"
+#include "datahandlinglibs/DataHandlingIssues.hpp"
+#include "datahandlinglibs/ReadoutLogging.hpp"
+#include "datahandlinglibs/concepts/DataHandlingConcept.hpp"
 #include "logging/Logging.hpp"
 
 #include "rcif/cmd/Nljs.hpp"
 
-#include "appfwk/DAQModule.hpp"
 #include "appfwk/ConfigurationManager.hpp"
+#include "appfwk/DAQModule.hpp"
 #include "appmodel/DataHandlerModule.hpp"
 
 #include <chrono>
@@ -49,8 +49,9 @@ public:
   void init(std::shared_ptr<appfwk::ConfigurationManager> cfg);
   //  void get_info(opmonlib::InfoCollector& ci, int level);
 
-  virtual std::shared_ptr<dunedaq::datahandlinglibs::DataHandlingConcept>
-  create_readout(const appmodel::DataHandlerModule* modconf, std::atomic<bool>& run_marker) = 0;
+  virtual std::shared_ptr<dunedaq::datahandlinglibs::DataHandlingConcept> create_readout(
+    const appmodel::DataHandlerModule* modconf,
+    std::atomic<bool>& run_marker) = 0;
 
   // Commands
   void do_conf(const appfwk::DAQModule::CommandData_t& /*args*/);
@@ -62,7 +63,6 @@ public:
   std::string get_dlh_name() { return m_name; }
 
 private:
-
   // Configuration
   bool m_configured;
   daqdataformats::run_number_t m_run_number;

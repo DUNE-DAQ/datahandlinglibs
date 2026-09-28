@@ -10,19 +10,19 @@
 #define DATAHANDLINGLIBS_INCLUDE_DATAHANDLINGLIBS_MODELS_TASKRAWDATAPROCESSORMODEL_HPP_
 
 #include "daqdataformats/SourceID.hpp"
-#include "logging/Logging.hpp"
-#include "datahandlinglibs/FrameErrorRegistry.hpp"
 #include "datahandlinglibs/DataHandlingIssues.hpp"
+#include "datahandlinglibs/FrameErrorRegistry.hpp"
 #include "datahandlinglibs/ReadoutLogging.hpp"
 #include "datahandlinglibs/concepts/RawDataProcessorConcept.hpp"
+#include "logging/Logging.hpp"
 
-#include  "datahandlinglibs/opmon/datahandling_info.pb.h"
+#include "datahandlinglibs/opmon/datahandling_info.pb.h"
 
-#include "confmodel/DaqModule.hpp"
-#include "confmodel/Connection.hpp"
-#include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataHandlerConf.hpp"
+#include "appmodel/DataHandlerModule.hpp"
 #include "appmodel/DataProcessor.hpp"
+#include "confmodel/Connection.hpp"
+#include "confmodel/DaqModule.hpp"
 
 #include "utilities/ReusableThread.hpp"
 
@@ -50,8 +50,9 @@ public:
   explicit TaskRawDataProcessorModel(std::unique_ptr<FrameErrorRegistry>& error_registry, bool post_processing_enabled)
     : RawDataProcessorConcept<ReadoutType>()
     , m_error_registry(error_registry)
-	, m_post_processing_enabled(post_processing_enabled)
-  {}
+    , m_post_processing_enabled(post_processing_enabled)
+  {
+  }
 
   // Destructor
   ~TaskRawDataProcessorModel() {}
@@ -80,7 +81,7 @@ public:
   // Registers ReadoutType item pointer to to the post-processing queue
   void postprocess_item(const ReadoutType* item) override;
 
-  // Handle a timeout event 
+  // Handle a timeout event
   void invoke_postprocess_schedule_timeout_policy(std::uint64_t accumilated_timeout_ticks) override {}
 
   // Registers a pre-processing task to the pre-processor pipeline
@@ -120,11 +121,10 @@ protected:
 
   // Internals
   size_t m_postprocess_queue_sizes;
-  //uint32_t m_this_link_number; // NOLINT(build/unsigned)
+  // uint32_t m_this_link_number; // NOLINT(build/unsigned)
   daqdataformats::SourceID m_sourceid;
-  //bool m_emulator_mode{ false };
+  // bool m_emulator_mode{ false };
   std::atomic<uint64_t> m_last_processed_daq_ts{ 0 }; // NOLINT(build/unsigned)
-
 };
 
 } // namespace datahandlinglibs
