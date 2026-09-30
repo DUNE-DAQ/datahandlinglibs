@@ -68,6 +68,15 @@ message HitFindingInfo {
   uint64 num_tps_suppressed_too_long = 4; // Number of TPs that were discarded because their time over threshold was too large
 }
 
+message TPTrainInfo {
+  uint32 num_tp_trains_sent = 1; // Number of successfully sent non-empty TP trains
+  uint32 num_tp_trains_send_failed = 2; // Number of non-empty TP trains that failed to send
+  uint32 min_tp_train_size = 3; // Minimum size among successfully sent TP trains
+  uint32 max_tp_train_size = 4; // Maximum size among successfully sent TP trains
+  uint32 num_tp_train_send_checks_by_frame_limit = 5; // Number of send checks triggered by frame-count limit
+  uint32 num_tp_train_send_checks_by_tp_limit = 6; // Number of send checks triggered by TP-count limit
+}
+
 message TPChannelInfo {
   uint64 channel_id = 1; //Offline channel identifier
   uint64 number_of_tps = 2; // Numer of hits, i.e. TPs
