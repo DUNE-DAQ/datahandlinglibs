@@ -55,6 +55,7 @@
 using dunedaq::datahandlinglibs::logging::TLVL_HOUSEKEEPING;
 using dunedaq::datahandlinglibs::logging::TLVL_QUEUE_PUSH;
 using dunedaq::datahandlinglibs::logging::TLVL_WORK_STEPS;
+using dunedaq::datahandlinglibs::logging::TLVL_BUFFER_POP;
 
 namespace dunedaq {
 namespace datahandlinglibs {
