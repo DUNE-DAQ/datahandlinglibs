@@ -59,7 +59,8 @@ DefaultRequestHandlerModel<RDT, LBT>::conf(const appmodel::DataHandlerModule* co
   std::ostringstream oss;
   oss << "RequestHandler configured. " << std::fixed << std::setprecision(2)
       << "auto-pop limit: " << m_pop_limit_pct * 100.0f << "% "
-      << "auto-pop size: " << m_pop_size_pct * 100.0f << "%";
+      << "auto-pop size: " << m_pop_size_pct * 100.0f << "% "
+      << "LB capacity: " << m_buffer_capacity;
   TLOG_DEBUG(TLVL_WORK_STEPS) << oss.str();
 }
 
@@ -373,6 +374,7 @@ DefaultRequestHandlerModel<RDT, LBT>::cleanup()
     ++m_pop_reqs;
     unsigned to_pop = m_pop_size_pct * m_latency_buffer->occupancy();
 
+    TLOG_DEBUG(TLVL_BUFFER_POP) << "Popping " << to_pop << " of " << size_guess << " LB elements for source_id " << m_sourceid;
     unsigned popped = 0;
     for (size_t i = 0; i < to_pop; ++i) {
       if (m_latency_buffer->front()->get_timestamp() < m_next_timestamp_to_record) {
