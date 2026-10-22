@@ -186,9 +186,18 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::Comman
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
+  stop_processing_and_flush(args);
+}
+
+template<class RDT, class RHT, class LBT, class RPT, class IDT>
+void
+DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop_processing_and_flush(const appfwk::DAQModule::CommandData_t& args)
+{
+  // Post-processing queues hold pointers into the latency buffer. Join/drain first;
+  // SkipList flush removes the nodes rather than merely resetting queue indices.
+  m_raw_processor_impl->stop(args);
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Flushing latency buffer with occupancy: " << m_latency_buffer_impl->occupancy();
   m_latency_buffer_impl->flush();
-  m_raw_processor_impl->stop(args);
   m_raw_processor_impl->reset_last_daq_time();
 }
 

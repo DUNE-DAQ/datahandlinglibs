@@ -134,6 +134,9 @@ public:
   std::function<void(IDT&&)> m_consume_callback;
 
 protected:
+  // Drain borrowed frame pointers before releasing latency-buffer storage.
+  void stop_processing_and_flush(const appfwk::DAQModule::CommandData_t& args);
+
   class PostprocessScheduleAlgorithm
   {
   public:
