@@ -186,9 +186,10 @@ DataHandlingModel<RDT, RHT, LBT, RPT, IDT>::stop(const appfwk::DAQModule::Comman
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
+  // Post-processing holds pointers into the buffer; drain workers before releasing storage.
+  m_raw_processor_impl->stop(args);
   TLOG_DEBUG(TLVL_WORK_STEPS) << "Flushing latency buffer with occupancy: " << m_latency_buffer_impl->occupancy();
   m_latency_buffer_impl->flush();
-  m_raw_processor_impl->stop(args);
   m_raw_processor_impl->reset_last_daq_time();
 }
 
